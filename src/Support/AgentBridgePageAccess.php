@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Support;
 
+use Capell\Admin\Support\SiteScope;
 use Capell\Core\Models\Page;
 use Capell\Core\Models\Site;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -128,7 +129,7 @@ final class AgentBridgePageAccess
 
         return is_callable([$user, 'hasRole'])
             && is_string($superAdminRole)
-            && $user->hasRole($superAdminRole) === true;
+            && SiteScope::isGlobalActor($user);
     }
 
     private static function authorizeGlobalPage(?Authenticatable $user): void

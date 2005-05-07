@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Support;
 
+use Capell\Admin\Support\SiteScope;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Gate;
@@ -56,10 +57,9 @@ final class AgentBridgePolicyAuthorizer
 
     public function isGlobalAdmin(Authenticatable $actor): bool
     {
-        $configuredRole = config('capell.roles.super_admin', config('filament-shield.super_admin.name', 'super_admin'));
-        $superAdminRole = is_string($configuredRole) && $configuredRole !== '' ? $configuredRole : 'super_admin';
+        config('capell.roles.super_admin', config('filament-shield.super_admin.name', 'super_admin'));
 
-        if (method_exists($actor, 'hasRole') && $actor->hasRole($superAdminRole)) {
+        if (method_exists($actor, 'hasRole') && SiteScope::isGlobalActor($actor)) {
             return true;
         }
 

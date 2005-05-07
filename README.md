@@ -6,7 +6,7 @@
 
 Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Capell AI** product group. It ships as `capell-app/agent-bridge` and extends these surfaces: admin, frontend.
 
-Agent Bridge connects MCP clients to read-only Capell knowledge and scoped site capabilities with token authentication, preview confirmation, and audit records.
+Agent Bridge connects MCP clients to read-only Capell knowledge and a frozen, draft-only site capability contract over per-user HTTP and explicit-user local stdio, with preview confirmation and redacted audit records.
 
 Admins can build scoped prompts and manage a user's client tokens, confirmations, and audit entries. Connected clients can call only the server routes and capabilities enabled for them.
 
@@ -23,11 +23,11 @@ Status details:
 
 ## Why It Matters
 
-**For developers:** Capability providers register typed operations through CapellAgentBridgeCapabilityProvider, and mutating runs pass through preview, confirmation, policy, and audit Actions.
+**For developers:** Capability providers register typed operations through CapellAgentBridgeCapabilityProvider, contribute their own deterministic direct-command patterns alongside them, and mutating runs pass through preview, confirmation, policy, and audit Actions.
 
-**For teams:** Operators can limit an agent to approved capabilities, review a proposed change before execution, and inspect what each client ran.
+**For teams:** Agent Bridge is the governed AI connection for Capell: the connected AI client supplies the reasoning, while Agent Bridge limits an agent to approved capabilities, shows a proposed change before execution, and records what each client ran.
 
-Evidence: [`src/Contracts/CapellAgentBridgeCapabilityProvider.php`](src/Contracts/CapellAgentBridgeCapabilityProvider.php), [`src/Support/CapellAgentBridgeCapabilityRegistry.php`](src/Support/CapellAgentBridgeCapabilityRegistry.php), [`src/Actions/InvokeAgentBridgeCapabilityPreviewAction.php`](src/Actions/InvokeAgentBridgeCapabilityPreviewAction.php), [`tests/Feature/PreviewConfirmWorkflowTest.php`](tests/Feature/PreviewConfirmWorkflowTest.php), [`docs/overview.admin.md`](docs/overview.admin.md), [`docs/screenshots.json`](docs/screenshots.json).
+Evidence: [`src/Contracts/CapellAgentBridgeCapabilityProvider.php`](src/Contracts/CapellAgentBridgeCapabilityProvider.php), [`src/Support/CapellAgentBridgeCapabilityRegistry.php`](src/Support/CapellAgentBridgeCapabilityRegistry.php), [`src/Actions/InterpretAgentBridgeCommandAction.php`](src/Actions/InterpretAgentBridgeCommandAction.php), [`src/Actions/InvokeAgentBridgeCapabilityPreviewAction.php`](src/Actions/InvokeAgentBridgeCapabilityPreviewAction.php), [`tests/Feature/PreviewConfirmWorkflowTest.php`](tests/Feature/PreviewConfirmWorkflowTest.php), [`docs/overview.admin.md`](docs/overview.admin.md), [`docs/screenshots.json`](docs/screenshots.json).
 
 ## Screens And Workflow
 
@@ -37,41 +37,181 @@ Screenshot contract: `docs/screenshots.json`.
 
 ![Token management or setup surface](docs/screenshots/token-management-or-setup-surface.png)
 
-- Agent Bridge prompt builder page (admin, required).
-- Token management or setup surface (admin, optional).
-- Capability preview and confirmation flow (admin, optional).
-- Audit entry review (admin, optional).
-- Agent Bridge server health output (admin, optional).
+- Agent Bridge prompt builder page (admin, required evidence).
+- Token management or setup surface (admin, supplementary evidence).
+- Capability preview and confirmation flow (admin, supplementary evidence).
+- Audit entry review (admin, supplementary evidence).
+- Agent Bridge server health output (admin, supplementary evidence).
 
 ## Technical Shape
 
-- Service providers: `Capell\AgentBridge\Providers\AgentBridgeServiceProvider`.
-- Config files: `packages/agent-bridge/config/capell-agent-bridge.php`.
-- Migrations: `packages/agent-bridge/database/migrations/2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php`, `packages/agent-bridge/database/migrations/2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php`, `packages/agent-bridge/database/migrations/2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php`, `packages/agent-bridge/database/migrations/2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table.php`.
-- Settings migrations: `packages/agent-bridge/database/settings/2026_05_10_190841_01_add_agent_bridge_settings.php`.
-- Settings classes: `AgentBridgeSettings`.
-- Models: `CapellAgentBridgeAuditEntry`, `CapellAgentBridgeConfirmation`, `CapellAgentBridgeSavedPrompt`, `CapellAgentBridgeToken`.
-- Filament classes: `CapellAgentBridgePromptBuilderPage`, `AgentBridgeAuditEntriesRelationManager`, `AgentBridgeConfirmationsRelationManager`, `AgentBridgeTokensRelationManager`, `AgentBridgeSettingsSchema`.
-- Livewire components: `PromptBuilderToolbarAction`.
-- Route files: `packages/agent-bridge/routes/agent-bridge.php`.
-- Extension contracts: `CapellAgentBridgeCapabilityAction`, `CapellAgentBridgeCapabilityProvider`.
-- Actions: `AuditAgentBridgeCapabilityAction`, `BuildAgentBridgeCapabilityCatalogAction`, `BuildAgentBridgePromptAction`, `ClearCapellCacheCapabilityAction`, `ConfirmAgentBridgeAdminCapabilityAction`, `ConfirmAgentBridgeCapabilityAction`, `CreateAgentBridgeTokenAction`, `DeleteAgentBridgePromptAction`, `FindSavedPromptForUserAction`, `InterpretAgentBridgeCommandAction`, `InvokeAgentBridgeCapabilityPreviewAction`, `ListSavedPromptOptionsAction`, `and 23 more`.
-- Data objects: `AgentBridgeCommandPlanData`, `AgentBridgePromptData`, `AuthenticatedAgentBridgeClientData`, `ClearCacheCapabilityInputData`, `ClonePageCapabilityInputData`, `CreateDraftPageCapabilityInputData`, `InstallPackageCapabilityInputData`, `PackageReferenceCapabilityInputData`, `PageAuthoringOptionsCapabilityInputData`, `PageIdCapabilityInputData`, `PageReferenceCapabilityInputData`, `SearchPackagesCapabilityInputData`, `and 9 more`.
-- Command signatures: `capell:agent-bridge-prune-audit`.
-- Scheduled commands: `capell:agent-bridge-prune-audit (daily)`.
-- Console command classes: `PruneAgentBridgeAuditEntriesCommand`.
-- Manifest contributions: `admin-page: Capell\AgentBridge\Manifest\AgentBridgeAdminPageContribution`, `agent-capability: Capell\AgentBridge\Manifest\AgentBridgeBuiltInCapabilitiesContribution`, `console-command: Capell\AgentBridge\Manifest\AgentBridgeConsoleCommandsContribution`, `health-check: Capell\AgentBridge\Health\AgentBridgeHealthCheck`, `migration: Capell\AgentBridge\Manifest\AgentBridgeMigrationsContribution`, `model: Capell\AgentBridge\Manifest\AgentBridgeModelsContribution`, `route: Capell\AgentBridge\Manifest\AgentBridgeRoutesContribution`, `scheduled-job: Capell\AgentBridge\Manifest\AgentBridgeAuditPruneScheduleContribution`, `schema-extender: Capell\AgentBridge\Manifest\AgentBridgeUserSchemaExtenderContribution`, `setting: Capell\AgentBridge\Manifest\AgentBridgeSettingsContribution`.
-- Health checks: `Capell\AgentBridge\Health\AgentBridgeHealthCheck`.
-- Blade views: `packages/agent-bridge/resources/views/filament/pages/prompt-builder.blade.php`, `packages/agent-bridge/resources/views/livewire/prompt-builder-toolbar-action.blade.php`.
+### Service providers
+
+- `Capell\AgentBridge\Providers\AgentBridgeServiceProvider`
+
+### Config files
+
+- `packages/agent-bridge/config/capell-agent-bridge.php`
+
+### Migrations
+
+- `packages/agent-bridge/database/migrations/2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php`
+- `packages/agent-bridge/database/migrations/2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php`
+- `packages/agent-bridge/database/migrations/2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php`
+- `packages/agent-bridge/database/migrations/2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table.php`
+- `packages/agent-bridge/database/migrations/2026_07_09_000001_add_ip_address_hash_to_agent_bridge_audit_entries_table.php`
+- `packages/agent-bridge/database/migrations/2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table.php`
+- `packages/agent-bridge/database/migrations/2026_07_20_000001_create_capell_agent_bridge_media_uploads_table.php`
+
+### Settings migrations
+
+- `packages/agent-bridge/database/settings/2026_05_10_190841_01_add_agent_bridge_settings.php`
+
+### Settings classes
+
+- `AgentBridgeSettings`
+
+### Models
+
+- `CapellAgentBridgeAuditEntry`
+- `CapellAgentBridgeConfirmation`
+- `CapellAgentBridgeMediaUpload`
+- `CapellAgentBridgeSavedPrompt`
+- `CapellAgentBridgeToken`
+
+### Filament classes
+
+- `CapellAgentBridgePromptBuilderPage`
+- `AgentBridgeAuditEntriesRelationManager`
+- `AgentBridgeConfirmationsRelationManager`
+- `AgentBridgeTokensRelationManager`
+- `AgentBridgeSettingsSchema`
+
+### Livewire components
+
+- `PromptBuilderToolbarAction`
+
+### Route files
+
+- `packages/agent-bridge/routes/agent-bridge.php`
+
+### Extension contracts
+
+- `CapellAgentBridgeCapabilityAction`
+- `CapellAgentBridgeCapabilityProvider`
+
+### Actions
+
+- `AuditAgentBridgeCapabilityAction`
+- `AuthenticateLocalAgentBridgeClientAction`
+- `BuildAgentBridgeCapabilityCatalogAction`
+- `BuildAgentBridgePromptAction`
+- `ClearCapellCacheCapabilityAction`
+- `ConfirmAgentBridgeAdminCapabilityAction`
+- `ConfirmAgentBridgeCapabilityAction`
+- `ConfirmAgentBridgeMcpV1CapabilityAction`
+- `CreateAgentBridgeTokenAction`
+- `DeleteAgentBridgePromptAction`
+- `FindSavedPromptForUserAction`
+- `HashAgentBridgeIpAddressAction`
+- `InterpretAgentBridgeCommandAction`
+- `InvokeAgentBridgeCapabilityPreviewAction`
+- `InvokeAgentBridgeMcpV1CapabilityAction`
+- `ListSavedPromptOptionsAction`
+- `UploadMediaCapabilityAction`
+- `InspectPackageCapabilityAction`
+- `InstallPackageCapabilityAction`
+- `SearchPackagesCapabilityAction`
+- `ClonePageCapabilityAction`
+- `CreateDraftPageCapabilityAction`
+- `DisablePageCapabilityAction`
+- `InspectPageCapabilityAction`
+- `InspectPagePublishingReadinessCapabilityAction`
+- `ListPageAuthoringOptionsCapabilityAction`
+- `OpenPageEditorCapabilityAction`
+- `SearchPagesCapabilityAction`
+- `TransitionPagePublicationCapabilityAction`
+- `UpdateDraftPageCapabilityAction`
+- `PreviewAgentBridgeAdminCapabilityAction`
+- `PruneAgentBridgeAuditEntriesAction`
+- `QueryAgentBridgeAuditEntriesAction`
+- `RevokeAgentBridgeTokenAction`
+- `RotateAgentBridgeTokenAction`
+- `SaveAgentBridgePromptAction`
+- `InspectSiteCapabilityAction`
+- `OpenSiteEditorCapabilityAction`
+- `SearchSitesCapabilityAction`
+- `SuggestAgentBridgeCapabilitiesAction`
+
+### Data objects
+
+- `AgentBridgeCommandPlanData`
+- `AgentBridgePromptData`
+- `AuthenticatedAgentBridgeClientData`
+- `ClearCacheCapabilityInputData`
+- `ClonePageCapabilityInputData`
+- `CreateDraftPageCapabilityInputData`
+- `InstallPackageCapabilityInputData`
+- `PackageReferenceCapabilityInputData`
+- `PageAuthoringOptionsCapabilityInputData`
+- `PageIdCapabilityInputData`
+- `PageReferenceCapabilityInputData`
+- `SearchPackagesCapabilityInputData`
+- `SearchPagesCapabilityInputData`
+- `SearchSitesCapabilityInputData`
+- `SiteReferenceCapabilityInputData`
+- `TransitionPagePublicationCapabilityInputData`
+- `UpdateDraftPageCapabilityInputData`
+- `UploadMediaCapabilityInputData`
+- `CapabilityCommandPatternData`
+- `CapabilityData`
+- `CapabilityInvocationData`
+- `CapabilityResultData`
+- `CapabilitySuggestionData`
+
+### Command signatures
+
+- `capell:agent-bridge-prune-audit`
+
+### Scheduled commands
+
+- `capell:agent-bridge-prune-audit (daily; manifest declared)`
+
+### Console command classes
+
+- `PruneAgentBridgeAuditEntriesCommand`
+
+### Manifest contributions
+
+- `admin-page: Capell\AgentBridge\Manifest\AgentBridgeAdminPageContribution`
+- `agent-capability: Capell\AgentBridge\Manifest\AgentBridgeBuiltInCapabilitiesContribution`
+- `console-command: Capell\AgentBridge\Manifest\AgentBridgeConsoleCommandsContribution`
+- `health-check: Capell\AgentBridge\Health\AgentBridgeHealthCheck`
+- `migration: Capell\AgentBridge\Manifest\AgentBridgeMigrationsContribution`
+- `model: Capell\AgentBridge\Manifest\AgentBridgeModelsContribution`
+- `route: Capell\AgentBridge\Manifest\AgentBridgeRoutesContribution`
+- `scheduled-job: Capell\AgentBridge\Manifest\AgentBridgeAuditPruneScheduleContribution`
+- `schema-extender: Capell\AgentBridge\Manifest\AgentBridgeUserSchemaExtenderContribution`
+- `setting: Capell\AgentBridge\Manifest\AgentBridgeSettingsContribution`
+
+### Health checks
+
+- `Capell\AgentBridge\Health\AgentBridgeHealthCheck`
+
+### Blade views
+
+- `packages/agent-bridge/resources/views/filament/pages/prompt-builder.blade.php`
+- `packages/agent-bridge/resources/views/livewire/prompt-builder-toolbar-action.blade.php`
+
 
 ## Data Model
 
-- Required tables: `capell_agent_bridge_tokens`, `capell_agent_bridge_confirmations`, `capell_agent_bridge_audit_entries`, `capell_agent_bridge_saved_prompts`.
-- Models: `CapellAgentBridgeAuditEntry`, `CapellAgentBridgeConfirmation`, `CapellAgentBridgeSavedPrompt`, `CapellAgentBridgeToken`.
-- Core record references in migrations: `users via user_id`.
-- Migration files: `2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php`, `2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php`, `2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php`, `2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table.php`.
+- Required tables: `capell_agent_bridge_tokens`, `capell_agent_bridge_confirmations`, `capell_agent_bridge_audit_entries`, `capell_agent_bridge_saved_prompts`, `capell_agent_bridge_media_uploads`.
+- Models: `CapellAgentBridgeAuditEntry`, `CapellAgentBridgeConfirmation`, `CapellAgentBridgeMediaUpload`, `CapellAgentBridgeSavedPrompt`, `CapellAgentBridgeToken`.
+- Core record references in migrations: `sites via site_id`, `users via user_id`, `media via media_id`.
+- Migration files: `2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php`, `2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php`, `2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php`, `2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table.php`, `2026_07_09_000001_add_ip_address_hash_to_agent_bridge_audit_entries_table.php`, `2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table.php`, `2026_07_20_000001_create_capell_agent_bridge_media_uploads_table.php`.
 - Migration impact: run host migrations through the package install flow before opening package surfaces.
-- Deletion/retention behaviour: migrations declare cascade-on-delete relationships and null-on-delete relationships; retention is scheduled through `capell:agent-bridge-prune-audit` (daily).
+- Deletion/retention behaviour: migrations declare cascade-on-delete relationships and null-on-delete relationships; retention is scheduled through `capell:agent-bridge-prune-audit` (daily; declared in the manifest).
 
 ## Install Impact
 
@@ -83,7 +223,7 @@ Screenshot contract: `docs/screenshots.json`.
 - Database changes: package migrations are declared.
 - Config: `config/capell-agent-bridge.php`.
 - Settings: `Capell\AgentBridge\Settings\AgentBridgeSettings`.
-- Queues or schedules: scheduled commands `capell:agent-bridge-prune-audit (daily)`.
+- Queues or schedules: scheduled commands `capell:agent-bridge-prune-audit (daily; manifest declared)`.
 - Cache tags: none declared.
 - Commands: `capell:agent-bridge-prune-audit`.
 
@@ -93,7 +233,7 @@ Screenshot contract: `docs/screenshots.json`.
 - Run migrations before opening package resources or public routes.
 - Review package configuration before production-like verification: `config/capell-agent-bridge.php`, `Capell\AgentBridge\Settings\AgentBridgeSettings`.
 - Review middleware, throttling, signatures, and public-output safety in `routes/agent-bridge.php` before exposing routes.
-- Register the host scheduler so these declared commands run at their documented frequencies: `capell:agent-bridge-prune-audit (daily)`.
+- Keep the host Laravel scheduler running so package-registered schedules can execute: `capell:agent-bridge-prune-audit (daily; manifest declared)`.
 - Keep public Blade and cached HTML free of authoring markers, model IDs, permissions, signed editor URLs, and lazy database queries.
 
 ## Troubleshooting
@@ -109,8 +249,7 @@ Screenshot contract: `docs/screenshots.json`.
 ## Quick Start
 
 1. Install the package: `composer require capell-app/agent-bridge`.
-2. Run the required setup: `php artisan migrate`.
-3. Open the Agent Bridge prompt builder page and confirm the admin workflow loads.
+2. Open the package admin surface at `/agent-bridge/capell-agent-bridge/prompt-builder` and confirm Agent Bridge is available.
 
 ## Next Steps
 

@@ -6,6 +6,8 @@
 
 Agent Bridge connects approved AI agents and external tools to selected Capell capabilities. It can inspect site state and, when the user has the required permission, prepare actions such as creating or updating drafts, changing publication state, clearing cache, or installing a package.
 
+The external MCP v1 server is narrower than the admin command centre: it can read accessible site/page authoring context, create or edit drafts, and upload bounded media. It always refuses publishing, visibility changes, package/cache operations, and AI Creator build/apply/export; publishing remains human-only in admin.
+
 ## Use the Capell AI Command Centre
 
 Open the **Capell AI Command Centre** from the Agent Bridge extension page or the **Ask Capell AI** admin control. You can type or speak a request, choose a suggested capability, and review the exact capability and payload Capell resolved before anything runs.
