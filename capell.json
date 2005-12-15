@@ -5,7 +5,7 @@
     "displayName": "Agent Bridge",
     "kind": "package",
     "capellApiVersion": "^1.0",
-    "version": "1.x-dev",
+    "version": "1.0.0",
     "description": "Connect AI agents and MCP clients to Capell with read-only package knowledge, scoped site capabilities, preview-then-confirm execution, and audited operations.",
     "product": {
         "group": "Capell AI",

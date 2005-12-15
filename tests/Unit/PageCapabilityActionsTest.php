@@ -114,11 +114,10 @@ it('claims media upload idempotency atomically and rejects key reuse with differ
         ->and($replayData['replayed'])->toBeTrue()
         ->and(DB::table('capell_agent_bridge_media_uploads')->count())->toBe(1);
 
-    expect(fn (): CapabilityResultData => $action->execute(pageInvocation([
-        ...$payload,
+    expect(fn (): CapabilityResultData => $action->execute(pageInvocation(array_replace($payload, [
         'file_name' => 'different.png',
         'content_base64' => base64_encode((string) base64_decode($payload['content_base64'], true) . 'different'),
-    ], pageCapabilityUser(collect([1])))))
+    ]), pageCapabilityUser(collect([1])))))
         ->toThrow(AgentBridgeMcpV1ConflictException::class);
 });
 

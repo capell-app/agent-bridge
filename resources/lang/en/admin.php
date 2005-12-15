@@ -9,6 +9,7 @@ return [
     'result_page_authoring_options' => 'Page authoring options were listed.',
     'result_cache_clear_preview' => 'The registered Capell cache clear commands are ready for confirmation.',
     'result_cache_cleared' => 'The available Capell cache clear commands have been run.',
+    'result_cache_clear_failed' => 'Some cache clear commands failed. Review their output and try again.',
     'result_page_clone_preview' => 'A distinct disabled draft will be cloned from the selected Capell page.',
     'result_page_cloned' => 'Page was cloned as a disabled draft.',
     'result_page_create_preview' => 'A new unpublished page record will be created.',

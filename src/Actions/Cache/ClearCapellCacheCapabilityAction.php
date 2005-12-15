@@ -30,17 +30,23 @@ final class ClearCapellCacheCapabilityAction implements CapellAgentBridgeCapabil
         resolve(AgentBridgePolicyAuthorizer::class)->authorizeGlobalAdmin($invocation->user);
 
         $results = [];
+        $exitCodes = [];
 
         foreach ($this->availableCommands() as $command) {
-            Artisan::call($command);
+            $exitCodes[$command] = Artisan::call($command);
             $results[$command] = trim(Artisan::output());
         }
 
+        $successful = array_all($exitCodes, static fn (int $exitCode): bool => $exitCode === 0);
+
         return new CapabilityResultData(
-            ok: true,
-            message: (string) __('capell-agent-bridge::admin.result_cache_cleared'),
+            ok: $successful,
+            message: $successful
+                ? (string) __('capell-agent-bridge::admin.result_cache_cleared')
+                : (string) __('capell-agent-bridge::admin.result_cache_clear_failed'),
             data: [
                 'results' => $results,
+                'exit_codes' => $exitCodes,
             ],
         );
     }
