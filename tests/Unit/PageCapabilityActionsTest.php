@@ -127,6 +127,22 @@ it('rejects draft page creation payloads without required page fields', function
     ]));
 })->throws(ValidationException::class);
 
+it('canonicalises remotely supplied media upload names before storage', function (): void {
+    createAgentBridgePageCapabilityTables();
+    $siteId = createAgentBridgeCapabilitySite('Media filename site', 1);
+    $payload = [
+        'site_id' => $siteId,
+        'idempotency_key' => (string) Str::uuid(),
+        'file_name' => 'pixel.php.png',
+        'content_base64' => 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    ];
+    $action = new UploadMediaCapabilityAction;
+    $user = pageCapabilityUser(collect([1]));
+
+    expect($action->preview(pageInvocation($payload, $user))->data['file_name'])->toBe('pixel-php.png')
+        ->and($action->execute(pageInvocation($payload, $user))->data['file_name'])->toBe('pixel-php.png');
+});
+
 it('rejects draft page creation without an authenticated user', function (): void {
     (new CreateDraftPageCapabilityAction)->preview(pageInvocation([
         'name' => 'Campaign landing page',

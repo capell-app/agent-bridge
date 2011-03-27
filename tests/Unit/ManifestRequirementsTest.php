@@ -195,6 +195,7 @@ describe('agent-bridge capell.json manifest', function (): void {
                     '2026_07_09_000001_add_ip_address_hash_to_agent_bridge_audit_entries_table',
                     '2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table',
                     '2026_07_20_000001_create_capell_agent_bridge_media_uploads_table',
+                    '2026_09_29_120000_remove_implicit_timestamp_updates_from_agent_bridge',
                 ],
             ])
             ->toContain([
@@ -315,7 +316,7 @@ function manifestEntries(array $manifest): array
 
     return array_values(array_map(
         static fn (array $entry): array => $entry,
-        array_filter($entries, static fn (mixed $entry): bool => is_array($entry)),
+        array_filter($entries, is_array(...)),
     ));
 }
 
@@ -352,7 +353,7 @@ function manifestScreenshots(array $manifest): array
 
     return array_values(array_map(
         static fn (array $screenshot): array => $screenshot,
-        array_filter($screenshots, static fn (mixed $screenshot): bool => is_array($screenshot)),
+        array_filter($screenshots, is_array(...)),
     ));
 }
 

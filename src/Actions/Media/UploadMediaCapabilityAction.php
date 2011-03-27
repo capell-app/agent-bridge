@@ -17,7 +17,9 @@ use Capell\Core\Models\Media;
 use Capell\Core\Models\Site;
 use finfo;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Override;
 
 final class UploadMediaCapabilityAction implements CapellAgentBridgeCapabilityAction
 {
@@ -32,6 +34,7 @@ final class UploadMediaCapabilityAction implements CapellAgentBridgeCapabilityAc
         'application/pdf' => ['pdf'],
     ];
 
+    #[Override]
     public function preview(CapabilityInvocationData $invocation): CapabilityResultData
     {
         [$input, $site, $bytes, $mime] = $this->context($invocation);
@@ -41,7 +44,7 @@ final class UploadMediaCapabilityAction implements CapellAgentBridgeCapabilityAc
             message: AgentBridgeValue::string(__('capell-agent-bridge::admin.result_media_upload_preview'), 'Media upload preview message'),
             data: [
                 'site_id' => AgentBridgeValue::integer($site->getKey(), 'Site key'),
-                'file_name' => $input->file_name,
+                'file_name' => $this->canonicalFileName($input, $mime),
                 'mime_type' => $mime,
                 'size' => strlen($bytes),
                 'sha256' => hash('sha256', $bytes),
@@ -49,12 +52,14 @@ final class UploadMediaCapabilityAction implements CapellAgentBridgeCapabilityAc
         );
     }
 
+    #[Override]
     public function execute(CapabilityInvocationData $invocation): CapabilityResultData
     {
         [$input, $site, $bytes, $mime] = $this->context($invocation);
         $sha256 = hash('sha256', $bytes);
+        $fileName = $this->canonicalFileName($input, $mime);
 
-        return DB::transaction(function () use ($input, $site, $bytes, $sha256): CapabilityResultData {
+        return DB::transaction(function () use ($input, $site, $bytes, $sha256, $fileName): CapabilityResultData {
             CapellAgentBridgeMediaUpload::query()->firstOrCreate([
                 'site_id' => $site->getKey(),
                 'idempotency_key' => $input->idempotency_key,
@@ -80,7 +85,7 @@ final class UploadMediaCapabilityAction implements CapellAgentBridgeCapabilityAc
             $media = $site
                 ->addMediaFromString($bytes)
                 ->usingName(pathinfo($input->file_name, PATHINFO_FILENAME))
-                ->usingFileName($input->file_name)
+                ->usingFileName($fileName)
                 ->withCustomProperties(['capell' => ['agent_bridge' => ['idempotency_key' => $input->idempotency_key, 'sha256' => $sha256]]])
                 ->toMediaCollection('uploads', AgentBridgeValue::string(config('media-library.disk_name', 'public'), 'Media library disk name'));
 
@@ -132,6 +137,13 @@ final class UploadMediaCapabilityAction implements CapellAgentBridgeCapabilityAc
         );
 
         return [$input, $site, $bytes, $mime];
+    }
+
+    private function canonicalFileName(UploadMediaCapabilityInputData $input, string $mime): string
+    {
+        $stem = Str::slug(str_replace('.', '-', pathinfo($input->file_name, PATHINFO_FILENAME)));
+
+        return $stem . '.' . self::ALLOWED_MIME_EXTENSIONS[$mime][0];
     }
 
     private function result(Media $media, Site $site, string $sha256, bool $replayed): CapabilityResultData
