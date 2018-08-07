@@ -14,7 +14,7 @@
             "target": "CapellAgentBridgePromptBuilderPage",
             "scenario": "admin-index",
             "url": "/agent-bridge/capell-agent-bridge/prompt-builder",
-            "waitFor": "body",
+            "waitFor": "#capell-ai-command",
             "required": true,
             "notes": "Requires `capell-app/agent-bridge` installed, settings migrated, and an admin session. This page is available at the Filament slug `capell-agent-bridge/prompt-builder`.",
             "useCase": "An administrator builds a scoped prompt for an external agent using the installed Capell package context.",
@@ -30,31 +30,43 @@
             "package": "agent-bridge",
             "surface": "admin",
             "targetType": "admin-surface",
-            "target": "CapellAgentBridgePromptBuilderPage",
+            "target": "AgentBridgeTokensRelationManager",
             "scenario": "admin-form",
-            "url": "/users/{first-record}/edit",
-            "waitFor": "body",
+            "url": "/screenshot-fixtures/agent-bridge/user",
+            "waitFor": ".fi-ta:has-text(\"Tokens\") tbody tr:has-text(\"Screenshot review token\")",
             "required": false,
-            "notes": "Blocked from marketplace promotion until the screenshot runner can open a seeded host user edit screen with the Agent Bridge token relation manager visible. Existing committed output is runner evidence only and must not be promoted while it duplicates the prompt builder.",
+            "notes": "Blocked from marketplace promotion until recaptured: legacy output duplicates the prompt builder or user form. The guarded route seeds a disabled token, confirmation and audit row for the authenticated user; open the matching relation tab.",
             "useCase": "An administrator creates or reviews a token used by a trusted Agent Bridge client.",
             "screenshotPath": "packages/agent-bridge/docs/screenshots/token-management-or-setup-surface.png",
-            "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/token-management-or-setup-surface-dark.png"
+            "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/token-management-or-setup-surface-dark.png",
+            "beforeWait": [
+                {
+                    "type": "click",
+                    "selector": "[role=\"tab\"]:has-text(\"Tokens\")"
+                }
+            ]
         },
         {
             "id": "capability-preview-and-confirmation-flow",
-            "title": "Capability preview and confirmation flow.",
+            "title": "Pending capability confirmations.",
             "package": "agent-bridge",
             "surface": "admin",
             "targetType": "admin-surface",
-            "target": "CapellAgentBridgePromptBuilderPage",
+            "target": "AgentBridgeConfirmationsRelationManager",
             "scenario": "admin-index",
-            "url": "/agent-bridge/capell-agent-bridge/prompt-builder",
-            "waitFor": "body",
+            "url": "/screenshot-fixtures/agent-bridge/user",
+            "waitFor": ".fi-ta:has-text(\"Confirmations\") tbody tr:has-text(\"capell.pages.inspect\")",
             "required": false,
-            "notes": "Blocked from marketplace promotion until the screenshot runner can seed and display a pending `CapellAgentBridgeConfirmation`. Existing committed output is runner evidence only and must not be promoted while it duplicates the prompt builder.",
-            "useCase": "An administrator reviews a proposed capability run before confirming that an agent may execute it.",
+            "notes": "Blocked from marketplace promotion until recaptured: legacy output duplicates the prompt builder or user form. The guarded route seeds a disabled token, confirmation and audit row for the authenticated user; open the matching relation tab. This image claims only the pending-confirmations table, not execution of an agent capability.",
+            "useCase": "An administrator reviews recorded pending capability confirmations for a user.",
             "screenshotPath": "packages/agent-bridge/docs/screenshots/capability-preview-and-confirmation-flow.png",
-            "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/capability-preview-and-confirmation-flow-dark.png"
+            "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/capability-preview-and-confirmation-flow-dark.png",
+            "beforeWait": [
+                {
+                    "type": "click",
+                    "selector": "[role=\"tab\"]:has-text(\"Confirmations\")"
+                }
+            ]
         },
         {
             "id": "audit-entry-review",
@@ -62,15 +74,21 @@
             "package": "agent-bridge",
             "surface": "admin",
             "targetType": "admin-surface",
-            "target": "CapellAgentBridgePromptBuilderPage",
+            "target": "AgentBridgeAuditEntriesRelationManager",
             "scenario": "admin-form",
-            "url": "/users/{first-record}/edit",
-            "waitFor": "body",
+            "url": "/screenshot-fixtures/agent-bridge/user",
+            "waitFor": ".fi-ta:has-text(\"Audit entries\") tbody tr:has-text(\"screenshot.previewed\")",
             "required": false,
-            "notes": "Blocked from marketplace promotion until the screenshot runner can open the user-resource audit relation manager after seeding capability invocation records. Existing committed output is runner evidence only and must not be promoted while it duplicates the prompt builder.",
+            "notes": "Blocked from marketplace promotion until recaptured: legacy output duplicates the prompt builder or user form. The guarded route seeds a disabled token, confirmation and audit row for the authenticated user; open the matching relation tab.",
             "useCase": "An administrator reviews what an Agent Bridge client previewed, confirmed, or ran for a user.",
             "screenshotPath": "packages/agent-bridge/docs/screenshots/audit-entry-review.png",
-            "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/audit-entry-review-dark.png"
+            "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/audit-entry-review-dark.png",
+            "beforeWait": [
+                {
+                    "type": "click",
+                    "selector": "[role=\"tab\"]:has-text(\"Audit entries\")"
+                }
+            ]
         },
         {
             "id": "agent-bridge-server-health-output",

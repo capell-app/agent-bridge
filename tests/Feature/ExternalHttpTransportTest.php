@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Capell\AgentBridge\Actions\CreateAgentBridgeTokenAction;
 use Capell\AgentBridge\Tests\Fixtures\User;
-use Laravel\Mcp\Enums\ProtocolVersion;
 
 /**
  * @param  array<string, mixed>  $params
@@ -33,10 +32,12 @@ it('serves the frozen site tool catalogue through authenticated HTTP JSON-RPC', 
         'Accept' => 'application/json, text/event-stream',
     ];
 
+    // Newer protocols use discovery instead; this client exercises the initialise handshake.
+    $protocolVersion = '2025-11-25';
     $initializeResponse = $this->withHeaders($headers)->postJson(
         '/agent-bridge/capell',
         externalHttpMcpRequest(1, 'initialize', [
-            'protocolVersion' => ProtocolVersion::LATEST->value,
+            'protocolVersion' => $protocolVersion,
             'capabilities' => (object) [],
             'clientInfo' => [
                 'name' => 'agent-bridge-external-client-contract',
@@ -50,7 +51,7 @@ it('serves the frozen site tool catalogue through authenticated HTTP JSON-RPC', 
         ->assertHeader('Content-Type', 'application/json')
         ->assertJsonPath('jsonrpc', '2.0')
         ->assertJsonPath('id', 1)
-        ->assertJsonPath('result.protocolVersion', ProtocolVersion::LATEST->value)
+        ->assertJsonPath('result.protocolVersion', $protocolVersion)
         ->assertJsonPath('result.serverInfo.name', 'Capell Site Agent Bridge')
         ->assertJsonPath('result.serverInfo.version', '1.0.0');
 

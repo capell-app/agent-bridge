@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use Capell\Admin\Filament\Resources\Users\Pages\EditUser;
 use Capell\AgentBridge\Actions\BuildAgentBridgePromptAction;
+use Capell\AgentBridge\Actions\PrepareAgentBridgeScreenshotAction;
 use Capell\AgentBridge\Actions\SaveAgentBridgePromptAction;
 use Capell\AgentBridge\Data\AgentBridgePromptData;
 use Capell\AgentBridge\Data\CapabilityCommandPatternData;
@@ -10,9 +12,13 @@ use Capell\AgentBridge\Data\CapabilityData;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
 use Capell\AgentBridge\Filament\Pages\CapellAgentBridgePromptBuilderPage;
+use Capell\AgentBridge\Filament\Resources\Users\RelationManagers\AgentBridgeAuditEntriesRelationManager;
+use Capell\AgentBridge\Filament\Resources\Users\RelationManagers\AgentBridgeConfirmationsRelationManager;
+use Capell\AgentBridge\Filament\Resources\Users\RelationManagers\AgentBridgeTokensRelationManager;
 use Capell\AgentBridge\Livewire\PromptBuilderToolbarAction;
 use Capell\AgentBridge\Models\CapellAgentBridgeAuditEntry;
 use Capell\AgentBridge\Models\CapellAgentBridgeSavedPrompt;
+use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
 use Capell\AgentBridge\Tests\Fixtures\User;
@@ -33,6 +39,26 @@ beforeEach(function (): void {
     Filament::setCurrentPanel($panel);
     Filament::bootCurrentPanel();
     Filament::setServingStatus();
+});
+
+it('renders distinct seeded token confirmation and audit relation tables', function (): void {
+    $user = User::query()->create(['name' => 'Screenshot operator', 'email' => 'screenshot@example.test', 'password' => 'password']);
+    $this->actingAs($user);
+    putenv('CAPELL_SCREENSHOT_FIXTURE=record-state');
+
+    try {
+        (new PrepareAgentBridgeScreenshotAction)->handle($user);
+        $parameters = ['ownerRecord' => $user, 'pageClass' => EditUser::class];
+        Livewire::test(AgentBridgeTokensRelationManager::class, $parameters)
+            ->assertSee('Screenshot review token')->assertDontSee('screenshot.previewed');
+        Livewire::test(AgentBridgeConfirmationsRelationManager::class, $parameters)
+            ->assertSee('capell.pages.inspect')->assertSee(__('capell-agent-bridge::admin.expires_at'))->assertDontSee('screenshot.previewed');
+        Livewire::test(AgentBridgeAuditEntriesRelationManager::class, $parameters)
+            ->assertSee('screenshot.previewed')->assertDontSee('Screenshot review token');
+        expect(CapellAgentBridgeToken::query()->firstOrFail()->is_enabled)->toBeFalse();
+    } finally {
+        putenv('CAPELL_SCREENSHOT_FIXTURE');
+    }
 });
 
 it('builds an agent bridge prompt from the submitted intent', function (): void {

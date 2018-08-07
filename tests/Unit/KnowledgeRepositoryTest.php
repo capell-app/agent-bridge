@@ -13,11 +13,16 @@ it('discovers package manifests with capability metadata', function (): void {
 
     throw_unless(is_array($seoSuite), RuntimeException::class, 'Expected SEO Suite package manifest to be discovered.');
 
+    $manifest = capell_json_file_array(base_path('packages/seo-suite/capell.json'));
+    $product = $manifest['product'] ?? null;
+
+    throw_unless(is_array($product), RuntimeException::class, 'Expected SEO Suite product metadata.');
+
     expect($seoSuite)
         ->not->toBeNull()
-        ->and($seoSuite['productGroup'])->toBe('Capell Search & SEO')
-        ->and($seoSuite['tier'])->toBe('free')
-        ->and($seoSuite['bundle'])->toBe('search-seo')
+        ->and($seoSuite['productGroup'])->toBe($product['group'])
+        ->and($seoSuite['tier'])->toBe($product['tier'])
+        ->and($seoSuite['bundle'])->toBe($product['bundle'])
         ->and($seoSuite['contexts'])->toContain('admin')
         ->and($seoSuite['requires'])->toContain('capell-app/admin')
         ->and($seoSuite['path'])->toEndWith('packages/seo-suite');
