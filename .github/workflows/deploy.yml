@@ -13,8 +13,18 @@ jobs:
     name: Trigger Capell app deployment
     runs-on: ubuntu-latest
     env:
-      DEPLOY_DISPATCH_TOKEN: ${{ secrets.ACCESS_TOKEN || secrets.DEPLOY_DISPATCH_TOKEN }}
+      DISPATCH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN || secrets.ACCESS_TOKEN }}
     steps:
+      - name: Validate dispatch token
+        run: |
+          if [ -z "$DISPATCH_TOKEN" ]; then
+            echo "Missing DEPLOY_DISPATCH_TOKEN or ACCESS_TOKEN repository secret." >&2
+            echo "Add one of those secrets to capell-app/capell-mcp with permission to dispatch workflows in capell-app/capell-app." >&2
+            exit 1
+          fi
+
+          echo "Dispatch token configured."
+
       - name: Prepare deployment payload
         id: payload
         uses: actions/github-script@v9
@@ -37,13 +47,8 @@ jobs:
       - name: Trigger Capell app deploy workflow
         uses: actions/github-script@v9
         with:
-          github-token: ${{ secrets.ACCESS_TOKEN || github.token }}
+          github-token: ${{ env.DISPATCH_TOKEN }}
           script: |
-            if (!process.env.DEPLOY_DISPATCH_TOKEN) {
-              core.setFailed('Missing ACCESS_TOKEN or DEPLOY_DISPATCH_TOKEN secret.');
-              return;
-            }
-
             const payload = JSON.parse(`${{ steps.payload.outputs.json }}`);
 
             await github.rest.actions.createWorkflowDispatch({
