@@ -37,7 +37,7 @@ jobs:
       - name: Trigger Capell app deploy workflow
         uses: actions/github-script@v9
         with:
-          github-token: ${{ env.DEPLOY_DISPATCH_TOKEN }}
+          github-token: ${{ secrets.ACCESS_TOKEN || github.token }}
           script: |
             if (!process.env.DEPLOY_DISPATCH_TOKEN) {
               core.setFailed('Missing ACCESS_TOKEN or DEPLOY_DISPATCH_TOKEN secret.');
