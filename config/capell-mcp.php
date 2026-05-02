@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 return [
     'routes' => [
+        'home' => '/',
         'knowledge' => 'mcp/capell/knowledge',
         'site' => 'mcp/capell/site',
     ],

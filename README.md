@@ -17,8 +17,11 @@ php artisan migrate
 
 Register the web endpoints from the package service provider:
 
+- `/`
 - `/mcp/capell/knowledge`
 - `/mcp/capell/site`
+
+The root route returns a small JSON discovery response for MCP-only hosts such as `mcp.capell.app`. Set `capell-mcp.routes.home` to `null` in a host application if you do not want the package to register `/`.
 
 The site endpoint requires a bearer token created by your application and stored hashed in `capell_mcp_tokens`.
 
