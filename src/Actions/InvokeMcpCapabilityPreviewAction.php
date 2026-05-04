@@ -24,6 +24,16 @@ final class InvokeMcpCapabilityPreviewAction
 
     /**
      * @param  array<string, mixed>  $payload
+     */
+    public static function payloadHash(array $payload): string
+    {
+        ksort($payload);
+
+        return hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
     public function handle(
@@ -36,8 +46,8 @@ final class InvokeMcpCapabilityPreviewAction
         $registry = resolve(CapellMcpCapabilityRegistry::class);
         $capability = $registry->get($capabilityKey);
 
-        $client ??= app()->bound(AuthenticatedMcpClientData::class) ? app(AuthenticatedMcpClientData::class) : null;
-        $token ??= app()->bound(CapellMcpToken::class) ? app(CapellMcpToken::class) : null;
+        $client ??= app()->bound(AuthenticatedMcpClientData::class) ? resolve(AuthenticatedMcpClientData::class) : null;
+        $token ??= app()->bound(CapellMcpToken::class) ? resolve(CapellMcpToken::class) : null;
         $user ??= request()->user();
 
         if ($client !== null && ! $client->can($capability->scope)) {
@@ -79,7 +89,7 @@ final class InvokeMcpCapabilityPreviewAction
             'payload_hash' => self::payloadHash($payload),
             'payload' => $payload,
             'preview' => $preview->toPayload(),
-            'expires_at' => now()->addMinutes((int) config('capell-mcp.confirmation_ttl_minutes', 10)),
+            'expires_at' => now()->addMinutes(config('capell-mcp.confirmation_ttl_minutes', 10)),
         ]);
 
         if ($user !== null) {
@@ -105,15 +115,5 @@ final class InvokeMcpCapabilityPreviewAction
             'expiresAt' => $confirmation->expires_at->toIso8601String(),
             'preview' => $preview->toPayload(),
         ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $payload
-     */
-    public static function payloadHash(array $payload): string
-    {
-        ksort($payload);
-
-        return hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 }

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Capell\Mcp\Providers;
 
+use Capell\Admin\Contracts\AdminTools\AdminToolItem;
+use Capell\Admin\Data\AdminSurfaceContributionData;
+use Capell\Admin\Facades\CapellAdmin;
+use Capell\Core\Facades\CapellCore;
 use Capell\Mcp\Actions\Cache\ClearCapellCacheCapabilityAction;
 use Capell\Mcp\Actions\Pages\CreateDraftPageCapabilityAction;
 use Capell\Mcp\Actions\Pages\DisablePageCapabilityAction;
@@ -13,43 +17,95 @@ use Capell\Mcp\Contracts\CapellMcpCapabilityProvider;
 use Capell\Mcp\Data\CapabilityData;
 use Capell\Mcp\Enums\CapabilityRiskEnum;
 use Capell\Mcp\Enums\CapabilityServerEnum;
+use Capell\Mcp\Filament\Pages\CapellMcpPromptBuilderPage;
+use Capell\Mcp\Support\AdminTools\PromptBuilderAdminTool;
 use Capell\Mcp\Support\CapellMcpCapabilityRegistry;
+use Capell\Mcp\Tools\Boost\ListBoostCapabilitiesTool;
+use Capell\Mcp\Tools\Boost\PreviewBoostCapabilityTool;
+use Filament\Pages\Page;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Boost\Mcp\Boost;
 
 final class CapellMcpServiceProvider extends ServiceProvider
 {
+    public static string $packageName = 'capell-app/mcp';
+
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../../config/capell-mcp.php', 'capell-mcp');
+        $this->mergeConfigFrom(__DIR__ . '/../../config/capell-mcp.php', 'capell-mcp');
 
-        $this->app->singleton(CapellMcpCapabilityRegistry::class, function (): CapellMcpCapabilityRegistry {
-            return new CapellMcpCapabilityRegistry;
-        });
+        $this->registerPackageMetadata();
     }
 
     public function boot(): void
     {
+        if (! $this->isPackageInstalled()) {
+            return;
+        }
+
+        $this->app->singleton(CapellMcpCapabilityRegistry::class, fn (): CapellMcpCapabilityRegistry => new CapellMcpCapabilityRegistry);
+
         $this->publishes([
-            __DIR__.'/../../config/capell-mcp.php' => config_path('capell-mcp.php'),
+            __DIR__ . '/../../config/capell-mcp.php' => config_path('capell-mcp.php'),
         ], 'capell-mcp-config');
 
-        $this->loadTranslationsFrom(__DIR__.'/../../resources/lang', 'capell-mcp');
-        $this->loadViewsFrom(__DIR__.'/../../resources/views', 'capell-mcp');
-        $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
-        $this->loadRoutesFrom(__DIR__.'/../../routes/mcp.php');
+        $this->loadTranslationsFrom(__DIR__ . '/../../resources/lang', 'capell-mcp');
+        $this->loadViewsFrom(__DIR__ . '/../../resources/views', 'capell-mcp');
+        $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
+        $this->loadRoutesFrom(__DIR__ . '/../../routes/mcp.php');
 
         $this->registerAdminIntegration();
+        $this->registerBoostIntegration();
         $this->registerBuiltInCapabilities();
         $this->registerTaggedCapabilityProviders();
     }
 
+    private function registerBoostIntegration(): void
+    {
+        if (! class_exists(Boost::class)) {
+            return;
+        }
+
+        $includedTools = config('boost.mcp.tools.include', []);
+
+        config([
+            'boost.mcp.tools.include' => array_values(array_unique([
+                ...$includedTools,
+                ListBoostCapabilitiesTool::class,
+                PreviewBoostCapabilityTool::class,
+            ])),
+        ]);
+    }
+
+    private function registerPackageMetadata(): void
+    {
+        if (! class_exists(CapellCore::class)) {
+            return;
+        }
+
+        CapellCore::registerPackage(
+            name: self::$packageName,
+            path: realpath(__DIR__ . '/../..'),
+            version: CapellCore::getInstalledPrettyVersion(self::$packageName),
+        );
+    }
+
+    private function isPackageInstalled(): bool
+    {
+        if (! class_exists(CapellCore::class)) {
+            return true;
+        }
+
+        return CapellCore::isPackageInstalled(self::$packageName);
+    }
+
     private function registerAdminIntegration(): void
     {
-        $adminFacade = 'Capell\\Admin\\Facades\\CapellAdmin';
-        $adminToolItem = 'Capell\\Admin\\Contracts\\AdminTools\\AdminToolItem';
-        $filamentPage = 'Filament\\Pages\\Page';
-        $promptBuilderPage = 'Capell\\Mcp\\Filament\\Pages\\CapellMcpPromptBuilderPage';
-        $promptBuilderTool = 'Capell\\Mcp\\Support\\AdminTools\\PromptBuilderAdminTool';
+        $adminFacade = CapellAdmin::class;
+        $adminToolItem = AdminToolItem::class;
+        $filamentPage = Page::class;
+        $promptBuilderPage = CapellMcpPromptBuilderPage::class;
+        $promptBuilderTool = PromptBuilderAdminTool::class;
 
         if (! class_exists($adminFacade) || ! interface_exists($adminToolItem) || ! class_exists($filamentPage)) {
             return;
@@ -59,11 +115,11 @@ final class CapellMcpServiceProvider extends ServiceProvider
             return;
         }
 
-        $adminFacade::registerPage($promptBuilderPage);
+        $adminFacade::contributeToAdminSurface(AdminSurfaceContributionData::page($promptBuilderPage));
 
         $this->app->tag([
             $promptBuilderTool,
-        ], constant($adminToolItem.'::TAG'));
+        ], constant($adminToolItem . '::TAG'));
     }
 
     private function registerBuiltInCapabilities(): void

@@ -9,19 +9,32 @@ use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Facades\Mcp;
 
 $homeRoute = config('capell-mcp.routes.home', '/');
+$knowledgeRoute = config('capell-mcp.routes.knowledge', 'mcp/capell/knowledge');
+$siteRoute = config('capell-mcp.routes.site', 'mcp/capell');
 
 if (is_string($homeRoute) && $homeRoute !== '') {
+    $servers = [];
+
+    if (is_string($knowledgeRoute) && $knowledgeRoute !== '') {
+        $servers['knowledge'] = url($knowledgeRoute);
+    }
+
+    if (is_string($siteRoute) && $siteRoute !== '') {
+        $servers['site'] = url($siteRoute);
+    }
+
     Route::get($homeRoute, static fn (): array => [
         'name' => 'Capell MCP',
         'status' => 'ok',
-        'servers' => [
-            'knowledge' => url(config('capell-mcp.routes.knowledge', 'mcp/capell/knowledge')),
-            'site' => url(config('capell-mcp.routes.site', 'mcp/capell/site')),
-        ],
+        'servers' => $servers,
     ])->name('capell-mcp.home');
 }
 
-Mcp::web(config('capell-mcp.routes.knowledge', 'mcp/capell/knowledge'), CapellKnowledgeServer::class);
+if (is_string($knowledgeRoute) && $knowledgeRoute !== '') {
+    Mcp::web($knowledgeRoute, CapellKnowledgeServer::class);
+}
 
-Mcp::web(config('capell-mcp.routes.site', 'mcp/capell/site'), CapellSiteServer::class)
-    ->middleware(AuthenticateCapellMcpToken::class);
+if (is_string($siteRoute) && $siteRoute !== '') {
+    Mcp::web($siteRoute, CapellSiteServer::class)
+        ->middleware(AuthenticateCapellMcpToken::class);
+}

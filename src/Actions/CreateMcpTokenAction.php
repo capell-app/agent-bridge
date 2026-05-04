@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace Capell\Mcp\Actions;
 
 use Capell\Mcp\Models\CapellMcpToken;
+use DateTimeInterface;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Lorisleiva\Actions\Concerns\AsAction;
 
 /**
- * @method static array{token: CapellMcpToken, plainTextToken: string} run(Authenticatable $user, string $name, array<int, string> $scopes, ?\DateTimeInterface $expiresAt = null)
+ * @method static array{token: CapellMcpToken, plainTextToken: string} run(Authenticatable $user, string $name, array<int, string> $scopes, ?DateTimeInterface $expiresAt = null)
  */
 final class CreateMcpTokenAction
 {
@@ -21,11 +22,9 @@ final class CreateMcpTokenAction
      * @param  array<int, string>  $scopes
      * @return array{token: CapellMcpToken, plainTextToken: string}
      */
-    public function handle(Authenticatable $user, string $name, array $scopes, ?\DateTimeInterface $expiresAt = null): array
+    public function handle(Authenticatable $user, string $name, array $scopes, ?DateTimeInterface $expiresAt = null): array
     {
-        if (! $user instanceof Model) {
-            throw new InvalidArgumentException('Capell MCP tokens must be linked to an Eloquent user model.');
-        }
+        throw_unless($user instanceof Model, InvalidArgumentException::class, 'Capell MCP tokens must be linked to an Eloquent user model.');
 
         $plainTextToken = CapellMcpToken::generatePlainTextToken();
 

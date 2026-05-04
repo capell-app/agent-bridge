@@ -15,7 +15,7 @@ use Laravel\Mcp\Server\Attributes\Version;
 
 #[Name('Capell Knowledge MCP')]
 #[Version('0.1.0')]
-#[Instructions('Read-only public knowledge for Capell CMS, package metadata, docs, and implementation conventions.')]
+#[Instructions('Read-only knowledge for Capell CMS, package metadata, docs, and implementation conventions. Enable this server only for authorised deployments.')]
 final class CapellKnowledgeServer extends Server
 {
     protected array $tools = [

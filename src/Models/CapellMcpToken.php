@@ -6,6 +6,7 @@ namespace Capell\Mcp\Models;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Str;
@@ -21,6 +22,8 @@ use Illuminate\Support\Str;
  */
 final class CapellMcpToken extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'name',
         'token_hash',
@@ -37,7 +40,7 @@ final class CapellMcpToken extends Model
 
     public static function generatePlainTextToken(): string
     {
-        return config('capell-mcp.token_prefix', 'cmcp_').Str::random(48);
+        return config('capell-mcp.token_prefix', 'cmcp_') . Str::random(48);
     }
 
     public function canUseScope(string $scope): bool

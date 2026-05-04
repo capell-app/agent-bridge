@@ -1,41 +1,88 @@
-# Capell MCP
+# MCP
 
-Capell MCP provides two MCP servers for Capell CMS:
+Status: **Available, schema-owning**
 
-- **Capell Knowledge MCP** exposes public, read-only Capell documentation, package catalog data, conventions, and package recommendations.
-- **Capell Site MCP** exposes an authenticated, scoped, auditable MCP surface inside an installed Capell site.
+## What This Plugin Adds
 
-The site server is designed around registered capabilities. Packages opt in by registering capability providers; MCP clients can only see and run capabilities that are installed, enabled, scoped to their token, and allowed by the mapped Capell user.
+MCP exposes Capell knowledge and site capabilities through Laravel MCP servers with token authentication, confirmations, previews, and audit records.
 
-## Installation
+- Capell knowledge and site MCP servers.
+- Token, confirmation, and audit models.
+- Capability registry and capability actions.
+- Prompt builder Filament page.
+- Tools for knowledge lookup, package recommendation, site inspection, capability listing, confirmation, and execution.
 
-```bash
-composer require capell-app/mcp
-php artisan vendor:publish --tag=capell-mcp-config
-php artisan migrate
-```
+## Why It Matters
 
-Register the web endpoints from the package service provider:
+**For developers:** Provides a typed capability contract so MCP tools can preview, confirm, run, and audit changes instead of directly mutating site state.
 
-- `/`
-- `/mcp/capell/knowledge`
-- `/mcp/capell/site`
+**For teams:** Lets trusted assistant clients inspect Capell and request controlled site operations with reviewable confirmation records.
 
-The root route returns a small JSON discovery response for MCP-only hosts such as `mcp.capell.app`. Set `capell-mcp.routes.home` to `null` in a host application if you do not want the package to register `/`.
+## Screens And Workflow
 
-The site endpoint requires a bearer token created by your application and stored hashed in `capell_mcp_tokens`.
+Screenshots are generated from [docs/screenshots.json](docs/screenshots.json) during package deployment.
 
-## Filament Admin Prompt Builder
+- MCP prompt builder page.
+- Token management or setup surface.
+- Capability preview and confirmation flow.
+- Audit entry review.
+- MCP server health output.
 
-When Capell Admin and Filament are installed, the package registers a small MCP tool item in the admin toolbar. It opens a prompt builder page that asks for the goal, target area, intended action, safety level, constraints, and success criteria, then prepares a structured prompt for an MCP client.
+## Technical Shape
 
-The prompt builder is intentionally non-mutating. It helps admins prepare safer requests while all real changes still go through scoped MCP capabilities, preview tokens, confirmation, policies, and audit logging.
+- CapellMcpServiceProvider registers routes, servers, resources, and capabilities.
+- Config file: capell-mcp.php.
+- Routes file registers MCP endpoints through Laravel MCP.
+- Middleware: AuthenticateCapellMcpToken.
+- Models: CapellMcpToken, CapellMcpConfirmation, CapellMcpAuditEntry.
+- Servers: CapellKnowledgeServer and CapellSiteServer.
 
-## Capability Workflow
+## Laravel Boost Integration
 
-Mutating tools use a two-step workflow:
+Capell MCP integrates with Laravel Boost when both packages are installed in the host app. Boost discovers lightweight package guidance from `vendor/capell-app/*/resources/boost/*`, while `capell-app/mcp` registers bridge tools into `boost.mcp.tools.include` so Boost can list and preview Capell MCP capabilities.
 
-1. `capell-site-run-capability` returns a preview and confirmation token.
-2. `capell-site-confirm-capability` applies the same payload if the token, user, client, scope, and payload hash still match.
+See [docs/boost-integration.md](docs/boost-integration.md) for host-app setup, `capell-ruby` verification, and the difference between Boost's local MCP server and Capell's authenticated Site MCP server.
 
-This gives MCP clients full admin workflows without turning MCP into a raw remote-code/admin-action executor.
+## Data Model
+
+- capell_mcp_tokens stores MCP client tokens.
+- capell_mcp_confirmations stores pending or completed confirmations.
+- capell_mcp_audit_entries stores capability invocation records.
+- Confirmation TTL defaults to 10 minutes.
+
+## Install Impact
+
+- Adds MCP token, confirmation, and audit tables.
+- Adds configurable MCP routes.
+- Default config enables site route mcp/capell and disables home/knowledge route registration.
+- Adds prompt builder admin page.
+- Adds token prefix and auth guard configuration.
+
+## Commands
+
+- None proven in this package directory.
+
+## Admin And Access
+
+- CapellMcpPromptBuilderPage (packages/mcp/src/Filament/Pages/CapellMcpPromptBuilderPage.php, slug `capell-mcp/prompt-builder`)
+
+- None proven in this package directory.
+
+## Common Pitfalls
+
+- Enable only the MCP routes you intend to expose.
+- Protect site capabilities with token auth and confirmation flow.
+- Keep public_docs_paths scoped to documentation safe for MCP clients.
+- Run migrations before creating tokens.
+
+## Quick Start
+
+1. Install the package with `composer require capell-app/mcp`.
+2. Run the package migrations or the Capell package installer required by the host app.
+3. Open the new admin surface or integration point and verify the result.
+
+## Next Steps
+
+- [docs/overview.md](docs/overview.md)
+- [../assistant/README.md](../assistant/README.md)
+- [../developer-tools/README.md](../developer-tools/README.md)

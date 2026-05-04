@@ -15,7 +15,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[Name('capell-knowledge-list-packages')]
 #[Title('List Capell Packages')]
-#[Description('List public Capell package metadata discovered from capell.json manifests.')]
+#[Description('List Capell package metadata discovered from capell.json manifests.')]
 #[IsReadOnly]
 final class ListKnowledgePackagesTool extends Tool
 {

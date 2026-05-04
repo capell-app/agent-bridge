@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Capell\Mcp\Tools\Site;
 
+use Capell\Core\Models\Language;
+use Capell\Core\Models\Page;
+use Capell\Core\Models\PageUrl;
+use Capell\Core\Models\Site;
+use Capell\Core\Models\Type;
+use Capell\Navigation\Models\Navigation;
 use Composer\InstalledVersions;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Mcp\Response;
@@ -13,6 +19,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Title;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
+use Throwable;
 
 #[Name('capell-site-inspect-state')]
 #[Title('Inspect Site State')]
@@ -55,13 +62,13 @@ final class InspectSiteStateTool extends Tool
     private function modelCounts(): array
     {
         return [
-            'sites' => $this->countOptionalModel('Capell\\Core\\Models\\Site'),
-            'languages' => $this->countOptionalModel('Capell\\Core\\Models\\Language'),
-            'pages' => $this->countOptionalModel('Capell\\Core\\Models\\Page'),
-            'pageUrls' => $this->countOptionalModel('Capell\\Core\\Models\\PageUrl'),
-            'types' => $this->countOptionalModel('Capell\\Core\\Models\\Type'),
+            'sites' => $this->countOptionalModel(Site::class),
+            'languages' => $this->countOptionalModel(Language::class),
+            'pages' => $this->countOptionalModel(Page::class),
+            'pageUrls' => $this->countOptionalModel(PageUrl::class),
+            'types' => $this->countOptionalModel(Type::class),
             'redirects' => $this->countOptionalModel('Capell\\Redirects\\Models\\Redirect'),
-            'navigations' => $this->countOptionalModel('Capell\\Navigation\\Models\\Navigation'),
+            'navigations' => $this->countOptionalModel(Navigation::class),
         ];
     }
 
@@ -81,7 +88,7 @@ final class InspectSiteStateTool extends Tool
     {
         try {
             return $modelClass::query()->count();
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }

@@ -16,7 +16,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[Name('capell-knowledge-read-document')]
 #[Title('Read Capell Document')]
-#[Description('Read an allowed public Capell Markdown document by repository-relative path.')]
+#[Description('Read an allowed Capell Markdown document by repository-relative path.')]
 #[IsReadOnly]
 final class ReadKnowledgeDocumentTool extends Tool
 {
