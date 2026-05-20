@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Tools\Boost;
+namespace Capell\AgentBridge\Tools\Boost;
 
-use Capell\Mcp\Data\CapabilityData;
-use Capell\Mcp\Enums\CapabilityServerEnum;
-use Capell\Mcp\Support\CapellMcpCapabilityRegistry;
+use Capell\AgentBridge\Data\CapabilityData;
+use Capell\AgentBridge\Enums\CapabilityServerEnum;
+use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
@@ -17,18 +17,18 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[Name('capell-list-capabilities')]
 #[Title('List Capell Capabilities')]
-#[Description('List installed Capell MCP capabilities available through the Laravel Boost MCP server.')]
+#[Description('List installed Capell Agent Bridge capabilities available through the Laravel Boost Agent Bridge server.')]
 #[IsReadOnly]
 final class ListBoostCapabilitiesTool extends Tool
 {
-    public function handle(CapellMcpCapabilityRegistry $registry): ResponseFactory
+    public function handle(CapellAgentBridgeCapabilityRegistry $registry): ResponseFactory
     {
         return Response::structured([
             'capabilities' => $registry
                 ->visibleFor(CapabilityServerEnum::Site)
                 ->map(fn (CapabilityData $capability): array => $capability->toPayload())
                 ->all(),
-            'confirmation' => 'Use the authenticated Capell Site MCP server for confirmed mutating operations.',
+            'confirmation' => 'Use the authenticated Capell Site Agent Bridge server for confirmed mutating operations.',
         ]);
     }
 }

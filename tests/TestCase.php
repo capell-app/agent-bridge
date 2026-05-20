@@ -2,16 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Tests;
+namespace Capell\AgentBridge\Tests;
 
-use Capell\Mcp\Providers\CapellMcpServiceProvider;
-use Capell\Mcp\Tests\Fixtures\User;
+use Capell\AgentBridge\Providers\AgentBridgeServiceProvider;
+use Capell\AgentBridge\Tests\Fixtures\InstalledAgentBridgePackageServiceProvider;
+use Capell\AgentBridge\Tests\Fixtures\User;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
-use Laravel\Mcp\Server\McpServiceProvider;
+use Laravel\Mcp\Server\McpServiceProvider as LaravelMcpServiceProvider;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
+use Spatie\LaravelSettings\LaravelSettingsServiceProvider;
 
 abstract class TestCase extends OrchestraTestCase
 {
@@ -22,7 +24,7 @@ abstract class TestCase extends OrchestraTestCase
         parent::setUp();
 
         Relation::morphMap([
-            'mcp_user' => User::class,
+            'agent-bridge_user' => User::class,
         ]);
     }
 
@@ -32,11 +34,13 @@ abstract class TestCase extends OrchestraTestCase
     protected function getPackageProviders($app): array
     {
         $providers = [
-            CapellMcpServiceProvider::class,
+            LaravelSettingsServiceProvider::class,
+            InstalledAgentBridgePackageServiceProvider::class,
+            AgentBridgeServiceProvider::class,
         ];
 
-        if (class_exists(McpServiceProvider::class)) {
-            array_unshift($providers, McpServiceProvider::class);
+        if (class_exists(LaravelMcpServiceProvider::class)) {
+            array_unshift($providers, LaravelMcpServiceProvider::class);
         }
 
         return $providers;
@@ -45,6 +49,18 @@ abstract class TestCase extends OrchestraTestCase
     protected function defineDatabaseMigrations(): void
     {
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+
+        if (! Schema::hasTable('settings')) {
+            Schema::create('settings', function (Blueprint $table): void {
+                $table->id();
+                $table->string('group');
+                $table->string('name');
+                $table->boolean('locked')->default(false);
+                $table->json('payload');
+                $table->timestamps();
+                $table->unique(['group', 'name']);
+            });
+        }
 
         Schema::create('users', function (Blueprint $table): void {
             $table->id();

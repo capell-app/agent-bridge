@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Tests\Fixtures;
+namespace Capell\AgentBridge\Tests\Fixtures;
 
-use Capell\Mcp\Contracts\CapellMcpCapabilityAction;
-use Capell\Mcp\Data\CapabilityInvocationData;
-use Capell\Mcp\Data\CapabilityResultData;
+use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityAction;
+use Capell\AgentBridge\Data\CapabilityInvocationData;
+use Capell\AgentBridge\Data\CapabilityResultData;
 
-final class FakeCapabilityAction implements CapellMcpCapabilityAction
+final class FakeCapabilityAction implements CapellAgentBridgeCapabilityAction
 {
     public function preview(CapabilityInvocationData $invocation): CapabilityResultData
     {

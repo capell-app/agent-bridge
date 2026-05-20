@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Tools\Knowledge;
+namespace Capell\AgentBridge\Tools\Knowledge;
 
-use Capell\Mcp\Support\KnowledgeRepository;
+use Capell\AgentBridge\Support\KnowledgeRepository;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -13,6 +13,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Title;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
+use Override;
 
 #[Name('capell-knowledge-read-document')]
 #[Title('Read Capell Document')]
@@ -20,6 +21,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 #[IsReadOnly]
 final class ReadKnowledgeDocumentTool extends Tool
 {
+    #[Override]
     public function schema(JsonSchema $schema): array
     {
         return [

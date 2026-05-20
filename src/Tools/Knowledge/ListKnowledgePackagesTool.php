@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Tools\Knowledge;
+namespace Capell\AgentBridge\Tools\Knowledge;
 
-use Capell\Mcp\Support\KnowledgeRepository;
+use Capell\AgentBridge\Support\KnowledgeRepository;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;

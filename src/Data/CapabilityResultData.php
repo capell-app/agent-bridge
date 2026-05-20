@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Data;
+namespace Capell\AgentBridge\Data;
 
 use Spatie\LaravelData\Data;
 

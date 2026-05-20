@@ -1,14 +1,14 @@
-# MCP
+# Agent Bridge
 
 Status: **Available, schema-owning**
 
-This page is the consolidated implementation overview for the MCP package. It is extracted from the package README, service providers, migrations, config files, routes, resources, models, actions, and the shared Capell ERD notes where available.
+This page is the consolidated implementation overview for the Agent Bridge package. It is extracted from the package README, service providers, migrations, config files, routes, resources, models, actions, and the shared Capell ERD notes where available.
 
 ## What This Plugin Adds
 
-MCP exposes Capell knowledge and site capabilities through Laravel MCP servers with token authentication, confirmations, previews, and audit records.
+Agent Bridge exposes Capell knowledge and site capabilities through Laravel Agent Bridge servers with token authentication, confirmations, previews, and audit records.
 
-- Capell knowledge and site MCP servers.
+- Capell knowledge and site Agent Bridge servers.
 - Token, confirmation, and audit models.
 - Capability registry and capability actions.
 - Prompt builder Filament page.
@@ -16,71 +16,73 @@ MCP exposes Capell knowledge and site capabilities through Laravel MCP servers w
 
 ## Developer Notes
 
-Provides a typed capability contract so MCP tools can preview, confirm, run, and audit changes instead of directly mutating site state.
+Provides a typed capability contract so Agent Bridge tools can preview, confirm, run, and audit changes instead of directly mutating site state.
 
-- CapellMcpServiceProvider registers routes, servers, resources, and capabilities.
-- Config file: capell-mcp.php.
-- Routes file registers MCP endpoints through Laravel MCP.
-- Middleware: AuthenticateCapellMcpToken.
-- Models: CapellMcpToken, CapellMcpConfirmation, CapellMcpAuditEntry.
+- AgentBridgeServiceProvider registers routes, servers, resources, and capabilities.
+- Config file: capell-agent-bridge.php.
+- Routes file registers Agent Bridge endpoints through Laravel Agent Bridge.
+- Middleware: AuthenticateCapellAgentBridgeToken.
+- Models: CapellAgentBridgeToken, CapellAgentBridgeConfirmation, CapellAgentBridgeAuditEntry.
 - Servers: CapellKnowledgeServer and CapellSiteServer.
 - Laravel Boost discovers Capell package guidance from installed package `resources/boost` directories.
-- When Boost is installed, CapellMcpServiceProvider appends Capell bridge tools to `boost.mcp.tools.include`.
-- Boost bridge tools list and preview registered capabilities; authenticated confirmation remains on the Capell Site MCP server.
+- When Boost is installed, AgentBridgeServiceProvider appends Capell bridge tools to `boost.agent-bridge.tools.include`.
+- Boost bridge tools list and preview registered capabilities; authenticated confirmation remains on the Capell Site Agent Bridge server.
 
 ## Operational Notes
 
-Lets trusted assistant clients inspect Capell and request controlled site operations with reviewable confirmation records.
+Lets trusted ai-orchestrator clients inspect Capell and request controlled site operations with reviewable confirmation records.
 
-- Adds MCP token, confirmation, and audit tables.
-- Adds configurable MCP routes.
-- Default config enables site route mcp/capell and disables home/knowledge route registration.
+- Adds Agent Bridge token, confirmation, and audit tables.
+- Adds configurable Agent Bridge routes.
+- Default config enables site route agent-bridge/capell and disables home/knowledge route registration.
 - Adds prompt builder admin page.
 - Adds token prefix and auth guard configuration.
 
 ## Data And Retention
 
-- capell_mcp_tokens stores MCP client tokens.
-- capell_mcp_confirmations stores pending or completed confirmations.
-- capell_mcp_audit_entries stores capability invocation records.
+- capell_agent-bridge_tokens stores Agent Bridge client tokens.
+- capell_agent-bridge_confirmations stores pending or completed confirmations.
+- capell_agent-bridge_audit_entries stores capability invocation records.
 - Confirmation TTL defaults to 10 minutes.
 
 ## Screenshot Plan
 
-- MCP prompt builder page.
+- Agent Bridge prompt builder page.
 - Token management or setup surface.
 - Capability preview and confirmation flow.
 - Audit entry review.
-- MCP server health output.
+- Agent Bridge server health output.
 
 ## Pitfalls
 
-- Enable only the MCP routes you intend to expose.
+- Enable only the Agent Bridge routes you intend to expose.
 - Protect site capabilities with token auth and confirmation flow.
-- Keep public_docs_paths scoped to documentation safe for MCP clients.
+- Keep public_docs_paths scoped to documentation safe for Agent Bridge clients.
 - Run migrations before creating tokens.
-- Do not expect Boost to discover Capell MCP if the host app has not installed `capell-app/mcp`.
+- Do not expect Boost to discover Capell Agent Bridge if the host app has not installed `capell-app/agent-bridge`.
 
 ## Verification
 
-- Run `vendor/bin/pest packages/mcp/tests` when package tests exist.
+- Run `vendor/bin/pest packages/agent-bridge/tests` when package tests exist.
 - Run the relevant host-app migration or package install flow in a disposable database.
 - Open the listed admin or frontend surface and compare it with the screenshot plan.
 
 ## Package Manifest
 
-- Composer name: No Composer manifest is present.
-- Product group: Not declared.
-- Kind: Not declared.
-- Tier: Not declared.
-- Bundle: Not declared.
-- Contexts: Not declared.
-- Requires: Not declared.
+- Composer name: `capell-app/agent-bridge`
+- Product group: Capell Operations
+- Kind: package
+- Tier: premium
+- Bundle: operations
+- Contexts: `admin`
+- Requires: `capell-app/admin`, `capell-app/core`
 - Optional dependencies: None listed.
 
 ## Admin Surfaces
 
-- CapellMcpPromptBuilderPage (packages/mcp/src/Filament/Pages/CapellMcpPromptBuilderPage.php, slug `capell-mcp/prompt-builder`)
+- CapellAgentBridgePromptBuilderPage (packages/agent-bridge/src/Filament/Pages/CapellAgentBridgePromptBuilderPage.php, slug `capell-agent-bridge/prompt-builder`)
+- User relation managers: `AgentBridgeTokensRelationManager`, `AgentBridgeConfirmationsRelationManager`, `AgentBridgeAuditEntriesRelationManager`
+- Settings schema: `AgentBridgeSettingsSchema`
 
 ## Commands
 
@@ -88,8 +90,8 @@ Lets trusted assistant clients inspect Capell and request controlled site operat
 
 ## Routes And Config
 
-- Config: packages/mcp/config/capell-mcp.php
-- Route file: packages/mcp/routes/mcp.php
+- Config: packages/agent-bridge/config/capell-agent-bridge.php
+- Route file: packages/agent-bridge/routes/agent-bridge.php
 
 ## Permissions And Gates
 
@@ -97,9 +99,9 @@ Lets trusted assistant clients inspect Capell and request controlled site operat
 
 ## Migrations
 
-- Migration: 2026_05_02_000001_create_capell_mcp_tokens_table.php
-- Migration: 2026_05_02_000002_create_capell_mcp_confirmations_table.php
-- Migration: 2026_05_02_000003_create_capell_mcp_audit_entries_table.php
+- Migration: 2026_05_02_000001_create_capell_agent-bridge_tokens_table.php
+- Migration: 2026_05_02_000002_create_capell_agent-bridge_confirmations_table.php
+- Migration: 2026_05_02_000003_create_capell_agent-bridge_audit_entries_table.php
 
 ## ERD Excerpt
 
@@ -107,10 +109,10 @@ This package has no committed ERD excerpt. Use implementation notes and extensio
 
 ## Screenshot Automation
 
-Deployment should read [screenshots.json](screenshots.json), install the package with demo data, resolve each admin surface or frontend URL, and write images to `public/docs/screenshots/packages/mcp`.
+Deployment should read [screenshots.json](screenshots.json), install the package with demo data, resolve each admin surface or frontend URL, and write images to `public/docs/screenshots/packages/agent-bridge`.
 
-- MCP prompt builder page.
+- Agent Bridge prompt builder page.
 - Token management or setup surface.
 - Capability preview and confirmation flow.
 - Audit entry review.
-- MCP server health output.
+- Agent Bridge server health output.

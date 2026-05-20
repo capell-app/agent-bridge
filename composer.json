@@ -1,27 +1,27 @@
 {
-    "name": "capell-app/mcp",
-    "description": "MCP servers and capability adapters for Capell CMS.",
+    "name": "capell-app/agent-bridge",
+    "description": "Agent Bridge servers and capability adapters for Capell CMS.",
     "type": "library",
     "license": "proprietary",
     "autoload": {
         "psr-4": {
-            "Capell\\Mcp\\": "src/"
+            "Capell\\AgentBridge\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Capell\\Mcp\\Tests\\": "tests/"
+            "Capell\\AgentBridge\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Capell\\Mcp\\Providers\\CapellMcpServiceProvider"
+                "Capell\\AgentBridge\\Providers\\AgentBridgeServiceProvider"
             ]
         }
     },
     "require": {
-        "php": "^8.2",
+        "php": "^8.3",
         "capell-app/admin": "*",
         "capell-app/core": "*",
         "laravel/framework": "^11.45.3|^12.41.1|^13.0",

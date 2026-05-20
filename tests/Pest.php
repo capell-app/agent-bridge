@@ -2,6 +2,6 @@
 
 declare(strict_types=1);
 
-use Capell\Mcp\Tests\TestCase;
+use Capell\AgentBridge\Tests\TestCase;
 
-pest()->extend(TestCase::class)->group('mcp')->in(__DIR__);
+pest()->extend(TestCase::class)->group('agent-bridge')->in(__DIR__);

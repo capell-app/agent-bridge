@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Servers;
+namespace Capell\AgentBridge\Servers;
 
-use Capell\Mcp\Tools\Site\ConfirmSiteCapabilityTool;
-use Capell\Mcp\Tools\Site\InspectSiteStateTool;
-use Capell\Mcp\Tools\Site\ListSiteCapabilitiesTool;
-use Capell\Mcp\Tools\Site\RunSiteCapabilityTool;
+use Capell\AgentBridge\Tools\Site\ConfirmSiteCapabilityTool;
+use Capell\AgentBridge\Tools\Site\InspectSiteStateTool;
+use Capell\AgentBridge\Tools\Site\ListSiteCapabilitiesTool;
+use Capell\AgentBridge\Tools\Site\RunSiteCapabilityTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Version;
 
-#[Name('Capell Site MCP')]
+#[Name('Capell Site Agent Bridge')]
 #[Version('0.1.0')]
-#[Instructions('Authenticated MCP server for inspecting and safely operating an installed Capell CMS site.')]
+#[Instructions('Authenticated Agent Bridge server for inspecting and safely operating an installed Capell CMS site.')]
 final class CapellSiteServer extends Server
 {
     protected array $tools = [

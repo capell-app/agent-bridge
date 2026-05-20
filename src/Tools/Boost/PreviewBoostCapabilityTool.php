@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Tools\Boost;
+namespace Capell\AgentBridge\Tools\Boost;
 
-use Capell\Mcp\Data\CapabilityInvocationData;
-use Capell\Mcp\Support\CapellMcpCapabilityRegistry;
+use Capell\AgentBridge\Data\CapabilityInvocationData;
+use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -15,13 +15,15 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Title;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
+use Override;
 
 #[Name('capell-preview-capability')]
 #[Title('Preview Capell Capability')]
-#[Description('Preview a registered Capell MCP capability from the Laravel Boost MCP server. Mutating capabilities return preview data only and must be confirmed through the authenticated Capell Site MCP server.')]
+#[Description('Preview a registered Capell Agent Bridge capability from the Laravel Boost Agent Bridge server. Mutating capabilities return preview data only and must be confirmed through the authenticated Capell Site Agent Bridge server.')]
 #[IsDestructive(false)]
 final class PreviewBoostCapabilityTool extends Tool
 {
+    #[Override]
     public function schema(JsonSchema $schema): array
     {
         return [
@@ -30,7 +32,7 @@ final class PreviewBoostCapabilityTool extends Tool
         ];
     }
 
-    public function handle(Request $request, CapellMcpCapabilityRegistry $registry): ResponseFactory
+    public function handle(Request $request, CapellAgentBridgeCapabilityRegistry $registry): ResponseFactory
     {
         $data = $request->validate([
             'capability' => ['required', 'string'],
@@ -49,7 +51,7 @@ final class PreviewBoostCapabilityTool extends Tool
             'mode' => 'preview',
             'capability' => $capability->key,
             'preview' => $preview->toPayload(),
-            'confirmation' => 'Use the authenticated Capell Site MCP server to confirm mutating capability previews.',
+            'confirmation' => 'Use the authenticated Capell Site Agent Bridge server to confirm mutating capability previews.',
         ]);
     }
 }

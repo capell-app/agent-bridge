@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Tools\Knowledge;
+namespace Capell\AgentBridge\Tools\Knowledge;
 
-use Capell\Mcp\Support\KnowledgeRepository;
+use Capell\AgentBridge\Support\KnowledgeRepository;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -14,6 +14,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Title;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
+use Override;
 
 #[Name('capell-knowledge-recommend-packages')]
 #[Title('Recommend Capell Packages')]
@@ -21,10 +22,11 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 #[IsReadOnly]
 final class RecommendPackagesTool extends Tool
 {
+    #[Override]
     public function schema(JsonSchema $schema): array
     {
         return [
-            'query' => $schema->string()->description('Capability or problem statement, such as SEO audits, redirects, forms, or workspaces.')->required(),
+            'query' => $schema->string()->description('Capability or problem statement, such as SEO audits, redirects, form-builder, or publishing-studio.')->required(),
         ];
     }
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Tests\Fixtures;
+namespace Capell\AgentBridge\Tests\Fixtures;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;

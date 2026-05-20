@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-use Capell\Mcp\Actions\ConfirmMcpCapabilityAction;
-use Capell\Mcp\Actions\CreateMcpTokenAction;
-use Capell\Mcp\Actions\InvokeMcpCapabilityPreviewAction;
-use Capell\Mcp\Data\AuthenticatedMcpClientData;
-use Capell\Mcp\Data\CapabilityData;
-use Capell\Mcp\Enums\CapabilityRiskEnum;
-use Capell\Mcp\Enums\CapabilityServerEnum;
-use Capell\Mcp\Models\CapellMcpConfirmation;
-use Capell\Mcp\Support\CapellMcpCapabilityRegistry;
-use Capell\Mcp\Tests\Fixtures\FakeCapabilityAction;
-use Capell\Mcp\Tests\Fixtures\User;
+use Capell\AgentBridge\Actions\ConfirmAgentBridgeCapabilityAction;
+use Capell\AgentBridge\Actions\CreateAgentBridgeTokenAction;
+use Capell\AgentBridge\Actions\InvokeAgentBridgeCapabilityPreviewAction;
+use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
+use Capell\AgentBridge\Data\CapabilityData;
+use Capell\AgentBridge\Enums\CapabilityRiskEnum;
+use Capell\AgentBridge\Enums\CapabilityServerEnum;
+use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
+use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
+use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
+use Capell\AgentBridge\Tests\Fixtures\User;
 use Illuminate\Auth\Access\AuthorizationException;
 
 function registerFakeCapability(string $scope = 'capell.fake.write'): void
 {
-    resolve(CapellMcpCapabilityRegistry::class)->register(new CapabilityData(
+    resolve(CapellAgentBridgeCapabilityRegistry::class)->register(new CapabilityData(
         key: 'capell.fake.write',
         name: 'Fake write',
         description: 'Fake mutating capability.',
@@ -25,7 +25,7 @@ function registerFakeCapability(string $scope = 'capell.fake.write'): void
         server: CapabilityServerEnum::Site,
         risk: CapabilityRiskEnum::High,
         actionClass: FakeCapabilityAction::class,
-        auditEvent: 'capell_mcp.fake.write',
+        auditEvent: 'capell_agent-bridge.fake.write',
     ));
 }
 
@@ -38,8 +38,8 @@ it('previews and confirms a mutating capability with the same payload', function
         'password' => 'secret',
     ]);
 
-    $created = CreateMcpTokenAction::run($user, 'Test client', ['capell.fake.write']);
-    $client = new AuthenticatedMcpClientData(
+    $created = CreateAgentBridgeTokenAction::run($user, 'Test client', ['capell.fake.write']);
+    $client = new AuthenticatedAgentBridgeClientData(
         tokenId: (int) $created['token']->getKey(),
         name: 'Test client',
         scopes: ['capell.fake.write'],
@@ -47,7 +47,7 @@ it('previews and confirms a mutating capability with the same payload', function
 
     $payload = ['name' => 'Example'];
 
-    $preview = InvokeMcpCapabilityPreviewAction::run(
+    $preview = InvokeAgentBridgeCapabilityPreviewAction::run(
         capabilityKey: 'capell.fake.write',
         payload: $payload,
         client: $client,
@@ -58,7 +58,7 @@ it('previews and confirms a mutating capability with the same payload', function
     expect($preview['mode'])->toBe('preview')
         ->and($preview['confirmationToken'])->toBeString();
 
-    $result = ConfirmMcpCapabilityAction::run(
+    $result = ConfirmAgentBridgeCapabilityAction::run(
         confirmationToken: $preview['confirmationToken'],
         payload: $payload,
         client: $client,
@@ -68,7 +68,7 @@ it('previews and confirms a mutating capability with the same payload', function
 
     expect($result['mode'])->toBe('confirmed')
         ->and($result['result']['message'])->toBe('Executed fake capability.')
-        ->and(CapellMcpConfirmation::query()->whereNotNull('used_at')->count())->toBe(1);
+        ->and(CapellAgentBridgeConfirmation::query()->whereNotNull('used_at')->count())->toBe(1);
 });
 
 it('rejects confirmation when the payload changes after preview', function (): void {
@@ -80,14 +80,14 @@ it('rejects confirmation when the payload changes after preview', function (): v
         'password' => 'secret',
     ]);
 
-    $created = CreateMcpTokenAction::run($user, 'Test client', ['capell.fake.write']);
-    $client = new AuthenticatedMcpClientData(
+    $created = CreateAgentBridgeTokenAction::run($user, 'Test client', ['capell.fake.write']);
+    $client = new AuthenticatedAgentBridgeClientData(
         tokenId: (int) $created['token']->getKey(),
         name: 'Test client',
         scopes: ['capell.fake.write'],
     );
 
-    $preview = InvokeMcpCapabilityPreviewAction::run(
+    $preview = InvokeAgentBridgeCapabilityPreviewAction::run(
         capabilityKey: 'capell.fake.write',
         payload: ['name' => 'Original'],
         client: $client,
@@ -95,11 +95,11 @@ it('rejects confirmation when the payload changes after preview', function (): v
         user: $user,
     );
 
-    ConfirmMcpCapabilityAction::run(
+    ConfirmAgentBridgeCapabilityAction::run(
         confirmationToken: $preview['confirmationToken'],
         payload: ['name' => 'Changed'],
         client: $client,
         token: $created['token'],
         user: $user,
     );
-})->throws(AuthorizationException::class, 'The MCP confirmation payload has changed.');
+})->throws(AuthorizationException::class, 'The Agent Bridge confirmation payload has changed.');

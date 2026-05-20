@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Support;
+namespace Capell\AgentBridge\Support;
 
 use Illuminate\Support\Facades\File;
 use SplFileInfo;
@@ -22,13 +22,15 @@ final class KnowledgeRepository
                 continue;
             }
 
+            $product = is_array($decoded['product'] ?? null) ? $decoded['product'] : [];
+
             $packages[] = [
                 'name' => $decoded['name'] ?? basename(dirname((string) $packageFile)),
-                'productGroup' => $decoded['productGroup'] ?? null,
-                'tier' => $decoded['tier'] ?? null,
-                'bundle' => $decoded['bundle'] ?? null,
-                'contexts' => $decoded['contexts'] ?? [],
-                'requires' => $decoded['requires'] ?? [],
+                'productGroup' => $product['group'] ?? null,
+                'tier' => $product['tier'] ?? null,
+                'bundle' => $product['bundle'] ?? null,
+                'contexts' => $decoded['surfaces'] ?? $decoded['contexts'] ?? [],
+                'requires' => $decoded['dependencies']['requires'] ?? $decoded['requires'] ?? [],
                 'path' => dirname((string) $packageFile),
             ];
         }
@@ -41,7 +43,7 @@ final class KnowledgeRepository
     {
         $paths = [];
 
-        foreach (config('capell-mcp.public_docs_paths', []) as $configuredPath) {
+        foreach (config('capell-agent-bridge.public_docs_paths', []) as $configuredPath) {
             foreach (File::glob($configuredPath) as $path) {
                 if (is_dir($path)) {
                     foreach (File::allFiles($path) as $file) {

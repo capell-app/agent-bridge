@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Actions\Pages;
+namespace Capell\AgentBridge\Actions\Pages;
 
+use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityAction;
+use Capell\AgentBridge\Data\CapabilityInvocationData;
+use Capell\AgentBridge\Data\CapabilityResultData;
 use Capell\Core\Models\Page;
-use Capell\Mcp\Contracts\CapellMcpCapabilityAction;
-use Capell\Mcp\Data\CapabilityInvocationData;
-use Capell\Mcp\Data\CapabilityResultData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
-final class CreateDraftPageCapabilityAction implements CapellMcpCapabilityAction
+final class CreateDraftPageCapabilityAction implements CapellAgentBridgeCapabilityAction
 {
     public function preview(CapabilityInvocationData $invocation): CapabilityResultData
     {
@@ -34,7 +34,7 @@ final class CreateDraftPageCapabilityAction implements CapellMcpCapabilityAction
         $page = $pageClass::query()->create([
             'name' => $payload['name'],
             'site_id' => $payload['site_id'],
-            'type_id' => $payload['type_id'],
+            'blueprint_id' => $payload['blueprint_id'],
             'layout_id' => $payload['layout_id'],
             'parent_id' => $payload['parent_id'] ?? null,
             'meta' => $payload['meta'] ?? null,
@@ -62,7 +62,7 @@ final class CreateDraftPageCapabilityAction implements CapellMcpCapabilityAction
         validator($payload, [
             'name' => ['required', 'string', 'max:255'],
             'site_id' => ['required', 'integer'],
-            'type_id' => ['required', 'integer'],
+            'blueprint_id' => ['required', 'integer'],
             'layout_id' => ['required', 'integer'],
             'parent_id' => ['nullable', 'integer'],
             'meta' => ['nullable', 'array'],

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use Capell\Mcp\Data\CapabilityData;
-use Capell\Mcp\Enums\CapabilityRiskEnum;
-use Capell\Mcp\Enums\CapabilityServerEnum;
-use Capell\Mcp\Support\CapellMcpCapabilityRegistry;
-use Capell\Mcp\Tests\Fixtures\FakeCapabilityAction;
+use Capell\AgentBridge\Data\CapabilityData;
+use Capell\AgentBridge\Enums\CapabilityRiskEnum;
+use Capell\AgentBridge\Enums\CapabilityServerEnum;
+use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
+use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
 
 it('filters capabilities by server and client scopes', function (): void {
-    $registry = new CapellMcpCapabilityRegistry;
+    $registry = new CapellAgentBridgeCapabilityRegistry;
 
     $registry->register(new CapabilityData(
         key: 'capell.fake.read',
@@ -38,7 +38,7 @@ it('filters capabilities by server and client scopes', function (): void {
 });
 
 it('prevents duplicate capability keys', function (): void {
-    $registry = new CapellMcpCapabilityRegistry;
+    $registry = new CapellAgentBridgeCapabilityRegistry;
     $capability = new CapabilityData(
         key: 'capell.fake.read',
         name: 'Fake read',
@@ -56,7 +56,7 @@ it('prevents duplicate capability keys', function (): void {
 });
 
 it('hides required package capabilities when Capell core is unavailable', function (): void {
-    $registry = new CapellMcpCapabilityRegistry;
+    $registry = new CapellAgentBridgeCapabilityRegistry;
 
     $registry->register(new CapabilityData(
         key: 'capell.fake.package',

@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Actions\Pages;
+namespace Capell\AgentBridge\Actions\Pages;
 
+use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityAction;
+use Capell\AgentBridge\Data\CapabilityInvocationData;
+use Capell\AgentBridge\Data\CapabilityResultData;
 use Capell\Core\Models\Page;
-use Capell\Mcp\Contracts\CapellMcpCapabilityAction;
-use Capell\Mcp\Data\CapabilityInvocationData;
-use Capell\Mcp\Data\CapabilityResultData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
-final class UpdateDraftPageCapabilityAction implements CapellMcpCapabilityAction
+final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabilityAction
 {
     public function preview(CapabilityInvocationData $invocation): CapabilityResultData
     {

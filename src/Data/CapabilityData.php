@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Data;
+namespace Capell\AgentBridge\Data;
 
-use Capell\Mcp\Contracts\CapellMcpCapabilityAction;
-use Capell\Mcp\Enums\CapabilityRiskEnum;
-use Capell\Mcp\Enums\CapabilityServerEnum;
+use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityAction;
+use Capell\AgentBridge\Enums\CapabilityRiskEnum;
+use Capell\AgentBridge\Enums\CapabilityServerEnum;
 use Spatie\LaravelData\Data;
 
 final class CapabilityData extends Data
 {
     /**
-     * @param  class-string<CapellMcpCapabilityAction>  $actionClass
+     * @param  class-string<CapellAgentBridgeCapabilityAction>  $actionClass
      * @param  class-string<Data>|null  $inputDataClass
      * @param  class-string<Data>|null  $outputDataClass
      */

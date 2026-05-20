@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Enums;
+namespace Capell\AgentBridge\Enums;
 
 enum CapabilityServerEnum: string
 {

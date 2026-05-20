@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Tools\Site;
+namespace Capell\AgentBridge\Tools\Site;
 
-use Capell\Mcp\Actions\ConfirmMcpCapabilityAction;
-use Capell\Mcp\Data\AuthenticatedMcpClientData;
-use Capell\Mcp\Models\CapellMcpToken;
+use Capell\AgentBridge\Actions\ConfirmAgentBridgeCapabilityAction;
+use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
+use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -16,6 +16,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Title;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
+use Override;
 
 #[Name('capell-site-confirm-capability')]
 #[Title('Confirm Site Capability')]
@@ -23,6 +24,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 #[IsDestructive]
 final class ConfirmSiteCapabilityTool extends Tool
 {
+    #[Override]
     public function schema(JsonSchema $schema): array
     {
         return [
@@ -31,14 +33,14 @@ final class ConfirmSiteCapabilityTool extends Tool
         ];
     }
 
-    public function handle(Request $request, AuthenticatedMcpClientData $client, CapellMcpToken $token): ResponseFactory
+    public function handle(Request $request, AuthenticatedAgentBridgeClientData $client, CapellAgentBridgeToken $token): ResponseFactory
     {
         $data = $request->validate([
             'confirmationToken' => ['required', 'string'],
             'payload' => ['required', 'array'],
         ]);
 
-        $result = ConfirmMcpCapabilityAction::run(
+        $result = ConfirmAgentBridgeCapabilityAction::run(
             confirmationToken: (string) $data['confirmationToken'],
             payload: $data['payload'],
             client: $client,

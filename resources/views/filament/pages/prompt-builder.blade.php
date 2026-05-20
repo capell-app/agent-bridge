@@ -8,18 +8,18 @@
                     icon="heroicon-o-sparkles"
                     wire:click="buildPrompt"
                 >
-                    {{ __('capell-mcp::admin.build_prompt') }}
+                    {{ __('capell-agent-bridge::admin.build_prompt') }}
                 </x-filament::button>
             </div>
         </x-filament::section>
 
         <x-filament::section>
             <x-slot name="heading">
-                {{ __('capell-mcp::admin.prepared_prompt') }}
+                {{ __('capell-agent-bridge::admin.prepared_prompt') }}
             </x-slot>
 
             <x-slot name="description">
-                {{ __('capell-mcp::admin.prepared_prompt_description') }}
+                {{ __('capell-agent-bridge::admin.prepared_prompt_description') }}
             </x-slot>
 
             <textarea

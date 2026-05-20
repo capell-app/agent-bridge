@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Capell\Mcp\Support\AdminTools;
+namespace Capell\AgentBridge\Support\AdminTools;
 
 use Capell\Admin\Contracts\AdminTools\AdminToolItem;
-use Capell\Mcp\Filament\Pages\CapellMcpPromptBuilderPage;
+use Capell\AgentBridge\Filament\Pages\CapellAgentBridgePromptBuilderPage;
 use Illuminate\Support\Facades\Blade;
 
 final class PromptBuilderAdminTool implements AdminToolItem
@@ -19,10 +19,10 @@ final class PromptBuilderAdminTool implements AdminToolItem
                     href="{{ $url }}"
                 >
                     @svg('heroicon-o-chat-bubble-left-right', 'fi-dropdown-list-item-icon h-5 w-5 text-gray-400 dark:text-gray-500')
-                    {{ __('capell-mcp::admin.prompt_builder_tool') }}
+                    {{ __('capell-agent-bridge::admin.prompt_builder_tool') }}
                 </a>
             BLADE,
-            ['url' => CapellMcpPromptBuilderPage::getUrl()],
+            ['url' => CapellAgentBridgePromptBuilderPage::getUrl()],
         );
     }
 }
