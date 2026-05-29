@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Providers;
 
 use Capell\Admin\Contracts\Extenders\UserSchemaExtender;
+use Capell\Admin\Data\Extensions\ExtensionManagementSurfaceData;
 use Capell\Admin\Facades\CapellAdmin;
 use Capell\Admin\Support\Bridges\AdminBridgeRegistrar;
 use Capell\AgentBridge\Actions\Cache\ClearCapellCacheCapabilityAction;
@@ -20,6 +21,7 @@ use Capell\AgentBridge\Enums\CapabilityServerEnum;
 use Capell\AgentBridge\Extenders\AgentBridgeUserSchemaExtender;
 use Capell\AgentBridge\Filament\Pages\CapellAgentBridgePromptBuilderPage;
 use Capell\AgentBridge\Filament\Settings\AgentBridgeSettingsSchema;
+use Capell\AgentBridge\Livewire\PromptBuilderToolbarAction;
 use Capell\AgentBridge\Settings\AgentBridgeSettings;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\AgentBridge\Tools\Boost\ListBoostCapabilitiesTool;
@@ -28,13 +30,13 @@ use Capell\Core\Facades\CapellCore;
 use Capell\Core\Support\Settings\SettingsGroupMetadata;
 use Capell\Core\Support\Settings\SettingsSchemaRegistry;
 use Filament\Pages\Page;
-use Filament\Support\Enums\IconSize;
 use Filament\Support\Facades\FilamentView;
 use Filament\Support\Icons\Heroicon;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Boost\AgentBridge\Boost;
+use Livewire\Livewire;
 use Override;
 use Throwable;
 
@@ -51,6 +53,10 @@ final class AgentBridgeServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->loadTranslationsFrom(__DIR__ . '/../../resources/lang', 'capell-agent-bridge');
+        $this->loadViewsFrom(__DIR__ . '/../../resources/views', 'capell-agent-bridge');
+        Livewire::component('capell-agent-bridge.prompt-builder-toolbar-action', PromptBuilderToolbarAction::class);
+
         if (! $this->isPackageInstalled()) {
             return;
         }
@@ -61,8 +67,6 @@ final class AgentBridgeServiceProvider extends ServiceProvider
             __DIR__ . '/../../config/capell-agent-bridge.php' => config_path('capell-agent-bridge.php'),
         ], 'capell-agent-bridge-config');
 
-        $this->loadTranslationsFrom(__DIR__ . '/../../resources/lang', 'capell-agent-bridge');
-        $this->loadViewsFrom(__DIR__ . '/../../resources/views', 'capell-agent-bridge');
         $this->loadRoutesFrom(__DIR__ . '/../../routes/agent-bridge.php');
 
         $this->registerSettingsIntegration();
@@ -70,6 +74,15 @@ final class AgentBridgeServiceProvider extends ServiceProvider
         $this->registerBoostIntegration();
         $this->registerBuiltInCapabilities();
         $this->registerTaggedCapabilityProviders();
+    }
+
+    private function isPackageInstalled(): bool
+    {
+        if (! class_exists(CapellCore::class)) {
+            return true;
+        }
+
+        return CapellCore::isPackageInstalled(self::$packageName);
     }
 
     private function registerBoostIntegration(): void
@@ -87,15 +100,6 @@ final class AgentBridgeServiceProvider extends ServiceProvider
                 PreviewBoostCapabilityTool::class,
             ])),
         ]);
-    }
-
-    private function isPackageInstalled(): bool
-    {
-        if (! class_exists(CapellCore::class)) {
-            return true;
-        }
-
-        return CapellCore::isPackageInstalled(self::$packageName);
     }
 
     private function registerAdminIntegration(): void
@@ -126,23 +130,7 @@ final class AgentBridgeServiceProvider extends ServiceProvider
 
         FilamentView::registerRenderHook(
             PanelsRenderHook::GLOBAL_SEARCH_AFTER,
-            fn (): string => Blade::render(
-                <<<'BLADE'
-                    <a
-                        class="text-gray-600 hover:text-primary-600 focus:text-primary-600 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md transition-colors focus:outline-none dark:text-gray-300 dark:hover:text-primary-400 dark:focus:text-primary-400"
-                        href="{{ $url }}"
-                        title="{{ $label }}"
-                        aria-label="{{ $label }}"
-                    >
-                        @svg($icon, 'h-5 w-5')
-                    </a>
-                BLADE,
-                [
-                    'icon' => Heroicon::OutlinedSparkles->getIconForSize(IconSize::Small),
-                    'label' => __('capell-agent-bridge::admin.prompt_builder_tool'),
-                    'url' => $promptBuilderPage::getUrl(),
-                ],
-            ),
+            fn (): string => Blade::render('@livewire($component)', ['component' => 'capell-agent-bridge.prompt-builder-toolbar-action']),
         );
     }
 
@@ -179,6 +167,12 @@ final class AgentBridgeServiceProvider extends ServiceProvider
     {
         $registry->registerSettingsClass(AgentBridgeSettings::group(), AgentBridgeSettings::class);
         $registry->register(AgentBridgeSettings::group(), AgentBridgeSettingsSchema::class);
+        CapellAdmin::registerExtensionManagementSurface(ExtensionManagementSurfaceData::settings(
+            packageName: self::$packageName,
+            label: 'capell-agent-bridge::admin.settings_title',
+            settingsGroup: AgentBridgeSettings::group(),
+            icon: Heroicon::OutlinedSparkles,
+        ));
 
         if (class_exists(SettingsGroupMetadata::class)) {
             $registry->registerMetadata(new SettingsGroupMetadata(
@@ -216,9 +210,8 @@ final class AgentBridgeServiceProvider extends ServiceProvider
             && method_exists($admin, 'registerAdminBridge')
             && method_exists($admin, 'bootAdminBridges')
             && class_exists(AgentBridgeAdminBridge::class)
-            && class_exists(AdminBridgeRegistrar::class)
-            && method_exists(AdminBridgeRegistrar::class, 'extensionPage')
-            && method_exists(AdminBridgeRegistrar::class, 'schemaExtender');
+            && class_exists(AdminBridgeRegistrar::class);
+
     }
 
     private function registerBuiltInCapabilities(): void

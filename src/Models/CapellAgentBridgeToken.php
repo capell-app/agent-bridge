@@ -6,6 +6,7 @@ namespace Capell\AgentBridge\Models;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -23,6 +24,7 @@ use Override;
  */
 final class CapellAgentBridgeToken extends Model
 {
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     protected $fillable = [
@@ -32,16 +34,43 @@ final class CapellAgentBridgeToken extends Model
         'expires_at',
     ];
 
-    protected $table = 'capell_agent-bridge_tokens';
+    protected $table = 'capell_agent_bridge_tokens';
 
     public static function hashPlainTextToken(string $plainTextToken): string
     {
+        return hash_hmac('sha256', $plainTextToken, (string) config('app.key'));
+    }
+
+    public static function legacyHashPlainTextToken(string $plainTextToken): string
+    {
         return hash('sha256', $plainTextToken);
+    }
+
+    public static function findForPlainTextToken(string $plainTextToken): ?self
+    {
+        $token = self::query()
+            ->where('token_hash', self::hashPlainTextToken($plainTextToken))
+            ->first();
+
+        if ($token instanceof self) {
+            return $token;
+        }
+
+        $legacyToken = self::query()
+            ->where('token_hash', self::legacyHashPlainTextToken($plainTextToken))
+            ->first();
+
+        return $legacyToken instanceof self ? $legacyToken : null;
     }
 
     public static function generatePlainTextToken(): string
     {
         return config('capell-agent-bridge.token_prefix', 'cagent-bridge_') . Str::random(48);
+    }
+
+    public function hasLegacyHashForPlainTextToken(string $plainTextToken): bool
+    {
+        return hash_equals($this->token_hash, self::legacyHashPlainTextToken($plainTextToken));
     }
 
     public function canUseScope(string $scope): bool

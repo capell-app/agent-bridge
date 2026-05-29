@@ -11,6 +11,18 @@ Agent Bridge exposes Capell knowledge and site capabilities through Laravel Agen
 - Capell dependencies: `capell-app/admin`, `capell-app/core`
 - Third-party dependencies: `laravel/framework`, `laravel/mcp`, `lorisleiva/laravel-actions`, `spatie/laravel-data`, `spatie/laravel-package-tools`
 
+## Why It Helps Your Capell Workflow
+
+- Lets trusted agent tools inspect Capell knowledge and run approved capabilities without opening broad admin access.
+- Keeps capability risk, confirmation, audit, and token behavior in one package so operators can reason about agent actions.
+- Gives developers a documented bridge for automation instead of adding ad hoc endpoints to admin resources.
+
+## Best Used With
+
+- [Diagnostics](../diagnostics/README.md)
+- [AI Orchestrator](../ai-orchestrator/README.md)
+- [Public Actions](../public-actions/README.md)
+
 ## What It Adds
 
 Agent Bridge exposes Capell knowledge and site capabilities through Laravel Agent Bridge servers with token authentication, confirmations, previews, and audit records.
@@ -100,13 +112,14 @@ Screenshots are generated from [docs/screenshots.json](docs/screenshots.json) du
 
 ## Data And Persistence
 
-- capell_agent-bridge_tokens stores Agent Bridge client tokens.
-- capell_agent-bridge_confirmations stores pending or completed confirmations.
-- capell_agent-bridge_audit_entries stores capability invocation records.
+- `capell_agent_bridge_tokens` stores Agent Bridge client tokens.
+- `capell_agent_bridge_confirmations` stores pending or completed confirmations.
+- `capell_agent_bridge_audit_entries` stores capability invocation records.
+- `capell_agent_bridge_saved_prompts` stores prompt builder templates.
 - Confirmation TTL defaults to 10 minutes.
 
 - Models: `CapellAgentBridgeAuditEntry`, `CapellAgentBridgeConfirmation`, `CapellAgentBridgeToken`.
-- Migrations: `2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php`, `2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php`, `2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php`.
+- Migrations create legacy hyphenated table names on fresh installs, then `2026_05_28_000001_rename_agent_bridge_tables_to_canonical_names.php` renames them to canonical underscore names for runtime use.
 - Config: `packages/agent-bridge/config/capell-agent-bridge.php`.
 - Data objects live in `src/Data/`; use them for payloads, form state, and view models.
 
@@ -144,6 +157,7 @@ Screenshots are generated from [docs/screenshots.json](docs/screenshots.json) du
 
 ## Docs
 
+- [docs index](docs/README.md)
 - [boost-integration.md](docs/boost-integration.md)
 - [capabilities.md](docs/capabilities.md)
 - [credits-and-acknowledgements.md](docs/credits-and-acknowledgements.md)

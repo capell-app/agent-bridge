@@ -21,12 +21,7 @@ final class AgentBridgeAdminBridge implements AdminBridge
 
     public function register(AdminBridgeRegistrar $registrar, AdminBridgeContextData $context): void
     {
-        if (method_exists($registrar, 'extensionPage')) {
-            $registrar->extensionPage($context->packageName, CapellAgentBridgePromptBuilderPage::class);
-        } else {
-            resolve(ExtensionPageRegistry::class)->register($context->packageName, CapellAgentBridgePromptBuilderPage::class);
-        }
-
         $registrar->schemaExtender(AgentBridgeUserSchemaExtender::class, UserSchemaExtender::TAG);
+        resolve(ExtensionPageRegistry::class)->register($context->packageName, CapellAgentBridgePromptBuilderPage::class);
     }
 }

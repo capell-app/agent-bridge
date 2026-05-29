@@ -4,7 +4,7 @@ Status: **Available, schema-owning**
 
 This page is the consolidated implementation overview for the Agent Bridge package. It is extracted from the package README, service providers, migrations, config files, routes, resources, models, actions, and the shared Capell ERD notes where available.
 
-## What This Plugin Adds
+## What This Package Adds
 
 Agent Bridge exposes Capell knowledge and site capabilities through Laravel Agent Bridge servers with token authentication, confirmations, previews, and audit records.
 
@@ -40,9 +40,10 @@ Lets trusted ai-orchestrator clients inspect Capell and request controlled site 
 
 ## Data And Retention
 
-- capell_agent-bridge_tokens stores Agent Bridge client tokens.
-- capell_agent-bridge_confirmations stores pending or completed confirmations.
-- capell_agent-bridge_audit_entries stores capability invocation records.
+- `capell_agent_bridge_tokens` stores Agent Bridge client tokens.
+- `capell_agent_bridge_confirmations` stores pending or completed confirmations.
+- `capell_agent_bridge_audit_entries` stores capability invocation records.
+- `capell_agent_bridge_saved_prompts` stores prompt builder templates.
 - Confirmation TTL defaults to 10 minutes.
 
 ## Screenshot Plan
@@ -99,9 +100,11 @@ Lets trusted ai-orchestrator clients inspect Capell and request controlled site 
 
 ## Migrations
 
-- Migration: 2026_05_02_000001_create_capell_agent-bridge_tokens_table.php
-- Migration: 2026_05_02_000002_create_capell_agent-bridge_confirmations_table.php
-- Migration: 2026_05_02_000003_create_capell_agent-bridge_audit_entries_table.php
+- Migration: 2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php
+- Migration: 2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php
+- Migration: 2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php
+- Migration: 2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table.php
+- Compatibility migration: 2026_05_28_000001_rename_agent_bridge_tables_to_canonical_names.php
 
 ## ERD Excerpt
 
