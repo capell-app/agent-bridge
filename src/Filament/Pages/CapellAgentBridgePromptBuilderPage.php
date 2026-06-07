@@ -58,11 +58,7 @@ final class CapellAgentBridgePromptBuilderPage extends Page implements HasForms
         return [
             'pages' => (string) __('capell-agent-bridge::admin.area_pages'),
             'cache' => (string) __('capell-agent-bridge::admin.area_cache'),
-            'seo' => (string) __('capell-agent-bridge::admin.area_seo'),
-            'redirects' => (string) __('capell-agent-bridge::admin.area_redirects'),
-            'navigation' => (string) __('capell-agent-bridge::admin.area_navigation'),
             'packages' => (string) __('capell-agent-bridge::admin.area_packages'),
-            'other' => (string) __('capell-agent-bridge::admin.area_other'),
         ];
     }
 
@@ -75,7 +71,6 @@ final class CapellAgentBridgePromptBuilderPage extends Page implements HasForms
             'update' => (string) __('capell-agent-bridge::admin.operation_update'),
             'disable' => (string) __('capell-agent-bridge::admin.operation_disable'),
             'clear' => (string) __('capell-agent-bridge::admin.operation_clear'),
-            'regenerate' => (string) __('capell-agent-bridge::admin.operation_regenerate'),
             'recommend' => (string) __('capell-agent-bridge::admin.operation_recommend'),
         ];
     }
@@ -98,7 +93,7 @@ final class CapellAgentBridgePromptBuilderPage extends Page implements HasForms
 
     public function mount(): void
     {
-        $this->getForm('form')?->fill($this->data);
+        $this->getSchema('form')?->fill($this->data);
     }
 
     public function form(Schema $schema): Schema
@@ -151,7 +146,7 @@ final class CapellAgentBridgePromptBuilderPage extends Page implements HasForms
 
     public function buildPrompt(): void
     {
-        $state = $this->getForm('form')?->getState() ?? $this->data;
+        $state = $this->getSchema('form')?->getState() ?? $this->data;
         $this->preparedPrompt = BuildAgentBridgePromptAction::run(AgentBridgePromptData::fromArray($state));
 
         Notification::make('capell_agent-bridge_prompt_ready')

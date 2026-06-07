@@ -6,16 +6,22 @@
     "kind": "package",
     "capellApiVersion": "^4.0",
     "version": "4.x-dev",
-    "description": "Agent Bridge exposes Capell knowledge and site capabilities through Laravel Agent Bridge servers.",
+    "description": "Connect AI agents and MCP clients to Capell with read-only package knowledge, scoped site capabilities, preview-then-confirm execution, and audited operations.",
     "product": {
         "group": "Capell Operations",
         "tier": "premium",
         "bundle": "operations"
     },
     "namespace": "Capell\\AgentBridge",
-    "surfaces": ["admin"],
+    "surfaces": [
+        "admin",
+        "frontend"
+    ],
     "dependencies": {
-        "requires": ["capell-app/admin", "capell-app/core"],
+        "requires": [
+            "capell-app/admin",
+            "capell-app/core"
+        ],
         "supports": [],
         "conflicts": []
     },
@@ -31,7 +37,7 @@
     "contributes": [],
     "database": {
         "migrations": true,
-        "settings": false,
+        "settings": true,
         "requiredTables": []
     },
     "commands": {
@@ -40,9 +46,17 @@
         "demo": null,
         "doctor": null
     },
-    "settings": [],
-    "permissions": [],
-    "capabilities": ["agent-bridge", "agent-bridge-admin"],
+    "settings": [
+        "Capell\\AgentBridge\\Settings\\AgentBridgeSettings"
+    ],
+    "permissions": [
+        "agent-bridge.manage-tokens",
+        "agent-bridge.view-audit"
+    ],
+    "capabilities": [
+        "agent-bridge",
+        "agent-bridge-admin"
+    ],
     "performance": {
         "frontendRenderBudgetMs": 0,
         "adminQueryBudget": 40,
@@ -71,15 +85,23 @@
         "privateDocsRequested": true
     },
     "marketplace": {
-        "summary": "Agent Bridge exposes Capell knowledge and site capabilities through Laravel Agent Bridge servers.",
+        "summary": "Let AI agents safely read and operate your Capell site through scoped tokens, preview-then-confirm guardrails, and a full audit trail.",
         "screenshots": [
             {
-                "path": "docs/assets/marketplace/extension-card.jpg",
-                "alt": "Agent Bridge extension preview image",
-                "caption": "Agent Bridge extension preview"
+                "path": "docs/screenshots/agent-bridge-prompt-builder-page.png",
+                "alt": "Agent Bridge prompt builder page showing package context, scopes, and operator instructions.",
+                "caption": "Build scoped prompts for external AI agents using installed Capell package context."
+            },
+            {
+                "path": "docs/screenshots/agent-bridge-prompt-builder-page-dark.png",
+                "alt": "Agent Bridge prompt builder page in dark mode with package context and scoped instructions.",
+                "caption": "Build scoped prompts in dark mode while keeping agent instructions tied to installed package context."
             }
         ],
-        "categories": ["admin", "operations"]
+        "categories": [
+            "admin",
+            "operations"
+        ]
     },
     "contributionTraceability": {
         "deferredContributions": [
