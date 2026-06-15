@@ -4,13 +4,13 @@
 
 ## 1. Snapshot
 
-Agent Bridge connects AI agents and MCP clients to Capell through scoped tokens, MCP server routes, read-only knowledge/site capabilities, preview-then-confirm execution, saved prompts, audit entries, settings, Boost integration, and an admin prompt-builder surface. It already has a meaningful health check and preview/confirm tests. The biggest current risk is route/config hardening: the home route defaults to `/`, health remediation references `php artisan migrate`, and the package needs clearer token retention, audit redaction, and marketplace media boundaries for AI-agent administrators.
+Agent Bridge connects AI agents and MCP clients to Capell through scoped tokens, MCP server routes, read-only knowledge/site capabilities, preview-then-confirm execution, saved prompts, audit entries, settings, Boost integration, and an admin prompt-builder surface. It already has a meaningful health check and preview/confirm tests. The biggest current risk is route/config hardening: the home route defaults to `/`, health remediation references a host-app migration command instead of package install guidance, and the package needs clearer token retention, audit redaction, and marketplace media boundaries for AI-agent administrators.
 
 ## 2. Improvements (existing functionality)
 
 1. **Move the default home route away from `/` or make it opt-in.** `routes/agent-bridge.php` registers the configured home route when non-empty, and config defaults appear to expose a JSON home document. A package route should not risk shadowing a host homepage. Evidence: `routes/agent-bridge.php`, `config/capell-agent-bridge.php`, `tests/Feature/HomeRouteTest.php`. - **S**
 
-2. **Fix package health remediation language.** `AgentBridgeHealthCheck` tells users to run `php artisan migrate`, which conflicts with this repo's package workflow and the repo convention to use package commands/composer overlay. Update remediation to package/install guidance and cover it in tests. Evidence: `src/Health/AgentBridgeHealthCheck.php`, `tests/Unit/AgentBridgeHealthCheckTest.php`. - **S**
+2. **Fix package health remediation language.** `AgentBridgeHealthCheck` tells users to run a host-app migration command, which conflicts with this repo's package workflow and the repo convention to use package commands/composer overlay. Update remediation to package/install guidance and cover it in tests. Evidence: `src/Health/AgentBridgeHealthCheck.php`, `tests/Unit/AgentBridgeHealthCheckTest.php`. - **S**
 
 3. **Add audit/token retention automation to manifest and docs.** The provider registers `PruneAgentBridgeAuditEntriesCommand`, but `capell.json commands` does not expose install/setup/doctor/prune information and docs should explain retention defaults. Evidence: `src/Providers/AgentBridgeServiceProvider.php`, `src/Actions/PruneAgentBridgeAuditEntriesAction.php`, `capell.json`. - **M**
 
@@ -49,17 +49,17 @@ Agent Bridge should be positioned as a governed AI operations bridge, not a gene
 
 ## 6. Prioritized Roadmap
 
-| Item                                                         | Bucket | Effort | Impact | Section ref |
-| ------------------------------------------------------------ | ------ | ------ | ------ | ----------- |
-| Disable or namespace the default home route                  | Now    | S      | High   | §2.1, §4.1  |
-| Fix health remediation copy away from `php artisan migrate`  | Now    | S      | Medium | §2.2, §4.3  |
-| Surface audit/token pruning command in manifest/docs         | Now    | M      | Medium | §2.3        |
-| Add central audit payload/result redaction                   | Now    | M      | High   | §2.4, §4.2  |
-| Add capability catalog/admin inventory surface               | Next   | M      | Medium | §3, §5      |
-| Add token scope lifecycle UI and tests                       | Next   | M      | Medium | §3          |
-| Recapture token/audit/server health marketplace screenshots  | Next   | M      | Medium | §3, §5      |
-| Add server-specific RBAC and policy diagnostics              | Later  | L      | Medium | §3          |
-| Add richer MCP schema export and compatibility tests         | Later  | M      | Medium | §5          |
+| Item                                                          | Bucket | Effort | Impact | Section ref |
+| ------------------------------------------------------------- | ------ | ------ | ------ | ----------- |
+| Disable or namespace the default home route                   | Now    | S      | High   | §2.1, §4.1  |
+| Fix health remediation copy away from host-app migration text | Now    | S      | Medium | §2.2, §4.3  |
+| Surface audit/token pruning command in manifest/docs          | Now    | M      | Medium | §2.3        |
+| Add central audit payload/result redaction                    | Now    | M      | High   | §2.4, §4.2  |
+| Add capability catalog/admin inventory surface                | Next   | M      | Medium | §3, §5      |
+| Add token scope lifecycle UI and tests                        | Next   | M      | Medium | §3          |
+| Recapture token/audit/server health marketplace screenshots   | Next   | M      | Medium | §3, §5      |
+| Add server-specific RBAC and policy diagnostics               | Later  | L      | Medium | §3          |
+| Add richer MCP schema export and compatibility tests          | Later  | M      | Medium | §5          |
 
 ## 7. Verification
 
