@@ -4,7 +4,7 @@
 
 ## 1. Snapshot
 
-Agent Bridge connects AI agents and MCP clients to Capell through scoped tokens, MCP server routes, read-only knowledge/site capabilities, preview-then-confirm execution, saved prompts, audit entries, settings, Boost integration, and an admin prompt-builder surface. It already has a meaningful health check and preview/confirm tests. The biggest current risk is route/config hardening: the home route defaults to `/`, health remediation references a host-app migration command instead of package install guidance, and the package needs clearer token retention, audit redaction, and marketplace media boundaries for AI-agent administrators.
+Agent Bridge connects AI agents and MCP clients to Capell through scoped tokens, MCP server routes, read-only knowledge/site capabilities, preview-then-confirm execution, saved prompts, audit entries, settings, Boost integration, an admin prompt-builder surface, a token lifecycle filter, and a read-only capability catalog resource. It already has a meaningful health check and preview/confirm tests. The current risk has shifted from route/config hardening to deeper policy diagnostics and real seeded screenshot fixture support.
 
 ## 2. Improvements (existing functionality)
 
@@ -22,8 +22,11 @@ Capabilities declared: `agent-bridge` and `agent-bridge-admin`.
 
 - **No first-class token management manifest contribution.** Admin surfaces exist through bridge/extension page registration, but manifest traceability is thin.
 - **No explicit audit retention command in marketplace metadata.** Pruning exists in code but is not surfaced in `capell.json`.
-- **No operator-facing capability catalog outside the prompt builder.** Capabilities can be registered and listed, but buyers need a clear admin inventory of scope, risk, server, and confirmation requirements.
-- **No screenshot recapture for token/audit/server surfaces.** Current tracker notes only prompt-builder media is trustworthy.
+- **Done/Shipped: operator-facing capability catalog.** `BuildAgentBridgeCapabilityCatalogAction` and `capell://agent-bridge/capabilities` expose registered capability scope, risk, server, preview, confirmation, required package, and policy ability metadata outside the prompt builder.
+- **Done/Shipped: token lifecycle review controls.** Token records now expose a reusable lifecycle status enum and the user relation manager can filter active, expired, and revoked tokens without leaking token secrets.
+- **Done/Shipped: server-specific RBAC and policy diagnostics.** `AgentBridgeHealthCheck` now reports site-server policy coverage by verifying registered site capabilities have token scopes and mutating capabilities require confirmation, while also surfacing how many capabilities add host policy abilities. — `src/Health/AgentBridgeHealthCheck.php`, `tests/Unit/AgentBridgeHealthCheckTest.php`
+- **Done/Shipped: richer MCP schema export and compatibility tests.** `capell://agent-bridge/capabilities/schema` exposes the capability catalog as JSON, including input/output Data classes and MCP-compatible schemas for registered capabilities. Compatibility coverage verifies stable schema fields for agent discovery.
+- **Screenshot recapture for token/audit/server surfaces is deferred.** Visual review confirmed the committed token, confirmation, audit, and health PNGs duplicate the prompt-builder page. They remain runner evidence only; marketplace media promotes only verified prompt-builder captures until user-resource and health-panel runner fixtures exist.
 
 ## 4. Issues / Risks
 
@@ -49,17 +52,17 @@ Agent Bridge should be positioned as a governed AI operations bridge, not a gene
 
 ## 6. Prioritized Roadmap
 
-| Item                                                          | Bucket | Effort | Impact | Section ref |
-| ------------------------------------------------------------- | ------ | ------ | ------ | ----------- |
-| Disable or namespace the default home route                   | Now    | S      | High   | §2.1, §4.1  |
-| Fix health remediation copy away from host-app migration text | Done   | S      | Medium | §2.2, §4.3  |
-| Surface audit/token pruning command in manifest/docs          | Done   | M      | Medium | §2.3        |
-| Add central audit payload/result redaction                    | Done   | M      | High   | §2.4, §4.2  |
-| Add capability catalog/admin inventory surface                | Next   | M      | Medium | §3, §5      |
-| Add token scope lifecycle UI and tests                        | Next   | M      | Medium | §3          |
-| Recapture token/audit/server health marketplace screenshots   | Next   | M      | Medium | §3, §5      |
-| Add server-specific RBAC and policy diagnostics               | Later  | L      | Medium | §3          |
-| Add richer MCP schema export and compatibility tests          | Later  | M      | Medium | §5          |
+| Item                                                                                                                                                                                                                                       | Bucket | Effort | Impact | Section ref |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ | ------ | ------ | ----------- |
+| Disable or namespace the default home route                                                                                                                                                                                                | Done   | S      | High   | §2.1, §4.1  |
+| Fix health remediation copy away from host-app migration text                                                                                                                                                                              | Done   | S      | Medium | §2.2, §4.3  |
+| Surface audit/token pruning command in manifest/docs                                                                                                                                                                                       | Done   | M      | Medium | §2.3        |
+| Add central audit payload/result redaction                                                                                                                                                                                                 | Done   | M      | High   | §2.4, §4.2  |
+| Add capability catalog/admin inventory surface                                                                                                                                                                                             | Done   | M      | Medium | §3, §5      |
+| Add token scope lifecycle UI and tests                                                                                                                                                                                                     | Done   | M      | Medium | §3          |
+| Recapture token/audit/server health marketplace screenshots                                                                                                                                                                                | Later  | M      | Medium | §3, §5      |
+| Done/Shipped: Add server-specific RBAC and policy diagnostics. Evidence: health diagnostics verify site capabilities have token scopes, mutating capabilities require confirmation, and policy ability coverage is surfaced for operators. | Done   | M      | Medium | §3          |
+| Add richer MCP schema export and compatibility tests                                                                                                                                                                                       | Done   | M      | Medium | §5          |
 
 ## 7. Verification
 
@@ -79,6 +82,14 @@ Implementation slice 2 adds centralized audit redaction before persistence while
 
 ```bash
 vendor/bin/pest packages/agent-bridge/tests/Feature/PreviewConfirmWorkflowTest.php --configuration=phpunit.xml
+vendor/bin/pest packages/agent-bridge/tests --configuration=phpunit.xml
+COMPOSER=composer.local.json composer preflight
+```
+
+Implementation slice 3 adds a machine-readable MCP resource at `capell://agent-bridge/capabilities/schema` and includes input/output schema metadata in the shared catalog action. Verify with:
+
+```bash
+vendor/bin/pest packages/agent-bridge/tests/Unit/BridgeToolsTest.php --configuration=phpunit.xml
 vendor/bin/pest packages/agent-bridge/tests --configuration=phpunit.xml
 COMPOSER=composer.local.json composer preflight
 ```

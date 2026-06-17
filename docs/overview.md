@@ -30,10 +30,12 @@ Status details:
 Screenshot contract: `screenshots.json`.
 
 - Agent Bridge prompt builder page (admin, required).
-- Token management or setup surface (admin, required).
-- Capability preview and confirmation flow (admin, required).
-- Audit entry review (admin, required).
-- Agent Bridge server health output (admin, required).
+- Token management or setup surface (admin, optional runner target; blocked from marketplace promotion until a seeded user edit relation-manager capture exists).
+- Capability preview and confirmation flow (admin, optional runner target; blocked until a seeded confirmation capture exists).
+- Audit entry review (admin, optional runner target; blocked until a seeded audit relation-manager capture exists).
+- Agent Bridge server health output (admin, optional runner target; blocked until a real health/Diagnostics surface capture exists).
+
+Marketplace media currently promotes only the verified light/dark prompt-builder captures. The other committed PNGs are retained as runner evidence and must not be promoted while they duplicate the prompt-builder screen.
 
 ## Technical Shape
 
@@ -76,6 +78,8 @@ Screenshot contract: `screenshots.json`.
 ## Audit Retention
 
 Agent Bridge stores capability audit entries so operators can review scoped AI-agent activity without exposing reusable secrets. The package redacts sensitive payload fragments before persistence, then keeps audit rows for 90 days by default.
+
+The knowledge server exposes a read-only capability catalog at `capell://agent-bridge/capabilities`. Operators can review scope, server visibility, risk, preview support, confirmation requirements, required packages, and policy abilities before issuing token scopes.
 
 Set `CAPELL_AGENT_BRIDGE_AUDIT_RETENTION_DAYS` or `capell-agent-bridge.audit_retention_days` to change the default window. The pruning command is `capell:agent-bridge-prune-audit`; pass `--days=30` for a one-off override. The manifest also declares a daily scheduled-job contribution named `capell-agent-bridge-prune-audit` so host installs can surface retention automation alongside the package command.
 
