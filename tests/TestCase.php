@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Tests;
 
+use Aimeos\Nestedset\NestedSetServiceProvider;
 use BladeUI\Heroicons\BladeHeroiconsServiceProvider;
 use BladeUI\Icons\BladeIconsServiceProvider;
 use Capell\Admin\Providers\AdminServiceProvider;
@@ -49,6 +50,7 @@ abstract class TestCase extends OrchestraTestCase
         $providers = [
             BladeIconsServiceProvider::class,
             BladeHeroiconsServiceProvider::class,
+            NestedSetServiceProvider::class,
             SupportServiceProvider::class,
             ActionsServiceProvider::class,
             NotificationsServiceProvider::class,
@@ -72,27 +74,19 @@ abstract class TestCase extends OrchestraTestCase
     #[Override]
     protected function defineEnvironment(mixed $app): void
     {
+        /** @var array<string, mixed> $permissionConfig */
+        $permissionConfig = require dirname(__DIR__, 3) . '/vendor/spatie/laravel-permission/config/permission.php';
+
         Config::set('database.default', 'sqlite');
         Config::set('database.connections.sqlite.database', ':memory:');
         Config::set('database.connections.sqlite.url');
         Config::set('app.key', 'base64:' . base64_encode(str_repeat('x', 32)));
+        Config::set('permission', $permissionConfig);
     }
 
     protected function defineDatabaseMigrations(): void
     {
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
-
-        if (! Schema::hasTable('settings')) {
-            Schema::create('settings', function (Blueprint $table): void {
-                $table->id();
-                $table->string('group');
-                $table->string('name');
-                $table->boolean('locked')->default(false);
-                $table->json('payload');
-                $table->timestamps();
-                $table->unique(['group', 'name']);
-            });
-        }
 
         Schema::create('users', function (Blueprint $table): void {
             $table->id();
