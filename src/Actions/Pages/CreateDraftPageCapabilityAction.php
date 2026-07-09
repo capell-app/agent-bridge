@@ -41,7 +41,6 @@ final class CreateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
             'layout_id' => $payload['layout_id'],
             'parent_id' => $payload['parent_id'] ?? null,
             'meta' => $payload['meta'] ?? null,
-            'admin' => $payload['admin'] ?? null,
             'visible_from' => $payload['visible_from'] ?? null,
             'visible_until' => $payload['visible_until'] ?? null,
         ]);
@@ -69,7 +68,7 @@ final class CreateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
             'layout_id' => ['required', 'integer'],
             'parent_id' => ['nullable', 'integer'],
             'meta' => ['nullable', 'array'],
-            'admin' => ['nullable', 'array'],
+            'admin' => ['prohibited'],
             'visible_from' => ['nullable', 'date'],
             'visible_until' => ['nullable', 'date'],
         ])->validate();
