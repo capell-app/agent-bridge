@@ -51,6 +51,16 @@ it('rejects draft page creation without an authenticated user', function (): voi
     ], user: false));
 })->throws(ValidationException::class);
 
+it('rejects draft page creation payloads that try to set admin metadata', function (): void {
+    (new CreateDraftPageCapabilityAction)->preview(pageInvocation([
+        'name' => 'Campaign landing page',
+        'site_id' => 1,
+        'blueprint_id' => 2,
+        'layout_id' => 3,
+        'admin' => ['configurator' => 'PrivilegedConfigurator'],
+    ]));
+})->throws(ValidationException::class);
+
 it('rejects draft page creation for unassigned sites', function (): void {
     (new CreateDraftPageCapabilityAction)->preview(pageInvocation([
         'name' => 'Campaign landing page',
@@ -81,6 +91,15 @@ it('previews safe draft page updates without exposing the page id as a change', 
 it('rejects draft page update payloads without a page id', function (): void {
     (new UpdateDraftPageCapabilityAction)->preview(pageInvocation([
         'name' => 'Missing page id',
+    ]));
+})->throws(ValidationException::class);
+
+it('rejects draft page update payloads that try to set admin metadata', function (): void {
+    $page = createAgentBridgeCapabilityPage();
+
+    (new UpdateDraftPageCapabilityAction)->preview(pageInvocation([
+        'page_id' => $page->getKey(),
+        'admin' => ['configurator' => 'PrivilegedConfigurator'],
     ]));
 })->throws(ValidationException::class);
 
@@ -124,7 +143,7 @@ it('rejects page capabilities for pages outside the actor assigned sites', funct
 it('executes page capability lifecycle changes against persisted draft pages', function (): void {
     createAgentBridgePageCapabilityTables();
 
-    $siteId = DB::table('sites')->insertGetId(['name' => 'Agent Site', 'language_id' => 1]);
+    $siteId = createAgentBridgeCapabilitySite('Agent Site');
     $blueprintId = DB::table('blueprints')->insertGetId([
         'name' => 'Page',
         'key' => 'page',
@@ -147,7 +166,6 @@ it('executes page capability lifecycle changes against persisted draft pages', f
         'blueprint_id' => $blueprintId,
         'layout_id' => $layoutId,
         'meta' => ['source' => 'agent'],
-        'admin' => ['notes' => 'created by capability'],
     ], pageCapabilityUser(collect(), isGlobalAdmin: true))));
 
     $page = Page::query()->findOrFail($created->data['page_id']);
@@ -189,11 +207,7 @@ function createAgentBridgeCapabilityPage(int $siteId = 1): Page
 {
     createAgentBridgePageCapabilityTables();
 
-    DB::table('sites')->insert([
-        'id' => $siteId,
-        'name' => 'Agent Site ' . $siteId,
-        'language_id' => 1,
-    ]);
+    createAgentBridgeCapabilitySite('Agent Site ' . $siteId, $siteId);
     $blueprintId = DB::table('blueprints')->insertGetId([
         'name' => 'Page',
         'key' => 'page-' . $siteId,
@@ -219,6 +233,93 @@ function createAgentBridgeCapabilityPage(int $siteId = 1): Page
     ]);
 
     return Page::query()->findOrFail($pageId);
+}
+
+function createAgentBridgeCapabilitySite(string $name, ?int $siteId = null): int
+{
+    $attributes = [
+        'name' => $name,
+        'language_id' => createAgentBridgeCapabilityLanguage(),
+    ];
+
+    if (Schema::hasColumn('sites', 'blueprint_id')) {
+        $attributes['blueprint_id'] = createAgentBridgeCapabilityBlueprint('Site', 'agent-site', 'site');
+    }
+
+    if (Schema::hasColumn('sites', 'theme_id')) {
+        $attributes['theme_id'] = createAgentBridgeCapabilityTheme();
+    }
+
+    if (Schema::hasColumn('sites', 'id') && $siteId !== null) {
+        DB::table('sites')->updateOrInsert(['id' => $siteId], $attributes);
+
+        return $siteId;
+    }
+
+    return (int) DB::table('sites')->insertGetId($attributes);
+}
+
+function createAgentBridgeCapabilityTheme(): int
+{
+    if (! Schema::hasTable('themes')) {
+        return 1;
+    }
+
+    $themeId = (int) (DB::table('themes')->where('key', 'agent-theme')->value('id') ?? 0);
+
+    if ($themeId > 0) {
+        return $themeId;
+    }
+
+    return (int) DB::table('themes')->insertGetId([
+        'name' => 'Agent Theme',
+        'blueprint_id' => createAgentBridgeCapabilityBlueprint('Theme', 'agent-theme', 'theme'),
+        'key' => 'agent-theme',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+}
+
+function createAgentBridgeCapabilityLanguage(): int
+{
+    if (! Schema::hasTable('languages')) {
+        return 1;
+    }
+
+    $languageId = (int) (DB::table('languages')->where('code', 'en')->value('id') ?? 0);
+
+    if ($languageId > 0) {
+        return $languageId;
+    }
+
+    return (int) DB::table('languages')->insertGetId([
+        'name' => 'English',
+        'code' => 'en',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+}
+
+function createAgentBridgeCapabilityBlueprint(string $name, string $key, string $type): int
+{
+    $blueprintId = (int) (DB::table('blueprints')
+        ->where('key', $key)
+        ->where('type', $type)
+        ->value('id') ?? 0);
+
+    if ($blueprintId > 0) {
+        return $blueprintId;
+    }
+
+    return (int) DB::table('blueprints')->insertGetId([
+        'name' => $name,
+        'key' => $key,
+        'type' => $type,
+        'default' => true,
+        'admin' => json_encode(['configurator' => 'Default'], JSON_THROW_ON_ERROR),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
 }
 
 function createAgentBridgePageCapabilityTables(): void

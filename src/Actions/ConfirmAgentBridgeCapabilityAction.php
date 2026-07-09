@@ -44,7 +44,7 @@ final class ConfirmAgentBridgeCapabilityAction
 
         throw_if($token === null || $confirmation->agent_bridge_token_id !== $token->getKey(), AuthorizationException::class, 'The Agent Bridge confirmation token does not belong to this client.');
 
-        throw_if($user === null || (string) $confirmation->user_type !== $user->getMorphClass() || (int) $confirmation->user_id !== (int) $user->getAuthIdentifier(), AuthorizationException::class, 'The Agent Bridge confirmation token does not belong to this user.');
+        throw_if($user === null || (string) $confirmation->user_type !== $user->getMorphClass() || (string) $confirmation->user_id !== (string) $user->getAuthIdentifier(), AuthorizationException::class, 'The Agent Bridge confirmation token does not belong to this user.');
 
         throw_if($confirmation->payload_hash !== InvokeAgentBridgeCapabilityPreviewAction::payloadHash($payload), AuthorizationException::class, 'The Agent Bridge confirmation payload has changed.');
 
@@ -70,8 +70,6 @@ final class ConfirmAgentBridgeCapabilityAction
 
         $action = resolve($capability->actionClass);
         $result = $action->execute(new CapabilityInvocationData($capability, $payload, $client, $user));
-
-        $confirmation->forceFill(['used_at' => $usedAt]);
 
         AuditAgentBridgeCapabilityAction::run(
             event: $capability->auditEvent ?? 'capell_agent-bridge.capability.confirmed',

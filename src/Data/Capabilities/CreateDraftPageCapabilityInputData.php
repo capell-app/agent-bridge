@@ -10,7 +10,6 @@ final class CreateDraftPageCapabilityInputData extends Data
 {
     /**
      * @param  array<string, mixed>|null  $meta
-     * @param  array<string, mixed>|null  $admin
      */
     public function __construct(
         public readonly string $name,
@@ -19,7 +18,6 @@ final class CreateDraftPageCapabilityInputData extends Data
         public readonly int $layout_id,
         public readonly ?int $parent_id = null,
         public readonly ?array $meta = null,
-        public readonly ?array $admin = null,
         public readonly ?string $visible_from = null,
         public readonly ?string $visible_until = null,
     ) {}

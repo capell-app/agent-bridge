@@ -2,7 +2,7 @@
 
 <!-- prettier-ignore-start -->
 
-## What This Plugin Adds
+## What This Extension Adds
 
 Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Capell Operations** product group. It ships as `capell-app/agent-bridge` and extends these surfaces: admin, frontend.
 

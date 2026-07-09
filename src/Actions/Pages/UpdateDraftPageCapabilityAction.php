@@ -34,7 +34,6 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
         $updates = array_intersect_key($payload, array_flip([
             'name',
             'meta',
-            'admin',
             'visible_from',
             'visible_until',
         ]));
@@ -61,7 +60,7 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
             'page_id' => ['required', 'integer'],
             'name' => ['sometimes', 'string', 'max:255'],
             'meta' => ['sometimes', 'nullable', 'array'],
-            'admin' => ['sometimes', 'nullable', 'array'],
+            'admin' => ['prohibited'],
             'visible_from' => ['sometimes', 'nullable', 'date'],
             'visible_until' => ['sometimes', 'nullable', 'date'],
         ])->validate();
