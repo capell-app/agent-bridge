@@ -10,6 +10,7 @@ use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Stringable;
 use Symfony\Component\HttpFoundation\Response;
 
 final class AuthenticateCapellAgentBridgeToken
@@ -24,19 +25,19 @@ final class AuthenticateCapellAgentBridgeToken
         $plainTextToken = (string) $request->bearerToken();
 
         if ($plainTextToken === '') {
-            return $this->unauthorized('Missing Agent Bridge bearer token.');
+            return $this->unauthorized(__('capell-agent-bridge::messages.auth.missing_bearer_token'));
         }
 
         $token = CapellAgentBridgeToken::findForPlainTextToken($plainTextToken);
 
         if (! $token instanceof CapellAgentBridgeToken || ! $token->isUsable()) {
-            return $this->unauthorized('Invalid Agent Bridge bearer token.');
+            return $this->unauthorized(__('capell-agent-bridge::messages.auth.invalid_bearer_token'));
         }
 
         $user = $token->user;
 
         if ($user === null) {
-            return $this->unauthorized('Agent Bridge token is not linked to a user.');
+            return $this->unauthorized(__('capell-agent-bridge::messages.auth.unlinked_user'));
         }
 
         $guard = config('capell-agent-bridge.site_auth_guard', 'web');
@@ -89,9 +90,9 @@ final class AuthenticateCapellAgentBridgeToken
         return $lastUsed->diffInMinutes(now()) >= $throttleMinutes;
     }
 
-    private function unauthorized(string $message): Response
+    private function unauthorized(string|Stringable $message): Response
     {
-        return response($message, 401)
+        return response((string) $message, 401)
             ->header('WWW-Authenticate', 'Bearer realm="capell-agent-bridge", error="invalid_token"');
     }
 

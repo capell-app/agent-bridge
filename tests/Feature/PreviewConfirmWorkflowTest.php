@@ -271,6 +271,51 @@ it('rejects confirmation replay across users', function (): void {
     );
 })->throws(AuthorizationException::class, 'The Agent Bridge confirmation token does not belong to this user.');
 
+it('rejects confirmation replay across non numeric user identifiers', function (): void {
+    registerFakeCapability();
+
+    $tokenOwner = User::query()->create([
+        'name' => 'Token Owner',
+        'email' => 'uuid-owner@example.com',
+        'password' => 'secret',
+    ]);
+
+    $created = CreateAgentBridgeTokenAction::run($tokenOwner, 'UUID client', ['capell.fake.write']);
+    $token = agentBridgeCreatedToken($created);
+    $client = new AuthenticatedAgentBridgeClientData(
+        tokenId: agentBridgeTokenId($token),
+        name: 'UUID client',
+        scopes: ['capell.fake.write'],
+    );
+
+    $payload = ['name' => 'Original'];
+    $confirmation = new CapellAgentBridgeConfirmation;
+    $confirmation->forceFill([
+        'token' => 'uuid-confirmation-token',
+        'agent_bridge_token_id' => $token->getKey(),
+        'user_type' => (new User)->getMorphClass(),
+        'user_id' => 'user-alpha',
+        'capability_key' => 'capell.fake.write',
+        'scope' => 'capell.fake.write',
+        'payload_hash' => InvokeAgentBridgeCapabilityPreviewAction::payloadHash($payload),
+        'payload' => $payload,
+        'preview' => ['message' => 'Preview'],
+        'expires_at' => now()->addMinutes(5),
+    ]);
+    $confirmation->save();
+
+    $otherUser = new User;
+    $otherUser->forceFill(['id' => 'user-beta']);
+
+    ConfirmAgentBridgeCapabilityAction::run(
+        confirmationToken: 'uuid-confirmation-token',
+        payload: $payload,
+        client: $client,
+        token: $token,
+        user: $otherUser,
+    );
+})->throws(AuthorizationException::class, 'The Agent Bridge confirmation token does not belong to this user.');
+
 it('rejects policy protected capability previews when no authenticated user is available', function (): void {
     registerFakeCapability(policyAbility: 'preview fake capability');
 

@@ -17,7 +17,39 @@ it('rejects requests without an agent bridge bearer token', function (): void {
     );
 
     expect($response->getStatusCode())->toBe(401)
-        ->and($response->getContent())->toBe('Missing Agent Bridge bearer token.')
+        ->and($response->getContent())->toBe(__('capell-agent-bridge::messages.auth.missing_bearer_token'))
+        ->and($response->headers->get('WWW-Authenticate'))->toBe('Bearer realm="capell-agent-bridge", error="invalid_token"');
+});
+
+it('rejects invalid agent bridge bearer tokens with a translated message', function (): void {
+    $response = (new AuthenticateCapellAgentBridgeToken)->handle(
+        Request::create('/agent-bridge/capell', server: ['HTTP_AUTHORIZATION' => 'Bearer invalid-token']),
+        fn (Request $request): never => throw new RuntimeException('Next middleware should not be called.'),
+    );
+
+    expect($response->getStatusCode())->toBe(401)
+        ->and($response->getContent())->toBe(__('capell-agent-bridge::messages.auth.invalid_bearer_token'))
+        ->and($response->headers->get('WWW-Authenticate'))->toBe('Bearer realm="capell-agent-bridge", error="invalid_token"');
+});
+
+it('rejects agent bridge bearer tokens without a linked user with a translated message', function (): void {
+    $token = new CapellAgentBridgeToken;
+    $token->forceFill([
+        'name' => 'Orphaned middleware token',
+        'token_hash' => CapellAgentBridgeToken::hashPlainTextToken('orphaned-token'),
+        'user_type' => User::class,
+        'user_id' => 999_999,
+        'scopes' => ['capell.pages.read'],
+    ]);
+    $token->save();
+
+    $response = (new AuthenticateCapellAgentBridgeToken)->handle(
+        Request::create('/agent-bridge/capell', server: ['HTTP_AUTHORIZATION' => 'Bearer orphaned-token']),
+        fn (Request $request): never => throw new RuntimeException('Next middleware should not be called.'),
+    );
+
+    expect($response->getStatusCode())->toBe(401)
+        ->and($response->getContent())->toBe(__('capell-agent-bridge::messages.auth.unlinked_user'))
         ->and($response->headers->get('WWW-Authenticate'))->toBe('Bearer realm="capell-agent-bridge", error="invalid_token"');
 });
 
