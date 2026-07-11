@@ -138,9 +138,9 @@
             "auth": "public",
             "csrfExemptRoutes": [],
             "signedRoutes": [],
-            "tokenizedRoutes": [],
+            "tokenizedRoutes": ["agent-bridge/capell"],
             "webhookRoutes": [],
-            "throttledRoutes": []
+            "throttledRoutes": ["agent-bridge/capell"]
         },
         "sensitiveData": {
             "encryptedFields": [],

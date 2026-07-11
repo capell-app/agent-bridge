@@ -126,6 +126,8 @@ describe('agent-bridge capell.json manifest', function (): void {
             ])
             ->and(data_get($manifestData, 'commands.pruneAudit'))->toBe('capell:agent-bridge-prune-audit')
             ->and(data_get($manifestData, 'settings'))->toBe([AgentBridgeSettings::class])
+            ->and(data_get($manifestData, 'security.publicSurface.tokenizedRoutes', []))->toContain('agent-bridge/capell')
+            ->and(data_get($manifestData, 'security.publicSurface.throttledRoutes', []))->toContain('agent-bridge/capell')
             ->and(data_get($manifestData, 'healthChecks.0.class'))->toBe(AgentBridgeHealthCheck::class)
             ->and(data_get($manifestData, 'contributionTraceability.deferredContributions'))->toBe([]);
 
