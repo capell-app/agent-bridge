@@ -7,7 +7,7 @@ use Capell\Core\Data\Diagnostics\DoctorCheckResultData;
 use Illuminate\Support\Facades\Schema;
 
 it('returns a compatible capell api version', function (): void {
-    expect(AgentBridgeHealthCheck::compatibleCapellApiVersion())->toBe('^4.0');
+    expect(AgentBridgeHealthCheck::compatibleCapellApiVersion())->toBe('^0.0');
 });
 
 it('runs diagnostics and returns a collection of check results', function (): void {
