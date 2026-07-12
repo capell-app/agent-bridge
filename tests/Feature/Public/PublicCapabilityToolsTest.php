@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Capell\AgentBridge\Actions\InvokeAgentBridgeCapabilityPreviewAction;
 use Capell\AgentBridge\Data\CapabilityData;
 use Capell\AgentBridge\Data\CapabilityResultData;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
@@ -10,6 +11,7 @@ use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
 use Capell\AgentBridge\Tools\Public\ListPublicCapabilitiesTool;
 use Capell\AgentBridge\Tools\Public\RunPublicCapabilityTool;
+use Illuminate\Auth\Access\AuthorizationException;
 use Laravel\Mcp\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -70,7 +72,7 @@ it('lists only publicly readable capability payloads', function (): void {
     expect($keys)->toContain('pub.read')->and($keys)->not->toContain('priv.read');
 });
 
-it('runs a public Read capability with a null client', function (): void {
+it('runs a public Read capability through the separately authorized public gateway', function (): void {
     $registry = new CapellAgentBridgeCapabilityRegistry;
     $registry->register(makeCapability('pub.read', risk: CapabilityRiskEnum::Read, public: true));
     app()->instance(CapellAgentBridgeCapabilityRegistry::class, $registry);
@@ -87,6 +89,14 @@ it('runs a public Read capability with a null client', function (): void {
     expect($structured['mode'])->toBe('executed')           // executed, no auth required
         ->and($structured['capability'])->toBe('pub.read');
 });
+
+it('denies direct capability action calls without client context', function (): void {
+    $registry = new CapellAgentBridgeCapabilityRegistry;
+    $registry->register(makeCapability('scoped.read', risk: CapabilityRiskEnum::Read));
+    app()->instance(CapellAgentBridgeCapabilityRegistry::class, $registry);
+
+    InvokeAgentBridgeCapabilityPreviewAction::run('scoped.read', []);
+})->throws(AuthorizationException::class, 'client context is required');
 
 it('REFUSES a non-public capability even though the action would tolerate a null client', function (): void {
     $registry = new CapellAgentBridgeCapabilityRegistry;

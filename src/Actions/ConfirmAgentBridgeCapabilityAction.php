@@ -36,6 +36,8 @@ final class ConfirmAgentBridgeCapabilityAction
         $token ??= app()->bound(CapellAgentBridgeToken::class) ? resolve(CapellAgentBridgeToken::class) : null;
         $user ??= request()->user();
 
+        throw_unless($client instanceof AuthenticatedAgentBridgeClientData, AuthorizationException::class, 'Agent Bridge client context is required.');
+
         $confirmation = CapellAgentBridgeConfirmation::query()
             ->where('token', $confirmationToken)
             ->first();
@@ -51,7 +53,7 @@ final class ConfirmAgentBridgeCapabilityAction
         $registry = resolve(CapellAgentBridgeCapabilityRegistry::class);
         $capability = $registry->get($confirmation->capability_key);
 
-        if ($client !== null && ! $client->can($capability->scope)) {
+        if (! $client->can($capability->scope)) {
             throw new AuthorizationException(sprintf('Agent Bridge scope [%s] is required.', $capability->scope));
         }
 

@@ -49,7 +49,9 @@ final class InvokeAgentBridgeCapabilityPreviewAction
         $token ??= app()->bound(CapellAgentBridgeToken::class) ? resolve(CapellAgentBridgeToken::class) : null;
         $user ??= request()->user();
 
-        if ($client !== null && ! $client->can($capability->scope)) {
+        throw_unless($client instanceof AuthenticatedAgentBridgeClientData, AuthorizationException::class, 'Agent Bridge client context is required.');
+
+        if (! $client->can($capability->scope)) {
             throw new AuthorizationException(sprintf('Agent Bridge scope [%s] is required.', $capability->scope));
         }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Tools\Public;
 
 use Capell\AgentBridge\Actions\InvokeAgentBridgeCapabilityPreviewAction;
+use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
 use Capell\AgentBridge\Data\CapabilityData;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -56,11 +57,17 @@ final class RunPublicCapabilityTool extends Tool
             ->contains(fn (CapabilityData $capability): bool => $capability->key === $key);
 
         abort_unless($isPublic, 403, sprintf('Capability [%s] is not publicly available.', $key));
+        $capability = $registry->get($key);
+        $internalPublicClient = new AuthenticatedAgentBridgeClientData(
+            tokenId: 0,
+            name: 'Internal public capability gateway',
+            scopes: [$capability->scope],
+        );
 
         $result = InvokeAgentBridgeCapabilityPreviewAction::run(
             capabilityKey: $key,
             payload: $payload,
-            client: null,
+            client: $internalPublicClient,
             token: null,
             user: null,
         );
