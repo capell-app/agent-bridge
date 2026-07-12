@@ -2,7 +2,7 @@
 
 <!-- prettier-ignore-start -->
 
-## What This Extension Adds
+## What This Plugin Adds
 
 Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Capell Operations** product group. It ships as `capell-app/agent-bridge` and extends these surfaces: admin, frontend.
 
@@ -29,6 +29,10 @@ Status details:
 
 Screenshot contract: `docs/screenshots.json`.
 
+![Agent Bridge prompt builder page](docs/screenshots/agent-bridge-prompt-builder-page.png)
+
+![Token management or setup surface](docs/screenshots/token-management-or-setup-surface.png)
+
 - Agent Bridge prompt builder page (admin, required).
 - Token management or setup surface (admin, optional).
 - Capability preview and confirmation flow (admin, optional).
@@ -46,7 +50,7 @@ Screenshot contract: `docs/screenshots.json`.
 - Filament classes: `CapellAgentBridgePromptBuilderPage`, `AgentBridgeAuditEntriesRelationManager`, `AgentBridgeConfirmationsRelationManager`, `AgentBridgeTokensRelationManager`, `AgentBridgeSettingsSchema`.
 - Livewire components: `PromptBuilderToolbarAction`.
 - Route files: `packages/agent-bridge/routes/agent-bridge.php`.
-- Actions: `AuditAgentBridgeCapabilityAction`, `BuildAgentBridgeCapabilityCatalogAction`, `BuildAgentBridgePromptAction`, `ClearCapellCacheCapabilityAction`, `ConfirmAgentBridgeCapabilityAction`, `CreateAgentBridgeTokenAction`, `DeleteAgentBridgePromptAction`, `InvokeAgentBridgeCapabilityPreviewAction`, `CreateDraftPageCapabilityAction`, `DisablePageCapabilityAction`, `InspectPagePublishingReadinessCapabilityAction`, `UpdateDraftPageCapabilityAction`, `and 5 more`.
+- Actions: `AuditAgentBridgeCapabilityAction`, `BuildAgentBridgeCapabilityCatalogAction`, `BuildAgentBridgePromptAction`, `ClearCapellCacheCapabilityAction`, `ConfirmAgentBridgeCapabilityAction`, `CreateAgentBridgeTokenAction`, `DeleteAgentBridgePromptAction`, `FindSavedPromptForUserAction`, `InvokeAgentBridgeCapabilityPreviewAction`, `ListSavedPromptOptionsAction`, `CreateDraftPageCapabilityAction`, `DisablePageCapabilityAction`, `and 7 more`.
 - Data objects: `AgentBridgePromptData`, `AuthenticatedAgentBridgeClientData`, `ClearCacheCapabilityInputData`, `CreateDraftPageCapabilityInputData`, `PageIdCapabilityInputData`, `UpdateDraftPageCapabilityInputData`, `CapabilityData`, `CapabilityInvocationData`, `CapabilityResultData`.
 - Command signatures: `capell:agent-bridge-prune-audit`.
 - Console command classes: `PruneAgentBridgeAuditEntriesCommand`.
@@ -60,7 +64,7 @@ Screenshot contract: `docs/screenshots.json`.
 - Models: `CapellAgentBridgeAuditEntry`, `CapellAgentBridgeConfirmation`, `CapellAgentBridgeSavedPrompt`, `CapellAgentBridgeToken`.
 - Migration files: `2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php`, `2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php`, `2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php`, `2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table.php`.
 - Migration impact: run host migrations through the package install flow before opening package surfaces.
-- Deletion/retention behaviour: audit entries are pruned by `capell:agent-bridge-prune-audit` according to the configured retention window.
+- Deletion/retention behaviour: Docs gap unless the package has an explicit pruning command, retention setting, or tested cascade path.
 
 ## Install Impact
 
