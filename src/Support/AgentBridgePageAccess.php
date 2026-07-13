@@ -24,12 +24,6 @@ final class AgentBridgePageAccess
 
         $assignedSiteIds = $user->getAssignedSiteIds();
 
-        if (! is_iterable($assignedSiteIds)) {
-            throw ValidationException::withMessages([
-                $field => __('capell-agent-bridge::admin.capability_site_forbidden'),
-            ]);
-        }
-
         foreach ($assignedSiteIds as $assignedSiteId) {
             if ((int) $assignedSiteId === $siteId) {
                 return;
@@ -62,7 +56,13 @@ final class AgentBridgePageAccess
             return $page;
         }
 
-        self::authorizeSite($user, (int) $siteId, 'page_id');
+        if (! is_int($siteId)) {
+            throw ValidationException::withMessages([
+                'page_id' => __('capell-agent-bridge::admin.capability_site_forbidden'),
+            ]);
+        }
+
+        self::authorizeSite($user, $siteId, 'page_id');
 
         return $page;
     }
@@ -84,7 +84,10 @@ final class AgentBridgePageAccess
             return true;
         }
 
+        $superAdminRole = config('capell.roles.super_admin', 'super_admin');
+
         return is_callable([$user, 'hasRole'])
-            && $user->hasRole(config('capell.roles.super_admin', 'super_admin')) === true;
+            && is_string($superAdminRole)
+            && $user->hasRole($superAdminRole) === true;
     }
 }

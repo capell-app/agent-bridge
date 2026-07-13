@@ -46,7 +46,20 @@ final class ConfirmAgentBridgeCapabilityAction
 
         throw_if($token === null || $confirmation->agent_bridge_token_id !== $token->getKey(), AuthorizationException::class, 'The Agent Bridge confirmation token does not belong to this client.');
 
-        throw_if($user === null || (string) $confirmation->user_type !== $user->getMorphClass() || (string) $confirmation->user_id !== (string) $user->getAuthIdentifier(), AuthorizationException::class, 'The Agent Bridge confirmation token does not belong to this user.');
+        $userType = $confirmation->user_type;
+        $userId = $confirmation->user_id;
+        $authIdentifier = $user?->getAuthIdentifier();
+
+        throw_if(
+            $user === null
+                || ! is_string($userType)
+                || $userType !== $user->getMorphClass()
+                || (! is_int($userId) && ! is_string($userId))
+                || (! is_int($authIdentifier) && ! is_string($authIdentifier))
+                || (string) $userId !== (string) $authIdentifier,
+            AuthorizationException::class,
+            'The Agent Bridge confirmation token does not belong to this user.',
+        );
 
         throw_if($confirmation->payload_hash !== InvokeAgentBridgeCapabilityPreviewAction::payloadHash($payload), AuthorizationException::class, 'The Agent Bridge confirmation payload has changed.');
 

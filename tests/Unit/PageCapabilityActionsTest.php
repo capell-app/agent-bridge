@@ -259,13 +259,18 @@ function createAgentBridgeCapabilitySite(string $name, ?int $siteId = null): int
     return (int) DB::table('sites')->insertGetId($attributes);
 }
 
+function agentBridgeInteger(mixed $value): int
+{
+    return is_int($value) ? $value : (is_numeric($value) ? (int) $value : 0);
+}
+
 function createAgentBridgeCapabilityTheme(): int
 {
     if (! Schema::hasTable('themes')) {
         return 1;
     }
 
-    $themeId = (int) (DB::table('themes')->where('key', 'agent-theme')->value('id') ?? 0);
+    $themeId = agentBridgeInteger(DB::table('themes')->where('key', 'agent-theme')->value('id'));
 
     if ($themeId > 0) {
         return $themeId;
@@ -286,7 +291,7 @@ function createAgentBridgeCapabilityLanguage(): int
         return 1;
     }
 
-    $languageId = (int) (DB::table('languages')->where('code', 'en')->value('id') ?? 0);
+    $languageId = agentBridgeInteger(DB::table('languages')->where('code', 'en')->value('id'));
 
     if ($languageId > 0) {
         return $languageId;
@@ -302,10 +307,10 @@ function createAgentBridgeCapabilityLanguage(): int
 
 function createAgentBridgeCapabilityBlueprint(string $name, string $key, string $type): int
 {
-    $blueprintId = (int) (DB::table('blueprints')
+    $blueprintId = agentBridgeInteger(DB::table('blueprints')
         ->where('key', $key)
         ->where('type', $type)
-        ->value('id') ?? 0);
+        ->value('id'));
 
     if ($blueprintId > 0) {
         return $blueprintId;
@@ -407,7 +412,7 @@ function createAgentBridgePageCapabilityTables(): void
 function pageInvocation(array $payload, AuthenticatableContract|false|null $user = null): CapabilityInvocationData
 {
     if ($user === null) {
-        $user = pageCapabilityUser(collect([(int) ($payload['site_id'] ?? 1)]));
+        $user = pageCapabilityUser(collect([agentBridgeInteger($payload['site_id'] ?? 1)]));
     }
 
     return new CapabilityInvocationData(
