@@ -64,7 +64,7 @@ Screenshot contract: `docs/screenshots.json`.
 - Models: `CapellAgentBridgeAuditEntry`, `CapellAgentBridgeConfirmation`, `CapellAgentBridgeSavedPrompt`, `CapellAgentBridgeToken`.
 - Migration files: `2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php`, `2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php`, `2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php`, `2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table.php`.
 - Migration impact: run host migrations through the package install flow before opening package surfaces.
-- Deletion/retention behaviour: Docs gap unless the package has an explicit pruning command, retention setting, or tested cascade path.
+- Deletion/retention behaviour: `capell:agent-bridge-prune-audit` deletes audit entries older than `capell-agent-bridge.audit_retention_days` (90 days by default), and the package manifest schedules the command daily. The `--days` option overrides the configured window for a manual run.
 
 ## Install Impact
 
