@@ -105,7 +105,7 @@ it('serializes capability results for bridge tools', function (): void {
 });
 
 it('defines bridge enum visibility and health metadata', function (): void {
-    expect(AgentBridgeHealthCheck::compatibleCapellApiVersion())->toBe('^4.0')
+    expect(AgentBridgeHealthCheck::compatibleCapellApiVersion())->toBe('^1.0')
         ->and(CapabilityRiskEnum::Read->requiresConfirmation())->toBeFalse()
         ->and(CapabilityRiskEnum::Low->requiresConfirmation())->toBeTrue()
         ->and(CapabilityRiskEnum::Destructive->requiresConfirmation())->toBeTrue()
