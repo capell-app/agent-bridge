@@ -18,6 +18,8 @@ It does not add a day-to-day screen. Its effect appears when connected agents in
 
 - This connects AI tools to your site, so leave its setup to someone who manages integrations.
 - Only approved capabilities are exposed; ask your developer before connecting a new agent.
+- Migration impact: run host migrations through the package install flow before opening package surfaces.
+- Audit entries are retained for the configured `capell-agent-bridge.audit_retention_days` window, which defaults to 90 days. The scheduler runs `capell:agent-bridge-prune-audit` to remove older audit entries without deleting tokens, confirmations, or saved prompts.
 
 ---
 
