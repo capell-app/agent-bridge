@@ -4,7 +4,7 @@
 
 ## What This Plugin Adds
 
-Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Capell Operations** product group. It ships as `capell-app/agent-bridge` and extends these surfaces: admin, frontend.
+Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Capell AI** product group. It ships as `capell-app/agent-bridge` and extends these surfaces: admin, frontend.
 
 Connect AI agents and MCP clients to Capell with read-only package knowledge, scoped site capabilities, preview-then-confirm execution, and audited operations.
 
@@ -14,7 +14,7 @@ Status details:
 
 - Status: Available
 - Tier: premium
-- Bundle: operations
+- Bundle: ai
 - Composer package: `capell-app/agent-bridge`
 - Namespace: `Capell\AgentBridge`
 - Theme key: not applicable
@@ -64,7 +64,7 @@ Screenshot contract: `docs/screenshots.json`.
 - Models: `CapellAgentBridgeAuditEntry`, `CapellAgentBridgeConfirmation`, `CapellAgentBridgeSavedPrompt`, `CapellAgentBridgeToken`.
 - Migration files: `2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php`, `2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php`, `2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php`, `2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table.php`.
 - Migration impact: run host migrations through the package install flow before opening package surfaces.
-- Deletion/retention behaviour: audit entries are retained for the configured `capell-agent-bridge.audit_retention_days` window (90 days by default). The scheduled `capell:agent-bridge-prune-audit` command removes older audit entries; tokens, confirmations, and saved prompts are not removed by that command.
+- Deletion/retention behaviour: Docs gap unless the package has an explicit pruning command, retention setting, or tested cascade path.
 
 ## Install Impact
 
