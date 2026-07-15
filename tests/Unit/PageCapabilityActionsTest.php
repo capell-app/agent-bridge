@@ -354,6 +354,16 @@ function createAgentBridgePageCapabilityTables(): void
         });
     }
 
+    if (! Schema::hasTable('themes')) {
+        Schema::create('themes', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->unsignedBigInteger('blueprint_id')->nullable();
+            $table->string('key')->nullable();
+            $table->timestamps();
+        });
+    }
+
     if (! Schema::hasTable('layouts')) {
         Schema::create('layouts', function (Blueprint $table): void {
             $table->id();
