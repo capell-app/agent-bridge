@@ -1,0 +1,38 @@
+{
+    "whatThisPluginAdds": {
+        "text": "Agent Bridge connects MCP clients to read-only Capell knowledge and scoped site capabilities with token authentication, preview confirmation, and audit records.",
+        "evidence": [
+            "capell.json",
+            "routes/agent-bridge.php",
+            "src/Providers/AgentBridgeServiceProvider.php"
+        ]
+    },
+    "surfaceOutcome": {
+        "text": "Admins can build scoped prompts and manage a user's client tokens, confirmations, and audit entries. Connected clients can call only the server routes and capabilities enabled for them.",
+        "evidence": [
+            "docs/screenshots.json",
+            "src/Filament/Pages/CapellAgentBridgePromptBuilderPage.php",
+            "tests/Feature/UserResourceBridgeTest.php",
+            "tests/Feature/HomeRouteTest.php"
+        ]
+    },
+    "whyItMatters": {
+        "developers": {
+            "text": "Capability providers register typed operations through CapellAgentBridgeCapabilityProvider, and mutating runs pass through preview, confirmation, policy, and audit Actions.",
+            "evidence": [
+                "src/Contracts/CapellAgentBridgeCapabilityProvider.php",
+                "src/Support/CapellAgentBridgeCapabilityRegistry.php",
+                "src/Actions/InvokeAgentBridgeCapabilityPreviewAction.php",
+                "tests/Feature/PreviewConfirmWorkflowTest.php"
+            ]
+        },
+        "teams": {
+            "text": "Operators can limit an agent to approved capabilities, review a proposed change before execution, and inspect what each client ran.",
+            "evidence": [
+                "docs/overview.admin.md",
+                "docs/screenshots.json",
+                "tests/Feature/PreviewConfirmWorkflowTest.php"
+            ]
+        }
+    }
+}
