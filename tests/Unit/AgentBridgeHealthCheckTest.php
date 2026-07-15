@@ -6,6 +6,11 @@ use Capell\AgentBridge\Health\AgentBridgeHealthCheck;
 use Capell\Core\Data\Diagnostics\DoctorCheckResultData;
 use Illuminate\Support\Facades\Schema;
 
+beforeEach(function (): void {
+    $settingsMigration = require dirname(__DIR__, 2) . '/database/settings/2026_05_10_190841_01_add_agent_bridge_settings.php';
+    $settingsMigration->up();
+});
+
 it('returns a compatible capell api version', function (): void {
     expect(AgentBridgeHealthCheck::compatibleCapellApiVersion())->toBe('^1.0');
 });
@@ -93,10 +98,17 @@ it('reports server policy coverage for scoped site capabilities', function (): v
 });
 
 it('reports failed routes check when all routes are disabled', function (): void {
+    $siteRoute = config('capell-agent-bridge.routes.site');
+    $knowledgeRoute = config('capell-agent-bridge.routes.knowledge');
     config()->set('capell-agent-bridge.routes.site');
     config()->set('capell-agent-bridge.routes.knowledge');
 
-    $results = AgentBridgeHealthCheck::runDiagnostics();
+    try {
+        $results = AgentBridgeHealthCheck::runDiagnostics();
+    } finally {
+        config()->set('capell-agent-bridge.routes.site', $siteRoute);
+        config()->set('capell-agent-bridge.routes.knowledge', $knowledgeRoute);
+    }
 
     $routeCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->label === 'Agent Bridge MCP routes');
 
@@ -108,5 +120,11 @@ it('reports failed routes check when all routes are disabled', function (): void
 });
 
 it('returns overall passed status based on all checks', function (): void {
-    expect(AgentBridgeHealthCheck::passed())->toBeTrue();
+    $failedChecks = AgentBridgeHealthCheck::runDiagnostics()
+        ->reject(fn (DoctorCheckResultData $check): bool => $check->passed)
+        ->pluck('label')
+        ->all();
+
+    expect($failedChecks)->toBe([])
+        ->and(AgentBridgeHealthCheck::passed())->toBeTrue();
 });

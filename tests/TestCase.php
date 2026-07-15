@@ -86,23 +86,6 @@ abstract class TestCase extends OrchestraTestCase
 
     protected function defineDatabaseMigrations(): void
     {
-        if (! Schema::hasTable('settings')) {
-            Schema::create('settings', static function (Blueprint $table): void {
-                $table->id();
-                $table->string('group');
-                $table->string('name');
-                $table->boolean('locked')->default(false);
-                $table->json('payload');
-                $table->timestamps();
-                $table->unique(['group', 'name']);
-            });
-        }
-
-        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
-
-        $settingsMigration = require __DIR__ . '/../database/settings/2026_05_10_190841_01_add_agent_bridge_settings.php';
-        $settingsMigration->up();
-
         Schema::create('users', function (Blueprint $table): void {
             $table->id();
             $table->string('name');
@@ -112,5 +95,18 @@ abstract class TestCase extends OrchestraTestCase
             $table->rememberToken();
             $table->timestamps();
         });
+
+        Schema::create('settings', function (Blueprint $table): void {
+            $table->id();
+            $table->string('group');
+            $table->string('name');
+            $table->boolean('locked')->default(false);
+            $table->json('payload');
+            $table->timestamps();
+            $table->unique(['group', 'name']);
+        });
+
+        $this->loadMigrationsFrom(dirname(__DIR__, 3) . '/vendor/capell-app/core/database/migrations');
+        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
     }
 }
