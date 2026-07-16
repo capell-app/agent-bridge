@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Models;
 
 use Capell\AgentBridge\Enums\AgentBridgeTokenLifecycleStatus;
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
@@ -52,7 +53,11 @@ final class CapellAgentBridgeToken extends Model
 
     public static function hashPlainTextToken(string $plainTextToken): string
     {
-        return hash_hmac('sha256', $plainTextToken, (string) config('app.key'));
+        return hash_hmac(
+            'sha256',
+            $plainTextToken,
+            AgentBridgeValue::nonEmptyString(config('app.key'), 'Application key'),
+        );
     }
 
     public static function legacyHashPlainTextToken(string $plainTextToken): string
@@ -83,7 +88,10 @@ final class CapellAgentBridgeToken extends Model
 
     public static function generatePlainTextToken(): string
     {
-        return config('capell-agent-bridge.token_prefix', 'cagent-bridge_') . Str::random(48);
+        return AgentBridgeValue::string(
+            config('capell-agent-bridge.token_prefix', 'cagent-bridge_'),
+            'Agent Bridge token prefix',
+        ) . Str::random(48);
     }
 
     public function hasLegacyHashForPlainTextToken(string $plainTextToken): bool

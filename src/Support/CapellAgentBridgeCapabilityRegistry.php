@@ -8,10 +8,8 @@ use Capell\AgentBridge\Data\CapabilityData;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
 use Capell\Core\Facades\CapellCore;
-use Capell\Core\Support\CapellCoreManager;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
-use Throwable;
 
 final class CapellAgentBridgeCapabilityRegistry
 {
@@ -91,12 +89,6 @@ final class CapellAgentBridgeCapabilityRegistry
             return false;
         }
 
-        try {
-            $core = app()->make(CapellCoreManager::class);
-
-            return is_object($core) && method_exists($core, 'isPackageInstalled') && $core->isPackageInstalled($capability->requiredPackage);
-        } catch (Throwable) {
-            return false;
-        }
+        return CapellCore::isPackageInstalled($capability->requiredPackage);
     }
 }

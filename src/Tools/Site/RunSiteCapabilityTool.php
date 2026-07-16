@@ -7,6 +7,7 @@ namespace Capell\AgentBridge\Tools\Site;
 use Capell\AgentBridge\Actions\InvokeAgentBridgeCapabilityPreviewAction;
 use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -44,8 +45,8 @@ final class RunSiteCapabilityTool extends Tool
         ]);
 
         $result = InvokeAgentBridgeCapabilityPreviewAction::run(
-            capabilityKey: (string) $data['capability'],
-            payload: $data['payload'],
+            capabilityKey: AgentBridgeValue::string($data['capability'] ?? null, 'Capability key'),
+            payload: AgentBridgeValue::associativeArray($data['payload'] ?? null, 'Capability payload'),
             client: $client,
             token: $token,
             user: $request->user(),

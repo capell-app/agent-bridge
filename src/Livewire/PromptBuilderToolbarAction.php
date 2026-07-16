@@ -16,6 +16,7 @@ use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Model;
 use Livewire\Component;
 use Throwable;
 
@@ -256,11 +257,13 @@ final class PromptBuilderToolbarAction extends Component
         return FindSavedPromptForUserAction::run($user, $this->selectedSavedPromptId);
     }
 
-    private function user(): ?Authenticatable
+    private function user(): (Authenticatable&Model)|null
     {
         if (app()->bound('filament')) {
             try {
-                return Filament::auth()->user();
+                $user = Filament::auth()->user();
+
+                return $user instanceof Model ? $user : null;
             } catch (Throwable) {
                 // Package tests can load Filament support without a configured panel.
             }
@@ -268,7 +271,7 @@ final class PromptBuilderToolbarAction extends Component
 
         $user = auth()->user();
 
-        return $user instanceof Authenticatable ? $user : null;
+        return $user instanceof Authenticatable && $user instanceof Model ? $user : null;
     }
 
     private function deepLinkUrl(): string

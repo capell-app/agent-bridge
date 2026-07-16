@@ -74,3 +74,27 @@ it('hides required package capabilities when Capell core is unavailable', functi
 
     expect($registry->visibleFor(CapabilityServerEnum::Site, ['capell.fake.read']))->toHaveCount(0);
 });
+
+it('includes intent discovery metadata on the authenticated capability payload', function (): void {
+    $capability = new CapabilityData(
+        key: 'capell.pages.clone',
+        name: 'Clone page',
+        description: 'Create a safe disabled copy of an existing page.',
+        scope: 'capell.pages.write',
+        server: CapabilityServerEnum::Site,
+        risk: CapabilityRiskEnum::High,
+        actionClass: FakeCapabilityAction::class,
+        category: 'pages',
+        intents: ['clone a page', 'copy an existing page'],
+        examples: ['Clone the About page as About our team.'],
+    );
+
+    expect($capability->toPayload())
+        ->toMatchArray([
+            'category' => 'pages',
+            'intents' => ['clone a page', 'copy an existing page'],
+            'examples' => ['Clone the About page as About our team.'],
+        ])
+        ->and($capability->publicPayload())
+        ->not->toHaveKeys(['category', 'intents', 'examples']);
+});

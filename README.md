@@ -55,8 +55,8 @@ Screenshot contract: `docs/screenshots.json`.
 - Livewire components: `PromptBuilderToolbarAction`.
 - Route files: `packages/agent-bridge/routes/agent-bridge.php`.
 - Extension contracts: `CapellAgentBridgeCapabilityAction`, `CapellAgentBridgeCapabilityProvider`.
-- Actions: `AuditAgentBridgeCapabilityAction`, `BuildAgentBridgeCapabilityCatalogAction`, `BuildAgentBridgePromptAction`, `ClearCapellCacheCapabilityAction`, `ConfirmAgentBridgeCapabilityAction`, `CreateAgentBridgeTokenAction`, `DeleteAgentBridgePromptAction`, `FindSavedPromptForUserAction`, `InvokeAgentBridgeCapabilityPreviewAction`, `ListSavedPromptOptionsAction`, `CreateDraftPageCapabilityAction`, `DisablePageCapabilityAction`, `and 7 more`.
-- Data objects: `AgentBridgePromptData`, `AuthenticatedAgentBridgeClientData`, `ClearCacheCapabilityInputData`, `CreateDraftPageCapabilityInputData`, `PageIdCapabilityInputData`, `UpdateDraftPageCapabilityInputData`, `CapabilityData`, `CapabilityInvocationData`, `CapabilityResultData`.
+- Actions: `AuditAgentBridgeCapabilityAction`, `BuildAgentBridgeCapabilityCatalogAction`, `BuildAgentBridgePromptAction`, `ClearCapellCacheCapabilityAction`, `ConfirmAgentBridgeAdminCapabilityAction`, `ConfirmAgentBridgeCapabilityAction`, `CreateAgentBridgeTokenAction`, `DeleteAgentBridgePromptAction`, `FindSavedPromptForUserAction`, `InterpretAgentBridgeCommandAction`, `InvokeAgentBridgeCapabilityPreviewAction`, `ListSavedPromptOptionsAction`, `and 23 more`.
+- Data objects: `AgentBridgeCommandPlanData`, `AgentBridgePromptData`, `AuthenticatedAgentBridgeClientData`, `ClearCacheCapabilityInputData`, `ClonePageCapabilityInputData`, `CreateDraftPageCapabilityInputData`, `InstallPackageCapabilityInputData`, `PackageReferenceCapabilityInputData`, `PageAuthoringOptionsCapabilityInputData`, `PageIdCapabilityInputData`, `PageReferenceCapabilityInputData`, `SearchPackagesCapabilityInputData`, `and 9 more`.
 - Command signatures: `capell:agent-bridge-prune-audit`.
 - Scheduled commands: `capell:agent-bridge-prune-audit (daily)`.
 - Console command classes: `PruneAgentBridgeAuditEntriesCommand`.

@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Actions;
 
 use Capell\AgentBridge\Data\AgentBridgePromptData;
-use Lorisleiva\Actions\Concerns\AsAction;
+use Lorisleiva\Actions\Concerns\AsFake;
+use Lorisleiva\Actions\Concerns\AsObject;
 
+/** @method static string run(AgentBridgePromptData $data) */
 final class BuildAgentBridgePromptAction
 {
-    use AsAction;
+    use AsFake;
+    use AsObject;
 
     public function handle(AgentBridgePromptData $data): string
     {

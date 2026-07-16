@@ -10,14 +10,16 @@ use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Support\AgentBridgeAuditSanitizer;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
-use Lorisleiva\Actions\Concerns\AsAction;
+use Lorisleiva\Actions\Concerns\AsFake;
+use Lorisleiva\Actions\Concerns\AsObject;
 
 /**
  * @method static CapellAgentBridgeAuditEntry run(string $event, ?string $capabilityKey = null, ?string $scope = null, array<string, mixed> $payload = [], ?CapabilityResultData $result = null, ?CapellAgentBridgeToken $token = null, ?Authenticatable $user = null)
  */
 final class AuditAgentBridgeCapabilityAction
 {
-    use AsAction;
+    use AsFake;
+    use AsObject;
 
     /**
      * @param  array<string, mixed>  $payload

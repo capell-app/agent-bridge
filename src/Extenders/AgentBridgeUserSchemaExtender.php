@@ -14,6 +14,8 @@ use Capell\AgentBridge\Models\CapellAgentBridgeAuditEntry;
 use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Settings\AgentBridgeSettings;
+use Carbon\CarbonInterface;
+use DateTimeInterface;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -94,7 +96,7 @@ final class AgentBridgeUserSchemaExtender extends AbstractUserSchemaExtender
             ->max();
         $nextExpiryAt = $tokens
             ->pluck('expires_at')
-            ->filter(fn (mixed $expiresAt): bool => Date::parse($expiresAt)->greaterThanOrEqualTo($now))
+            ->filter(fn (mixed $expiresAt): bool => $this->parseDate($expiresAt)?->greaterThanOrEqualTo($now) === true)
             ->min();
 
         return [
@@ -120,6 +122,15 @@ final class AgentBridgeUserSchemaExtender extends AbstractUserSchemaExtender
             return '-';
         }
 
-        return Date::parse($date)->diffForHumans();
+        return $this->parseDate($date)?->diffForHumans() ?? '-';
+    }
+
+    private function parseDate(mixed $date): ?CarbonInterface
+    {
+        if ($date instanceof DateTimeInterface || is_int($date) || is_float($date) || is_string($date) && $date !== '') {
+            return Date::parse($date);
+        }
+
+        return null;
     }
 }

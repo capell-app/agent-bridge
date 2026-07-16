@@ -8,12 +8,14 @@ use Capell\AgentBridge\Data\CapabilityInvocationData;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
 use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
+use Capell\AgentBridge\Tests\Fixtures\User;
+use Illuminate\Auth\Access\AuthorizationException;
 
 it('previews registered cache clear commands before executing them', function (): void {
     $result = (new ClearCapellCacheCapabilityAction)->preview(cacheInvocation());
 
     expect($result->ok)->toBeTrue()
-        ->and($result->message)->toBe('Capell cache clear commands will be run if they are registered in this application.')
+        ->and($result->message)->toBe(__('capell-agent-bridge::admin.result_cache_clear_preview'))
         ->and($result->data['commands'])->toContain('cache:clear');
 });
 
@@ -21,12 +23,23 @@ it('executes registered cache clear commands and returns command output', functi
     $result = (new ClearCapellCacheCapabilityAction)->execute(cacheInvocation());
 
     expect($result->ok)->toBeTrue()
-        ->and($result->message)->toBe('Available Capell cache clear commands have been run.')
+        ->and($result->message)->toBe(__('capell-agent-bridge::admin.result_cache_cleared'))
         ->and($result->data['results'])->toHaveKey('cache:clear');
 });
 
-function cacheInvocation(): CapabilityInvocationData
+it('rejects cache operations for non global administrators', function (): void {
+    $user = new User;
+
+    (new ClearCapellCacheCapabilityAction)->preview(cacheInvocation($user));
+})->throws(AuthorizationException::class);
+
+function cacheInvocation(?User $user = null): CapabilityInvocationData
 {
+    if ($user === null) {
+        $user = new User;
+        $user->globalAdmin = true;
+    }
+
     return new CapabilityInvocationData(
         capability: new CapabilityData(
             key: 'capell.cache.clear',
@@ -38,5 +51,6 @@ function cacheInvocation(): CapabilityInvocationData
             actionClass: FakeCapabilityAction::class,
         ),
         payload: [],
+        user: $user,
     );
 }

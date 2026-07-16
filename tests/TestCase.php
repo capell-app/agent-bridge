@@ -5,23 +5,28 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Tests;
 
 use Aimeos\Nestedset\NestedSetServiceProvider;
+use Bkwld\Cloner\ServiceProvider as ClonerServiceProvider;
 use BladeUI\Heroicons\BladeHeroiconsServiceProvider;
 use BladeUI\Icons\BladeIconsServiceProvider;
 use Capell\Admin\Providers\AdminServiceProvider;
+use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Providers\AgentBridgeServiceProvider;
 use Capell\AgentBridge\Tests\Fixtures\InstalledAgentBridgePackageServiceProvider;
 use Capell\AgentBridge\Tests\Fixtures\User;
+use Capell\Core\Facades\CapellCore;
 use Capell\Core\Providers\CapellServiceProvider;
+use Capell\Core\Support\CapellCoreManager;
 use Filament\Actions\ActionsServiceProvider;
 use Filament\FilamentServiceProvider;
+use Filament\Forms\FormsServiceProvider;
 use Filament\Notifications\NotificationsServiceProvider;
+use Filament\Schemas\SchemasServiceProvider;
 use Filament\Support\SupportServiceProvider;
 use Filament\Tables\TablesServiceProvider;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Schema;
 use Laravel\Mcp\Server\McpServiceProvider as LaravelMcpServiceProvider;
 use Livewire\LivewireServiceProvider;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
@@ -34,7 +39,23 @@ abstract class TestCase extends OrchestraTestCase
 
     protected function setUp(): void
     {
+        CapellCore::clearResolvedInstance(CapellCoreManager::class);
+
         parent::setUp();
+
+        CapellCore::clearResolvedInstance(CapellCoreManager::class);
+        CapellCore::forcePackageInstalled(AgentBridgeServiceProvider::$packageName);
+
+        if (! in_array(CapellAgentBridgeToken::class, CapellCore::getModels(), true)) {
+            $application = $this->app;
+            $provider = $application instanceof Application
+                ? $application->getProvider(AgentBridgeServiceProvider::class)
+                : null;
+
+            if ($provider instanceof AgentBridgeServiceProvider) {
+                $provider->boot();
+            }
+        }
 
         Relation::morphMap([
             'agent-bridge_user' => User::class,
@@ -51,9 +72,12 @@ abstract class TestCase extends OrchestraTestCase
             BladeIconsServiceProvider::class,
             BladeHeroiconsServiceProvider::class,
             NestedSetServiceProvider::class,
+            ClonerServiceProvider::class,
             SupportServiceProvider::class,
             ActionsServiceProvider::class,
             NotificationsServiceProvider::class,
+            SchemasServiceProvider::class,
+            FormsServiceProvider::class,
             FilamentServiceProvider::class,
             LivewireServiceProvider::class,
             TablesServiceProvider::class,
@@ -82,31 +106,26 @@ abstract class TestCase extends OrchestraTestCase
         Config::set('database.connections.sqlite.url');
         Config::set('app.key', 'base64:' . base64_encode(str_repeat('x', 32)));
         Config::set('permission', $permissionConfig);
+
     }
 
-    protected function defineDatabaseMigrations(): void
+    /**
+     * Keep this package's focused suite independent from the prepared
+     * Testbench skeleton, which may contain a broader published migration set.
+     *
+     * @return array<string, mixed>
+     */
+    protected function migrateFreshUsing(): array
     {
-        Schema::create('users', function (Blueprint $table): void {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
-            $table->timestamps();
-        });
+        $root = dirname(__DIR__, 3);
 
-        Schema::create('settings', function (Blueprint $table): void {
-            $table->id();
-            $table->string('group');
-            $table->string('name');
-            $table->boolean('locked')->default(false);
-            $table->json('payload');
-            $table->timestamps();
-            $table->unique(['group', 'name']);
-        });
-
-        $this->loadMigrationsFrom(dirname(__DIR__, 3) . '/vendor/capell-app/core/database/migrations');
-        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+        return [
+            '--path' => [
+                $root . '/tests/database/migrations',
+                $root . '/vendor/capell-app/core/database/migrations',
+                __DIR__ . '/../database/migrations',
+            ],
+            '--realpath' => true,
+        ];
     }
 }

@@ -30,6 +30,7 @@ use Capell\AgentBridge\Tools\Site\InspectSiteStateTool;
 use Capell\AgentBridge\Tools\Site\ListSiteCapabilitiesTool;
 use Capell\AgentBridge\Tools\Site\QuerySiteAuditEntriesTool;
 use Capell\AgentBridge\Tools\Site\RunSiteCapabilityTool;
+use Capell\AgentBridge\Tools\Site\SuggestSiteCapabilitiesTool;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\ResponseFactory;
 
@@ -166,6 +167,40 @@ it('lists site capabilities allowed by the authenticated client scopes', functio
         ->toBe(['capell.fake.allowed']);
 });
 
+it('suggests scoped site capabilities from a natural language request', function (): void {
+    $registry = new CapellAgentBridgeCapabilityRegistry;
+    $registry->register(new CapabilityData(
+        key: 'capell.pages.clone',
+        name: 'Clone page',
+        description: 'Create a disabled copy of a page.',
+        scope: 'capell.pages.write',
+        server: CapabilityServerEnum::Site,
+        risk: CapabilityRiskEnum::High,
+        actionClass: FakeCapabilityAction::class,
+        category: 'pages',
+        intents: ['clone page', 'copy page'],
+        examples: ['Clone the About page.'],
+    ));
+    app()->instance(CapellAgentBridgeCapabilityRegistry::class, $registry);
+
+    $response = (new SuggestSiteCapabilitiesTool)->handle(
+        new Request(['query' => 'Copy the About page', 'limit' => 3]),
+        new AuthenticatedAgentBridgeClientData(tokenId: 1, name: 'Scoped client', scopes: ['capell.pages.write']),
+    );
+
+    $structuredContent = agentBridgeStructuredContent($response);
+
+    expect($structuredContent['query'])->toBe('Copy the About page')
+        ->and($structuredContent['suggestions'])
+        ->toHaveCount(1)
+        ->and($structuredContent['suggestions'][0])
+        ->toMatchArray([
+            'key' => 'capell.pages.clone',
+            'category' => 'pages',
+            'requiresConfirmation' => true,
+        ]);
+});
+
 it('lists built-in capability schemas for agent discovery', function (): void {
     $registry = new CapellAgentBridgeCapabilityRegistry;
     $registry->register(new CapabilityData(
@@ -194,7 +229,16 @@ it('lists built-in capability schemas for agent discovery', function (): void {
     expect($createDraft)
         ->and($createDraft['inputDataClass'] ?? null)->toBe(CreateDraftPageCapabilityInputData::class)
         ->and($createDraft['outputDataClass'] ?? null)->toBe(CapabilityResultData::class)
-        ->and(requiredSchemaFields($createDraft['inputSchema'] ?? null))->toContain('name', 'site_id', 'blueprint_id', 'layout_id');
+        ->and(requiredSchemaFields($createDraft['inputSchema'] ?? null))->toBe(['name'])
+        ->and(schemaProperties($createDraft['inputSchema'] ?? null))->toHaveKeys([
+            'site',
+            'page_type',
+            'layout',
+            'language',
+            'title',
+            'slug',
+            'content',
+        ]);
 });
 
 it('queries audit entries for the authenticated token', function (): void {
@@ -578,7 +622,9 @@ it('exports a machine-readable MCP capability schema catalog', function (): void
             'output_data_class' => CapabilityResultData::class,
         ])
         ->and(requiredSchemaFields($capabilities[0]['input_schema'] ?? null))
-        ->toBe(['name', 'site_id', 'blueprint_id', 'layout_id'])
+        ->toBe(['name'])
+        ->and(schemaProperties($capabilities[0]['input_schema'] ?? null))
+        ->toHaveKeys(['site', 'site_id', 'page_type', 'blueprint_id', 'layout', 'layout_id', 'language', 'title', 'slug', 'content'])
         ->and(schemaProperties($capabilities[0]['output_schema'] ?? null))
         ->toHaveKeys(['ok', 'message', 'data', 'warnings']);
 });

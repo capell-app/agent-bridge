@@ -5,15 +5,34 @@ declare(strict_types=1);
 use Capell\AgentBridge\Actions\BuildAgentBridgePromptAction;
 use Capell\AgentBridge\Actions\SaveAgentBridgePromptAction;
 use Capell\AgentBridge\Data\AgentBridgePromptData;
+use Capell\AgentBridge\Data\CapabilityData;
+use Capell\AgentBridge\Enums\CapabilityRiskEnum;
+use Capell\AgentBridge\Enums\CapabilityServerEnum;
 use Capell\AgentBridge\Filament\Pages\CapellAgentBridgePromptBuilderPage;
 use Capell\AgentBridge\Livewire\PromptBuilderToolbarAction;
+use Capell\AgentBridge\Models\CapellAgentBridgeAuditEntry;
 use Capell\AgentBridge\Models\CapellAgentBridgeSavedPrompt;
+use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
+use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
 use Capell\AgentBridge\Tests\Fixtures\User;
+use Filament\Facades\Filament;
+use Filament\Panel;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Blade;
 use Livewire\Livewire;
+
+beforeEach(function (): void {
+    $panel = Panel::make()
+        ->id('admin')
+        ->path('admin')
+        ->default();
+    Filament::registerPanel($panel);
+    Filament::setCurrentPanel($panel);
+    Filament::bootCurrentPanel();
+    Filament::setServingStatus();
+});
 
 it('builds an agent bridge prompt from the submitted intent', function (): void {
     $prompt = BuildAgentBridgePromptAction::run(AgentBridgePromptData::fromArray([
@@ -75,6 +94,110 @@ it('limits prompt builder options to backed Agent Bridge operations', function (
             'recommend',
         ])
         ->not->toHaveKey('regenerate');
+});
+
+it('renders the AI command centre while retaining the reusable prompt builder', function (): void {
+    $user = User::query()->create([
+        'name' => 'Command Centre Admin',
+        'email' => 'command-centre-admin@example.com',
+        'password' => 'password',
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test(CapellAgentBridgePromptBuilderPage::class)
+        ->assertSee(__('capell-agent-bridge::admin.command_heading'))
+        ->assertSee(__('capell-agent-bridge::admin.command_suggestions_heading'))
+        ->assertSee(__('capell-agent-bridge::admin.prompt_builder_title'))
+        ->assertSeeHtml('id="capell-ai-command"')
+        ->assertSeeHtml('window.SpeechRecognition');
+});
+
+it('plans commands and executes read and confirmed write capabilities from the admin page', function (): void {
+    $registry = new CapellAgentBridgeCapabilityRegistry;
+    $registry->register(new CapabilityData(
+        key: 'capell.fake.read',
+        name: 'Read fake state',
+        description: 'Read a fake record.',
+        scope: 'capell.fake.read',
+        server: CapabilityServerEnum::Site,
+        risk: CapabilityRiskEnum::Read,
+        actionClass: FakeCapabilityAction::class,
+        requiresConfirmation: false,
+        category: 'general',
+        intents: ['read fake state'],
+    ));
+    $registry->register(new CapabilityData(
+        key: 'capell.fake.write',
+        name: 'Write fake state',
+        description: 'Change a fake record.',
+        scope: 'capell.fake.write',
+        server: CapabilityServerEnum::Site,
+        risk: CapabilityRiskEnum::High,
+        actionClass: FakeCapabilityAction::class,
+        category: 'general',
+        intents: ['write fake state'],
+    ));
+    app()->instance(CapellAgentBridgeCapabilityRegistry::class, $registry);
+
+    $user = User::query()->create([
+        'name' => 'Command Runner',
+        'email' => 'command-runner@example.com',
+        'password' => 'password',
+    ]);
+    $this->actingAs($user);
+
+    Livewire::test(CapellAgentBridgePromptBuilderPage::class)
+        ->set('command', 'Open the About page')
+        ->call('planCommand')
+        ->assertSet('commandPlan.capabilityKey', 'capell.pages.open_editor')
+        ->assertSet('commandPlan.payload.page', 'About')
+        ->call('chooseCapability', 'capell.fake.read')
+        ->set('payloadJson', '{"query":"About"}')
+        ->call('previewSelectedCapability')
+        ->assertSet('commandResponse.mode', 'executed')
+        ->assertSet('pendingConfirmationToken', null)
+        ->call('chooseCapability', 'capell.fake.write')
+        ->set('payloadJson', '{"name":"Example"}')
+        ->call('previewSelectedCapability')
+        ->assertSet('commandResponse.mode', 'preview')
+        ->assertSet('pendingConfirmationToken', fn (?string $token): bool => is_string($token) && strlen($token) === 64)
+        ->call('confirmPendingCapability')
+        ->assertSet('commandResponse.mode', 'confirmed')
+        ->assertSet('pendingConfirmationToken', null);
+
+    expect(CapellAgentBridgeAuditEntry::query()->count())->toBe(3);
+});
+
+it('keeps invalid advanced payloads client safe and makes no change', function (): void {
+    $registry = new CapellAgentBridgeCapabilityRegistry;
+    $registry->register(new CapabilityData(
+        key: 'capell.fake.write',
+        name: 'Write fake state',
+        description: 'Change a fake record.',
+        scope: 'capell.fake.write',
+        server: CapabilityServerEnum::Site,
+        risk: CapabilityRiskEnum::High,
+        actionClass: FakeCapabilityAction::class,
+    ));
+    app()->instance(CapellAgentBridgeCapabilityRegistry::class, $registry);
+
+    $user = User::query()->create([
+        'name' => 'Payload Reviewer',
+        'email' => 'payload-reviewer@example.com',
+        'password' => 'password',
+    ]);
+    $this->actingAs($user);
+
+    Livewire::test(CapellAgentBridgePromptBuilderPage::class)
+        ->call('chooseCapability', 'capell.fake.write')
+        ->set('payloadJson', '{not valid json}')
+        ->call('previewSelectedCapability')
+        ->assertSet('commandError', __('capell-agent-bridge::admin.command_payload_invalid_json'))
+        ->assertSet('commandResponse', [])
+        ->assertSet('pendingConfirmationToken', null);
+
+    expect(CapellAgentBridgeAuditEntry::query()->count())->toBe(0);
 });
 
 it('saves loads lists and deletes prompts scoped to the authenticated admin user', function (): void {

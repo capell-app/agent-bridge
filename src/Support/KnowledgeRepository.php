@@ -23,6 +23,7 @@ final class KnowledgeRepository
             }
 
             $product = is_array($decoded['product'] ?? null) ? $decoded['product'] : [];
+            $dependencies = is_array($decoded['dependencies'] ?? null) ? $decoded['dependencies'] : [];
 
             $packages[] = [
                 'name' => $decoded['name'] ?? basename(dirname((string) $packageFile)),
@@ -32,7 +33,7 @@ final class KnowledgeRepository
                 'bundle' => $product['bundle'] ?? null,
                 'contexts' => $decoded['surfaces'] ?? $decoded['contexts'] ?? [],
                 'capabilities' => $decoded['capabilities'] ?? [],
-                'requires' => $decoded['dependencies']['requires'] ?? $decoded['requires'] ?? [],
+                'requires' => $dependencies['requires'] ?? $decoded['requires'] ?? [],
                 'path' => dirname((string) $packageFile),
             ];
         }
@@ -45,7 +46,12 @@ final class KnowledgeRepository
     {
         $paths = [];
 
-        foreach (config('capell-agent-bridge.public_docs_paths', []) as $configuredPath) {
+        $configuredPaths = AgentBridgeValue::stringList(
+            config('capell-agent-bridge.public_docs_paths', []),
+            'Agent Bridge public documentation paths',
+        );
+
+        foreach ($configuredPaths as $configuredPath) {
             foreach (File::glob($configuredPath) as $path) {
                 if (is_dir($path)) {
                     foreach (File::allFiles($path) as $file) {

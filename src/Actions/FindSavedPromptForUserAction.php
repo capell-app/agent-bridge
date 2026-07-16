@@ -6,6 +6,7 @@ namespace Capell\AgentBridge\Actions;
 
 use Capell\AgentBridge\Models\CapellAgentBridgeSavedPrompt;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Lorisleiva\Actions\Concerns\AsFake;
 use Lorisleiva\Actions\Concerns\AsObject;
 
 /**
@@ -16,6 +17,7 @@ use Lorisleiva\Actions\Concerns\AsObject;
  */
 class FindSavedPromptForUserAction
 {
+    use AsFake;
     use AsObject;
 
     public function handle(Authenticatable $user, int|string $savedPromptId): ?CapellAgentBridgeSavedPrompt

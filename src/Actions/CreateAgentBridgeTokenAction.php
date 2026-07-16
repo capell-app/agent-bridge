@@ -9,14 +9,16 @@ use DateTimeInterface;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
-use Lorisleiva\Actions\Concerns\AsAction;
+use Lorisleiva\Actions\Concerns\AsFake;
+use Lorisleiva\Actions\Concerns\AsObject;
 
 /**
  * @method static array{token: CapellAgentBridgeToken, plainTextToken: string} run(Authenticatable $user, string $name, array<int, string> $scopes, ?DateTimeInterface $expiresAt = null, ?string $createdFromIp = null)
  */
 final class CreateAgentBridgeTokenAction
 {
-    use AsAction;
+    use AsFake;
+    use AsObject;
 
     /**
      * @param  array<int, string>  $scopes

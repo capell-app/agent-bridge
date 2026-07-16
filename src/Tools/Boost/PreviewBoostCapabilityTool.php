@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Tools\Boost;
 
 use Capell\AgentBridge\Data\CapabilityInvocationData;
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -39,11 +40,11 @@ final class PreviewBoostCapabilityTool extends Tool
             'payload' => ['required', 'array'],
         ]);
 
-        $capability = $registry->get((string) $data['capability']);
+        $capability = $registry->get(AgentBridgeValue::string($data['capability'] ?? null, 'Capability key'));
         $action = resolve($capability->actionClass);
         $preview = $action->preview(new CapabilityInvocationData(
             capability: $capability,
-            payload: $data['payload'],
+            payload: AgentBridgeValue::associativeArray($data['payload'] ?? null, 'Capability payload'),
             user: $request->user(),
         ));
 

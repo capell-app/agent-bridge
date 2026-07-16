@@ -8,20 +8,23 @@ use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
 use Capell\AgentBridge\Data\CapabilityInvocationData;
 use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
-use Lorisleiva\Actions\Concerns\AsAction;
+use Lorisleiva\Actions\Concerns\AsFake;
+use Lorisleiva\Actions\Concerns\AsObject;
 
 /**
  * @method static array<string, mixed> run(string $capabilityKey, array<string, mixed> $payload, ?AuthenticatedAgentBridgeClientData $client = null, ?CapellAgentBridgeToken $token = null, ?Authenticatable $user = null)
  */
 final class InvokeAgentBridgeCapabilityPreviewAction
 {
-    use AsAction;
+    use AsFake;
+    use AsObject;
 
     /**
      * @param  array<string, mixed>  $payload
@@ -88,15 +91,19 @@ final class InvokeAgentBridgeCapabilityPreviewAction
             ];
         }
 
+        $plainTextConfirmationToken = Str::random(64);
         $confirmation = new CapellAgentBridgeConfirmation([
-            'token' => Str::random(64),
+            'token' => CapellAgentBridgeConfirmation::hashPlainTextToken($plainTextConfirmationToken),
             'agent_bridge_token_id' => $token?->getKey(),
             'capability_key' => $capability->key,
             'scope' => $capability->scope,
             'payload_hash' => self::payloadHash($payload),
             'payload' => $payload,
             'preview' => $preview->toPayload(),
-            'expires_at' => now()->addMinutes(config('capell-agent-bridge.confirmation_ttl_minutes', 10)),
+            'expires_at' => now()->addMinutes(AgentBridgeValue::integer(
+                config('capell-agent-bridge.confirmation_ttl_minutes', 10),
+                'Agent Bridge confirmation TTL',
+            )),
         ]);
 
         if ($user instanceof Model) {
@@ -118,7 +125,7 @@ final class InvokeAgentBridgeCapabilityPreviewAction
         return [
             'mode' => 'preview',
             'capability' => $capability->key,
-            'confirmationToken' => $confirmation->token,
+            'confirmationToken' => $plainTextConfirmationToken,
             'expiresAt' => $confirmation->expires_at->toIso8601String(),
             'preview' => $preview->toPayload(),
         ];

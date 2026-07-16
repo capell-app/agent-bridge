@@ -1,0 +1,5 @@
+{
+    "name": "vendor/agent-installable",
+    "description": "Agent Bridge install capability fixture",
+    "type": "library"
+}

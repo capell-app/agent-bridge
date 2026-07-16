@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Override;
+use RuntimeException;
 
 /**
  * @property int $id
@@ -47,6 +48,15 @@ final class CapellAgentBridgeConfirmation extends Model
     ];
 
     protected $table = 'capell_agent_bridge_confirmations';
+
+    public static function hashPlainTextToken(string $plainTextToken): string
+    {
+        $applicationKey = config('app.key');
+
+        throw_unless(is_string($applicationKey) && $applicationKey !== '', RuntimeException::class, 'The application key is required to hash Agent Bridge confirmation tokens.');
+
+        return hash_hmac('sha256', $plainTextToken, $applicationKey);
+    }
 
     public function isUsable(): bool
     {

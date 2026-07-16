@@ -7,6 +7,7 @@ namespace Capell\AgentBridge\Tools\Site;
 use Capell\AgentBridge\Actions\ConfirmAgentBridgeCapabilityAction;
 use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -41,8 +42,8 @@ final class ConfirmSiteCapabilityTool extends Tool
         ]);
 
         $result = ConfirmAgentBridgeCapabilityAction::run(
-            confirmationToken: (string) $data['confirmationToken'],
-            payload: $data['payload'],
+            confirmationToken: AgentBridgeValue::string($data['confirmationToken'] ?? null, 'Confirmation token'),
+            payload: AgentBridgeValue::associativeArray($data['payload'] ?? null, 'Capability payload'),
             client: $client,
             token: $token,
             user: $request->user(),

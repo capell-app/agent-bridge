@@ -6,16 +6,19 @@ namespace Capell\AgentBridge\Actions;
 
 use Capell\AgentBridge\Models\CapellAgentBridgeAuditEntry;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Lorisleiva\Actions\Concerns\AsAction;
+use Lorisleiva\Actions\Concerns\AsFake;
+use Lorisleiva\Actions\Concerns\AsObject;
 
 /**
  * @method static Collection<int, array<string, mixed>> run(?CapellAgentBridgeToken $token = null, ?string $capability = null, ?string $event = null, int $limit = 25)
  */
 final class QueryAgentBridgeAuditEntriesAction
 {
-    use AsAction;
+    use AsFake;
+    use AsObject;
 
     /**
      * @return Collection<int, array<string, mixed>>
@@ -55,7 +58,7 @@ final class QueryAgentBridgeAuditEntriesAction
         $attributes = get_object_vars($entry);
 
         return [
-            'id' => (int) ($attributes['id'] ?? 0),
+            'id' => AgentBridgeValue::integer($attributes['id'] ?? 0, 'Audit entry ID'),
             'event' => $attributes['event'] ?? null,
             'capability' => $attributes['capability_key'] ?? null,
             'scope' => $attributes['scope'] ?? null,

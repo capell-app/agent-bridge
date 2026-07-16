@@ -92,12 +92,16 @@ it('previews and confirms a mutating capability with the same payload', function
         token: $token,
         user: $user,
     );
+    $confirmationToken = agentBridgeConfirmationToken($preview);
+    $storedConfirmationToken = CapellAgentBridgeConfirmation::query()->value('token');
 
     expect($preview['mode'])->toBe('preview')
-        ->and($preview['confirmationToken'])->toBeString();
+        ->and($confirmationToken)->toBeString()
+        ->and($storedConfirmationToken)->toBeString()
+        ->and($storedConfirmationToken)->not->toBe($confirmationToken);
 
     $result = ConfirmAgentBridgeCapabilityAction::run(
-        confirmationToken: agentBridgeConfirmationToken($preview),
+        confirmationToken: $confirmationToken,
         payload: $payload,
         client: $client,
         token: $token,
@@ -291,7 +295,7 @@ it('rejects confirmation replay across non numeric user identifiers', function (
     $payload = ['name' => 'Original'];
     $confirmation = new CapellAgentBridgeConfirmation;
     $confirmation->forceFill([
-        'token' => 'uuid-confirmation-token',
+        'token' => CapellAgentBridgeConfirmation::hashPlainTextToken('uuid-confirmation-token'),
         'agent_bridge_token_id' => $token->getKey(),
         'user_type' => (new User)->getMorphClass(),
         'user_id' => 'user-alpha',

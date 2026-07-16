@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Tools\Knowledge;
 
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Capell\AgentBridge\Support\KnowledgeRepository;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -35,7 +36,7 @@ final class ReadKnowledgeDocumentTool extends Tool
             'path' => ['required', 'string'],
         ]);
 
-        $content = $repository->readDocument((string) $data['path']);
+        $content = $repository->readDocument(AgentBridgeValue::string($data['path'] ?? null, 'Document path'));
 
         if ($content === null) {
             return Response::error('Document not found or not allowed.');

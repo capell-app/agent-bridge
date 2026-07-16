@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Tools\Knowledge;
 
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Capell\AgentBridge\Support\KnowledgeRepository;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -36,17 +37,17 @@ final class RecommendPackagesTool extends Tool
             'query' => ['required', 'string'],
         ]);
 
-        $query = strtolower((string) $data['query']);
+        $query = strtolower(AgentBridgeValue::string($data['query'] ?? null, 'Package recommendation query'));
         $recommendations = collect($repository->packages())
             ->map(function (array $package) use ($query): array {
                 $haystack = strtolower(implode(' ', array_filter([
-                    $package['name'] ?? '',
-                    $package['description'] ?? '',
-                    $package['productGroup'] ?? '',
-                    $package['bundle'] ?? '',
-                    implode(' ', $package['contexts'] ?? []),
-                    implode(' ', $package['capabilities'] ?? []),
-                ], static fn (string $value): bool => $value !== '')));
+                    self::text($package['name'] ?? null),
+                    self::text($package['description'] ?? null),
+                    self::text($package['productGroup'] ?? null),
+                    self::text($package['bundle'] ?? null),
+                    implode(' ', self::strings($package['contexts'] ?? null)),
+                    implode(' ', self::strings($package['capabilities'] ?? null)),
+                ])));
 
                 $score = 0;
                 $terms = preg_split('/\s+/', $query);
@@ -63,7 +64,7 @@ final class RecommendPackagesTool extends Tool
                     'score' => $score,
                 ];
             })
-            ->filter(fn (array $package): bool => (int) $package['score'] > 0)
+            ->filter(fn (array $package): bool => AgentBridgeValue::integer($package['score'] ?? 0, 'Recommendation score') > 0)
             ->sortByDesc('score')
             ->values()
             ->take(8)
@@ -73,5 +74,20 @@ final class RecommendPackagesTool extends Tool
             'query' => $query,
             'recommendations' => $recommendations,
         ]);
+    }
+
+    private static function text(mixed $value): string
+    {
+        return is_string($value) ? $value : '';
+    }
+
+    /** @return list<string> */
+    private static function strings(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter($value, is_string(...)));
     }
 }

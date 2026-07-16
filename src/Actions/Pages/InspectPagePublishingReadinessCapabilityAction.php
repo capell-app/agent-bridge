@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Actions\Pages;
 
 use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityAction;
+use Capell\AgentBridge\Data\Capabilities\PageReferenceCapabilityInputData;
 use Capell\AgentBridge\Data\CapabilityInvocationData;
 use Capell\AgentBridge\Data\CapabilityResultData;
-use Capell\AgentBridge\Support\AgentBridgePageAccess;
+use Capell\AgentBridge\Support\AgentBridgeRecordResolver;
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Illuminate\Support\Collection;
 
 final class InspectPagePublishingReadinessCapabilityAction implements CapellAgentBridgeCapabilityAction
@@ -20,7 +22,12 @@ final class InspectPagePublishingReadinessCapabilityAction implements CapellAgen
     public function execute(CapabilityInvocationData $invocation): CapabilityResultData
     {
         $payload = $this->validatedPayload($invocation->payload);
-        $page = AgentBridgePageAccess::authorizedPage($invocation->user, (int) $payload['page_id'], ['site', 'type', 'layout', 'pageUrls']);
+        $page = resolve(AgentBridgeRecordResolver::class)->page(
+            user: $invocation->user,
+            reference: $payload->page_id ?? $payload->page ?? '',
+            siteReference: $payload->site_id ?? $payload->site,
+            with: ['site', 'type', 'layout', 'pageUrls'],
+        );
         $pageUrls = $page->getAttribute('pageUrls');
 
         $checks = [
@@ -33,9 +40,9 @@ final class InspectPagePublishingReadinessCapabilityAction implements CapellAgen
 
         return new CapabilityResultData(
             ok: ! in_array(false, $checks, true),
-            message: 'Page publishing readiness has been inspected.',
+            message: (string) __('capell-agent-bridge::admin.result_page_readiness_inspected'),
             data: [
-                'page_id' => (int) $page->getKey(),
+                'page_id' => AgentBridgeValue::integer($page->getKey(), 'Page key'),
                 'name' => $page->getAttribute('name'),
                 'checks' => $checks,
             ],
@@ -44,14 +51,16 @@ final class InspectPagePublishingReadinessCapabilityAction implements CapellAgen
 
     /**
      * @param  array<string, mixed>  $payload
-     * @return array<string, mixed>
      */
-    private function validatedPayload(array $payload): array
+    private function validatedPayload(array $payload): PageReferenceCapabilityInputData
     {
         validator($payload, [
-            'page_id' => ['required', 'integer'],
+            'page' => ['required_without:page_id'],
+            'page_id' => ['required_without:page', 'integer'],
+            'site' => ['sometimes', 'nullable'],
+            'site_id' => ['sometimes', 'nullable', 'integer'],
         ])->validate();
 
-        return $payload;
+        return PageReferenceCapabilityInputData::fromPayload($payload);
     }
 }

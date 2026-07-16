@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Data;
 
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Illuminate\Support\Arr;
 
 final readonly class AgentBridgePromptData
@@ -22,13 +23,13 @@ final readonly class AgentBridgePromptData
     public static function fromArray(array $state): self
     {
         return new self(
-            goal: trim((string) Arr::get($state, 'goal', '')),
-            area: (string) Arr::get($state, 'area', 'pages'),
-            operation: (string) Arr::get($state, 'operation', 'inspect'),
-            safety: (string) Arr::get($state, 'safety', 'preview_first'),
-            target: trim((string) Arr::get($state, 'target', '')),
-            constraints: trim((string) Arr::get($state, 'constraints', '')),
-            successCriteria: trim((string) Arr::get($state, 'success_criteria', '')),
+            goal: trim(AgentBridgeValue::string(Arr::get($state, 'goal', ''), 'Prompt goal')),
+            area: AgentBridgeValue::string(Arr::get($state, 'area', 'pages'), 'Prompt area'),
+            operation: AgentBridgeValue::string(Arr::get($state, 'operation', 'inspect'), 'Prompt operation'),
+            safety: AgentBridgeValue::string(Arr::get($state, 'safety', 'preview_first'), 'Prompt safety mode'),
+            target: trim(AgentBridgeValue::string(Arr::get($state, 'target', ''), 'Prompt target')),
+            constraints: trim(AgentBridgeValue::string(Arr::get($state, 'constraints', ''), 'Prompt constraints')),
+            successCriteria: trim(AgentBridgeValue::string(Arr::get($state, 'success_criteria', ''), 'Prompt success criteria')),
         );
     }
 

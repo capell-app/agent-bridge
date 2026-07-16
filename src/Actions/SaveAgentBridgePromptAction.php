@@ -9,11 +9,16 @@ use Capell\AgentBridge\Models\CapellAgentBridgeSavedPrompt;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
-use Lorisleiva\Actions\Concerns\AsAction;
+use Lorisleiva\Actions\Concerns\AsFake;
+use Lorisleiva\Actions\Concerns\AsObject;
 
+/**
+ * @method static CapellAgentBridgeSavedPrompt run(Authenticatable&Model $user, string $name, ?string $description, AgentBridgePromptData $data, ?CapellAgentBridgeSavedPrompt $savedPrompt = null)
+ */
 final class SaveAgentBridgePromptAction
 {
-    use AsAction;
+    use AsFake;
+    use AsObject;
 
     public function handle(
         Authenticatable&Model $user,

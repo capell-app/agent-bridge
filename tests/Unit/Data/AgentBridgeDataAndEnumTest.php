@@ -49,6 +49,10 @@ it('serializes capability definitions into agent payloads', function (): void {
             'requiresConfirmation' => false,
             'auditEvent' => 'site.fake',
             'public' => false,
+            'category' => 'general',
+            'intents' => [],
+            'examples' => [],
+            'discoveryPriority' => 0,
         ]);
 });
 

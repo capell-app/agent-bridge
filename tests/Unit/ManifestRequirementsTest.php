@@ -128,6 +128,8 @@ describe('agent-bridge capell.json manifest', function (): void {
             ->and(data_get($manifestData, 'settings'))->toBe([AgentBridgeSettings::class])
             ->and(data_get($manifestData, 'security.publicSurface.tokenizedRoutes', []))->toContain('agent-bridge/capell')
             ->and(data_get($manifestData, 'security.publicSurface.throttledRoutes', []))->toContain('agent-bridge/capell')
+            ->and(data_get($manifestData, 'security.sensitiveData.hashedTokenFields', []))->toContain('capell_agent_bridge_confirmations.token')
+            ->and(data_get($manifestData, 'security.sensitiveData.plaintextJustifications', []))->toBe([])
             ->and(data_get($manifestData, 'healthChecks.0.class'))->toBe(AgentBridgeHealthCheck::class)
             ->and(data_get($manifestData, 'contributionTraceability.deferredContributions'))->toBe([]);
 
@@ -200,10 +202,26 @@ describe('agent-bridge capell.json manifest', function (): void {
                 'class' => AgentBridgeBuiltInCapabilitiesContribution::class,
                 'capabilities' => [
                     'capell.cache.clear',
+                    'capell.pages.search',
+                    'capell.pages.inspect',
+                    'capell.pages.open_editor',
+                    'capell.pages.authoring_options',
+                    'capell.pages.inspect_readiness',
                     'capell.pages.create_draft',
+                    'capell.pages.clone',
                     'capell.pages.update_draft',
                     'capell.pages.disable',
-                    'capell.pages.inspect_readiness',
+                    'capell.pages.publish_now',
+                    'capell.pages.schedule_publish',
+                    'capell.pages.schedule_unpublish',
+                    'capell.pages.unpublish',
+                    'capell.pages.revert_to_draft',
+                    'capell.packages.search',
+                    'capell.packages.inspect',
+                    'capell.packages.install',
+                    'capell.sites.search',
+                    'capell.sites.inspect',
+                    'capell.sites.open_editor',
                 ],
                 'requiresPreviewConfirmation' => true,
             ])

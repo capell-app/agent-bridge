@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Models;
 
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -45,7 +46,8 @@ final class CapellAgentBridgeSavedPrompt extends Model
     public function belongsToUser(Authenticatable $user): bool
     {
         return $this->user_type === $user->getMorphClass()
-            && (string) $this->user_id === (string) $user->getAuthIdentifier();
+            && AgentBridgeValue::identifier($this->user_id, 'Saved prompt user ID')
+                === AgentBridgeValue::identifier($user->getAuthIdentifier(), 'User auth identifier');
     }
 
     /**

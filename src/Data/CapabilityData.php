@@ -17,6 +17,8 @@ final class CapabilityData extends Data
      * @param  class-string<Data>|null  $outputDataClass
      * @param  array<string, mixed>|null  $inputSchema
      * @param  array<string, mixed>|null  $outputSchema
+     * @param  list<string>  $intents
+     * @param  list<string>  $examples
      */
     public function __construct(
         public readonly string $key,
@@ -36,6 +38,10 @@ final class CapabilityData extends Data
         public readonly bool $requiresConfirmation = true,
         public readonly ?string $auditEvent = null,
         public readonly bool $public = false,
+        public readonly string $category = 'general',
+        public readonly array $intents = [],
+        public readonly array $examples = [],
+        public readonly int $discoveryPriority = 0,
     ) {}
 
     public function needsConfirmation(): bool
@@ -60,7 +66,11 @@ final class CapabilityData extends Data
      *     supportsPreview: bool,
      *     requiresConfirmation: bool,
      *     auditEvent: string|null,
-     *     public: bool
+     *     public: bool,
+     *     category: string,
+     *     intents: list<string>,
+     *     examples: list<string>,
+     *     discoveryPriority: int
      * }
      */
     public function toPayload(): array
@@ -82,6 +92,10 @@ final class CapabilityData extends Data
             'requiresConfirmation' => $this->requiresConfirmation,
             'auditEvent' => $this->auditEvent,
             'public' => $this->public,
+            'category' => $this->category,
+            'intents' => $this->intents,
+            'examples' => $this->examples,
+            'discoveryPriority' => $this->discoveryPriority,
         ];
     }
 

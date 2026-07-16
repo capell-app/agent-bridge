@@ -6,6 +6,7 @@ namespace Capell\AgentBridge\Http\Middleware;
 
 use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Http\Request;
@@ -40,7 +41,7 @@ final class AuthenticateCapellAgentBridgeToken
             return $this->unauthorized(__('capell-agent-bridge::messages.auth.unlinked_user'));
         }
 
-        $guard = config('capell-agent-bridge.site_auth_guard', 'web');
+        $guard = AgentBridgeValue::string(config('capell-agent-bridge.site_auth_guard', 'web'), 'Site auth guard');
         $authGuard = Auth::guard($guard);
         $authGuard->setUser($user);
         Auth::shouldUse($guard);
@@ -61,7 +62,7 @@ final class AuthenticateCapellAgentBridgeToken
 
         app()->instance(CapellAgentBridgeToken::class, $token);
         app()->instance(AuthenticatedAgentBridgeClientData::class, new AuthenticatedAgentBridgeClientData(
-            tokenId: (int) $token->getKey(),
+            tokenId: AgentBridgeValue::integer($token->getKey(), 'Agent Bridge token key'),
             name: $token->name,
             scopes: $token->scopes,
         ));
@@ -75,7 +76,10 @@ final class AuthenticateCapellAgentBridgeToken
 
     private function shouldUpdateLastUsedAt(CapellAgentBridgeToken $token): bool
     {
-        $throttleMinutes = (int) config('capell-agent-bridge.last_used_throttle_minutes', 5);
+        $throttleMinutes = AgentBridgeValue::integer(
+            config('capell-agent-bridge.last_used_throttle_minutes', 5),
+            'Last-used throttle minutes',
+        );
 
         if ($throttleMinutes <= 0) {
             return true;

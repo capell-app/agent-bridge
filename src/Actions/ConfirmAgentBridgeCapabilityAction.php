@@ -12,14 +12,16 @@ use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Gate;
-use Lorisleiva\Actions\Concerns\AsAction;
+use Lorisleiva\Actions\Concerns\AsFake;
+use Lorisleiva\Actions\Concerns\AsObject;
 
 /**
  * @method static array<string, mixed> run(string $confirmationToken, array<string, mixed> $payload, ?AuthenticatedAgentBridgeClientData $client = null, ?CapellAgentBridgeToken $token = null, ?Authenticatable $user = null)
  */
 final class ConfirmAgentBridgeCapabilityAction
 {
-    use AsAction;
+    use AsFake;
+    use AsObject;
 
     /**
      * @param  array<string, mixed>  $payload
@@ -39,7 +41,7 @@ final class ConfirmAgentBridgeCapabilityAction
         throw_unless($client instanceof AuthenticatedAgentBridgeClientData, AuthorizationException::class, 'Agent Bridge client context is required.');
 
         $confirmation = CapellAgentBridgeConfirmation::query()
-            ->where('token', $confirmationToken)
+            ->where('token', CapellAgentBridgeConfirmation::hashPlainTextToken($confirmationToken))
             ->first();
 
         throw_if(! $confirmation instanceof CapellAgentBridgeConfirmation || ! $confirmation->isUsable(), AuthorizationException::class, 'The Agent Bridge confirmation token is invalid or expired.');

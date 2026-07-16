@@ -7,15 +7,18 @@ namespace Capell\AgentBridge\Actions\Cache;
 use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityAction;
 use Capell\AgentBridge\Data\CapabilityInvocationData;
 use Capell\AgentBridge\Data\CapabilityResultData;
+use Capell\AgentBridge\Support\AgentBridgePolicyAuthorizer;
 use Illuminate\Support\Facades\Artisan;
 
 final class ClearCapellCacheCapabilityAction implements CapellAgentBridgeCapabilityAction
 {
     public function preview(CapabilityInvocationData $invocation): CapabilityResultData
     {
+        resolve(AgentBridgePolicyAuthorizer::class)->authorizeGlobalAdmin($invocation->user);
+
         return new CapabilityResultData(
             ok: true,
-            message: 'Capell cache clear commands will be run if they are registered in this application.',
+            message: (string) __('capell-agent-bridge::admin.result_cache_clear_preview'),
             data: [
                 'commands' => $this->availableCommands(),
             ],
@@ -24,6 +27,8 @@ final class ClearCapellCacheCapabilityAction implements CapellAgentBridgeCapabil
 
     public function execute(CapabilityInvocationData $invocation): CapabilityResultData
     {
+        resolve(AgentBridgePolicyAuthorizer::class)->authorizeGlobalAdmin($invocation->user);
+
         $results = [];
 
         foreach ($this->availableCommands() as $command) {
@@ -33,7 +38,7 @@ final class ClearCapellCacheCapabilityAction implements CapellAgentBridgeCapabil
 
         return new CapabilityResultData(
             ok: true,
-            message: 'Available Capell cache clear commands have been run.',
+            message: (string) __('capell-agent-bridge::admin.result_cache_cleared'),
             data: [
                 'results' => $results,
             ],
@@ -48,8 +53,10 @@ final class ClearCapellCacheCapabilityAction implements CapellAgentBridgeCapabil
             'config:clear',
             'view:clear',
             'capell:clear-components-cache',
-            'capell:admin:clear-cache',
-            'capell:admin:clear-configurators-cache',
+            'capell:admin-clear-cache',
+            'capell:admin-clear-widgets-cache',
+            'capell:admin-clear-configurators-cache',
+            'capell:package-cache:clear',
         ];
 
         $available = array_keys(Artisan::all());

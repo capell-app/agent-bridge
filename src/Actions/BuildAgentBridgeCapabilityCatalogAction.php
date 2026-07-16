@@ -6,14 +6,16 @@ namespace Capell\AgentBridge\Actions;
 
 use Capell\AgentBridge\Data\CapabilityData;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
-use Lorisleiva\Actions\Concerns\AsAction;
+use Lorisleiva\Actions\Concerns\AsFake;
+use Lorisleiva\Actions\Concerns\AsObject;
 
 /**
  * @method static list<array<string, mixed>> run()
  */
 final class BuildAgentBridgeCapabilityCatalogAction
 {
-    use AsAction;
+    use AsFake;
+    use AsObject;
 
     /**
      * @return list<array<string, mixed>>

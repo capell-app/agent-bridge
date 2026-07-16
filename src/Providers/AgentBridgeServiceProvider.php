@@ -8,22 +8,10 @@ use Capell\Admin\Contracts\Extenders\UserSchemaExtender;
 use Capell\Admin\Data\Extensions\ExtensionManagementSurfaceData;
 use Capell\Admin\Facades\CapellAdmin;
 use Capell\Admin\Support\Bridges\AdminBridgeRegistrar;
-use Capell\AgentBridge\Actions\Cache\ClearCapellCacheCapabilityAction;
-use Capell\AgentBridge\Actions\Pages\CreateDraftPageCapabilityAction;
-use Capell\AgentBridge\Actions\Pages\DisablePageCapabilityAction;
-use Capell\AgentBridge\Actions\Pages\InspectPagePublishingReadinessCapabilityAction;
-use Capell\AgentBridge\Actions\Pages\UpdateDraftPageCapabilityAction;
 use Capell\AgentBridge\Bridges\AgentBridgeAdminBridge;
+use Capell\AgentBridge\Capabilities\BuiltInAgentBridgeCapabilityProvider;
 use Capell\AgentBridge\Console\Commands\PruneAgentBridgeAuditEntriesCommand;
 use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityProvider;
-use Capell\AgentBridge\Data\Capabilities\ClearCacheCapabilityInputData;
-use Capell\AgentBridge\Data\Capabilities\CreateDraftPageCapabilityInputData;
-use Capell\AgentBridge\Data\Capabilities\PageIdCapabilityInputData;
-use Capell\AgentBridge\Data\Capabilities\UpdateDraftPageCapabilityInputData;
-use Capell\AgentBridge\Data\CapabilityData;
-use Capell\AgentBridge\Data\CapabilityResultData;
-use Capell\AgentBridge\Enums\CapabilityRiskEnum;
-use Capell\AgentBridge\Enums\CapabilityServerEnum;
 use Capell\AgentBridge\Extenders\AgentBridgeUserSchemaExtender;
 use Capell\AgentBridge\Filament\Pages\CapellAgentBridgePromptBuilderPage;
 use Capell\AgentBridge\Filament\Settings\AgentBridgeSettingsSchema;
@@ -33,7 +21,8 @@ use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
 use Capell\AgentBridge\Models\CapellAgentBridgeSavedPrompt;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Settings\AgentBridgeSettings;
-use Capell\AgentBridge\Support\CapabilitySchemas;
+use Capell\AgentBridge\Support\AgentBridgePolicyAuthorizer;
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\AgentBridge\Tools\Boost\ListBoostCapabilitiesTool;
 use Capell\AgentBridge\Tools\Boost\PreviewBoostCapabilityTool;
@@ -44,7 +33,9 @@ use Filament\Pages\Page;
 use Filament\Support\Facades\FilamentView;
 use Filament\Support\Icons\Heroicon;
 use Filament\View\PanelsRenderHook;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Boost\AgentBridge\Boost;
 use Livewire\Livewire;
@@ -83,9 +74,12 @@ final class AgentBridgeServiceProvider extends ServiceProvider
         $this->registerModels();
         $this->registerSettingsIntegration();
         $this->registerAdminIntegration();
+        $this->registerPolicyAbilities();
         $this->registerBoostIntegration();
         $this->registerBuiltInCapabilities();
-        $this->registerTaggedCapabilityProviders();
+        $this->app->booted(function (): void {
+            $this->registerTaggedCapabilityProviders();
+        });
         $this->registerCommands();
     }
 
@@ -104,7 +98,10 @@ final class AgentBridgeServiceProvider extends ServiceProvider
             return;
         }
 
-        $includedTools = config('boost.agent-bridge.tools.include', []);
+        $includedTools = AgentBridgeValue::stringList(
+            config('boost.agent-bridge.tools.include', []),
+            'Boost Agent Bridge tools',
+        );
 
         config([
             'boost.agent-bridge.tools.include' => array_values(array_unique([
@@ -113,6 +110,15 @@ final class AgentBridgeServiceProvider extends ServiceProvider
                 PreviewBoostCapabilityTool::class,
             ])),
         ]);
+    }
+
+    private function registerPolicyAbilities(): void
+    {
+        Gate::define(
+            AgentBridgePolicyAuthorizer::CLEAR_CACHE_ABILITY,
+            static fn (mixed $user): bool => $user instanceof Authenticatable
+                && resolve(AgentBridgePolicyAuthorizer::class)->isGlobalAdmin($user),
+        );
     }
 
     private function registerModels(): void
@@ -159,7 +165,7 @@ final class AgentBridgeServiceProvider extends ServiceProvider
 
     private function registerSettingsIntegration(): void
     {
-        $settings = config('settings.settings', []);
+        $settings = AgentBridgeValue::stringList(config('settings.settings', []), 'Registered settings classes');
 
         if (! in_array(AgentBridgeSettings::class, $settings, true)) {
             $settings[] = AgentBridgeSettings::class;
@@ -215,88 +221,9 @@ final class AgentBridgeServiceProvider extends ServiceProvider
 
     private function registerBuiltInCapabilities(): void
     {
-        $registry = $this->app->make(CapellAgentBridgeCapabilityRegistry::class);
-
-        $registry->register(new CapabilityData(
-            key: 'capell.cache.clear',
-            name: $this->translation('capell-agent-bridge::admin.capability_cache_clear_name'),
-            description: $this->translation('capell-agent-bridge::admin.capability_cache_clear_description'),
-            scope: 'capell.cache.run',
-            server: CapabilityServerEnum::Site,
-            risk: CapabilityRiskEnum::Medium,
-            actionClass: ClearCapellCacheCapabilityAction::class,
-            requiredPackage: 'capell-app/core',
-            inputDataClass: ClearCacheCapabilityInputData::class,
-            outputDataClass: CapabilityResultData::class,
-            inputSchema: CapabilitySchemas::emptyObject(),
-            outputSchema: CapabilitySchemas::capabilityResultOutput(),
-            auditEvent: 'capell_agent-bridge.cache.clear',
-        ));
-
-        $registry->register(new CapabilityData(
-            key: 'capell.pages.create_draft',
-            name: $this->translation('capell-agent-bridge::admin.capability_pages_create_draft_name'),
-            description: $this->translation('capell-agent-bridge::admin.capability_pages_create_draft_description'),
-            scope: 'capell.pages.write',
-            server: CapabilityServerEnum::Site,
-            risk: CapabilityRiskEnum::High,
-            actionClass: CreateDraftPageCapabilityAction::class,
-            requiredPackage: 'capell-app/core',
-            inputDataClass: CreateDraftPageCapabilityInputData::class,
-            outputDataClass: CapabilityResultData::class,
-            inputSchema: CapabilitySchemas::createDraftPageInput(),
-            outputSchema: CapabilitySchemas::capabilityResultOutput(),
-            auditEvent: 'capell_agent-bridge.pages.create_draft',
-        ));
-
-        $registry->register(new CapabilityData(
-            key: 'capell.pages.update_draft',
-            name: $this->translation('capell-agent-bridge::admin.capability_pages_update_draft_name'),
-            description: $this->translation('capell-agent-bridge::admin.capability_pages_update_draft_description'),
-            scope: 'capell.pages.write',
-            server: CapabilityServerEnum::Site,
-            risk: CapabilityRiskEnum::High,
-            actionClass: UpdateDraftPageCapabilityAction::class,
-            requiredPackage: 'capell-app/core',
-            inputDataClass: UpdateDraftPageCapabilityInputData::class,
-            outputDataClass: CapabilityResultData::class,
-            inputSchema: CapabilitySchemas::updateDraftPageInput(),
-            outputSchema: CapabilitySchemas::capabilityResultOutput(),
-            auditEvent: 'capell_agent-bridge.pages.update_draft',
-        ));
-
-        $registry->register(new CapabilityData(
-            key: 'capell.pages.disable',
-            name: $this->translation('capell-agent-bridge::admin.capability_pages_disable_name'),
-            description: $this->translation('capell-agent-bridge::admin.capability_pages_disable_description'),
-            scope: 'capell.pages.write',
-            server: CapabilityServerEnum::Site,
-            risk: CapabilityRiskEnum::High,
-            actionClass: DisablePageCapabilityAction::class,
-            requiredPackage: 'capell-app/core',
-            inputDataClass: PageIdCapabilityInputData::class,
-            outputDataClass: CapabilityResultData::class,
-            inputSchema: CapabilitySchemas::pageIdInput(),
-            outputSchema: CapabilitySchemas::capabilityResultOutput(),
-            auditEvent: 'capell_agent-bridge.pages.disable',
-        ));
-
-        $registry->register(new CapabilityData(
-            key: 'capell.pages.inspect_readiness',
-            name: $this->translation('capell-agent-bridge::admin.capability_pages_inspect_readiness_name'),
-            description: $this->translation('capell-agent-bridge::admin.capability_pages_inspect_readiness_description'),
-            scope: 'capell.pages.read',
-            server: CapabilityServerEnum::Site,
-            risk: CapabilityRiskEnum::Read,
-            actionClass: InspectPagePublishingReadinessCapabilityAction::class,
-            requiredPackage: 'capell-app/core',
-            inputDataClass: PageIdCapabilityInputData::class,
-            outputDataClass: CapabilityResultData::class,
-            inputSchema: CapabilitySchemas::pageIdInput(),
-            outputSchema: CapabilitySchemas::capabilityResultOutput(),
-            requiresConfirmation: false,
-            auditEvent: 'capell_agent-bridge.pages.inspect_readiness',
-        ));
+        resolve(BuiltInAgentBridgeCapabilityProvider::class)->registerCapabilities(
+            $this->app->make(CapellAgentBridgeCapabilityRegistry::class),
+        );
     }
 
     private function registerCommands(): void
@@ -308,13 +235,6 @@ final class AgentBridgeServiceProvider extends ServiceProvider
         $this->commands([
             PruneAgentBridgeAuditEntriesCommand::class,
         ]);
-    }
-
-    private function translation(string $key): string
-    {
-        $value = __($key);
-
-        return is_string($value) ? $value : $key;
     }
 
     private function registerTaggedCapabilityProviders(): void

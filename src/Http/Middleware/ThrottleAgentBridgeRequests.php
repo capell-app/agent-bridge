@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Http\Middleware;
 
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -27,12 +28,15 @@ final class ThrottleAgentBridgeRequests
             return $next($request);
         }
 
-        if (! (bool) config('capell-agent-bridge.rate_limit_enabled', true)) {
+        if (! AgentBridgeValue::boolean(config('capell-agent-bridge.rate_limit_enabled', true), 'Rate limit enabled')) {
             return $next($request);
         }
 
-        $rateLimitKey = 'capell-agent-bridge:token:' . $token->getKey();
-        $maxAttempts = (int) config('capell-agent-bridge.rate_limit_per_minute', self::DEFAULT_MAX_ATTEMPTS_PER_MINUTE);
+        $rateLimitKey = 'capell-agent-bridge:token:' . AgentBridgeValue::identifier($token->getKey(), 'Agent Bridge token key');
+        $maxAttempts = AgentBridgeValue::integer(
+            config('capell-agent-bridge.rate_limit_per_minute', self::DEFAULT_MAX_ATTEMPTS_PER_MINUTE),
+            'Rate limit per minute',
+        );
 
         if ($maxAttempts <= 0) {
             return $next($request);

@@ -13,5 +13,12 @@ final class User extends Authenticatable
     /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
+    public bool $globalAdmin = false;
+
     protected $guarded = [];
+
+    public function isGlobalAdmin(): bool
+    {
+        return $this->globalAdmin;
+    }
 }

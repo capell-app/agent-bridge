@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Actions;
 
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
-use Lorisleiva\Actions\Concerns\AsAction;
+use Lorisleiva\Actions\Concerns\AsFake;
+use Lorisleiva\Actions\Concerns\AsObject;
 
 /**
  * @method static array{token: CapellAgentBridgeToken, plainTextToken: string} run(CapellAgentBridgeToken $token)
  */
 final class RotateAgentBridgeTokenAction
 {
-    use AsAction;
+    use AsFake;
+    use AsObject;
 
     /**
      * @return array{token: CapellAgentBridgeToken, plainTextToken: string}

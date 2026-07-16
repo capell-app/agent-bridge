@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Actions;
 
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
-use Lorisleiva\Actions\Concerns\AsAction;
+use Lorisleiva\Actions\Concerns\AsFake;
+use Lorisleiva\Actions\Concerns\AsObject;
 
 /**
  * @method static CapellAgentBridgeToken run(CapellAgentBridgeToken $token)
  */
 final class RevokeAgentBridgeTokenAction
 {
-    use AsAction;
+    use AsFake;
+    use AsObject;
 
     public function handle(CapellAgentBridgeToken $token): CapellAgentBridgeToken
     {
