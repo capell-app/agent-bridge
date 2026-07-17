@@ -38,16 +38,24 @@ it('searches and inspects discovered packages without exposing implementation pa
         'capell.packages.inspect',
         ['package' => 'Analytics Suite'],
     ));
+    $packages = $search->data['packages'];
+    $inspectedPackage = $inspect->data['package'];
 
-    expect($search->data['packages'])->toHaveCount(1)
-        ->and($search->data['packages'][0])->toMatchArray([
+    $this->assertIsArray($packages);
+    $this->assertArrayHasKey(0, $packages);
+    $this->assertIsArray($packages[0]);
+    $this->assertIsArray($inspectedPackage);
+    $this->assertIsArray($inspectedPackage['install_impact'] ?? null);
+
+    expect($packages)->toHaveCount(1)
+        ->and($packages[0])->toMatchArray([
             'name' => 'vendor/analytics-suite',
             'label' => 'Analytics Suite',
             'installed' => false,
             'composer_available' => false,
             'installable' => false,
         ])->not->toHaveKeys(['path', 'service_provider', 'install_command'])
-        ->and($inspect->data['package']['install_impact'])
+        ->and($inspectedPackage['install_impact'])
         ->toHaveKeys([
             'requirements',
             'missing_requirements',
@@ -86,10 +94,13 @@ it('installs only a Composer-present discovered package after an impact preview'
         ->and($manager->isPackageInstalled('vendor/agent-installable'))->toBeFalse();
 
     $result = $action->execute($invocation);
+    $installedPackage = $result->data['package'];
+
+    $this->assertIsArray($installedPackage);
 
     expect($result)->toBeInstanceOf(CapabilityResultData::class)
         ->and($result->ok)->toBeTrue()
-        ->and($result->data['package']['installed'])->toBeTrue()
+        ->and($installedPackage['installed'])->toBeTrue()
         ->and($manager->isPackageInstalled('vendor/agent-installable'))->toBeTrue();
 });
 

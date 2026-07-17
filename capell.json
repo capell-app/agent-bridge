@@ -150,7 +150,7 @@
     "security": {
         "riskTier": "critical",
         "publicSurface": {
-            "routeNames": ["capell-agent-bridge.home"],
+            "routeNames": ["agent-bridge/capell", "capell-agent-bridge.home"],
             "auth": "public",
             "csrfExemptRoutes": [],
             "signedRoutes": [],

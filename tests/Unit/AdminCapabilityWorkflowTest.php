@@ -95,17 +95,19 @@ it('requires a one-use, user-bound confirmation before executing mutations', fun
     );
     $confirmationToken = $preview['confirmationToken'] ?? null;
 
+    $this->assertIsString($confirmationToken);
+
     expect($preview['mode'])->toBe('preview')
         ->and($confirmationToken)->toBeString()
         ->and(CapellAgentBridgeAuditEntry::query()->value('event'))->toBe('capell_agent-bridge.admin.previewed');
 
     expect(fn (): array => ConfirmAgentBridgeAdminCapabilityAction::run(
-        confirmationToken: (string) $confirmationToken,
+        confirmationToken: $confirmationToken,
         user: $otherUser,
     ))->toThrow(AuthorizationException::class);
 
     $confirmed = ConfirmAgentBridgeAdminCapabilityAction::run(
-        confirmationToken: (string) $confirmationToken,
+        confirmationToken: $confirmationToken,
         user: $user,
     );
 
@@ -114,7 +116,7 @@ it('requires a one-use, user-bound confirmation before executing mutations', fun
         ->and(CapellAgentBridgeAuditEntry::query()->count())->toBe(2);
 
     expect(fn (): array => ConfirmAgentBridgeAdminCapabilityAction::run(
-        confirmationToken: (string) $confirmationToken,
+        confirmationToken: $confirmationToken,
         user: $user,
     ))->toThrow(AuthorizationException::class);
 });
@@ -166,9 +168,12 @@ it('rechecks policy authorization at preview and confirmation time', function ()
         user: $user,
     );
     $isAllowed = false;
+    $confirmationToken = $preview['confirmationToken'] ?? null;
+
+    $this->assertIsString($confirmationToken);
 
     ConfirmAgentBridgeAdminCapabilityAction::run(
-        confirmationToken: (string) $preview['confirmationToken'],
+        confirmationToken: $confirmationToken,
         user: $user,
     );
 })->throws(AuthorizationException::class);

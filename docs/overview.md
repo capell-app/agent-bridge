@@ -28,6 +28,7 @@ You can filter tokens by lifecycle status, rotate a usable token, or revoke it. 
 - Capabilities are limited to the current user's permissions. Do not create broad-scope tokens for routine work.
 - Treat the command centre and token management as integration-administrator work. Review previews carefully, and revoke a token immediately if you no longer trust the connected client.
 - Audit entries are retained for 90 days by default, then pruned daily. Your developer can change the retention setting; the `capell:agent-bridge-prune-audit` command also accepts a manual `--days` override.
+- Migration impact: run host migrations through the package install flow before opening package surfaces.
 
 ---
 

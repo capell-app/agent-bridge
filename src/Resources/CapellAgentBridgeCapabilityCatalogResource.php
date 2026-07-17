@@ -32,10 +32,6 @@ final class CapellAgentBridgeCapabilityCatalogResource extends Resource
         ];
 
         foreach ($rows as $row) {
-            if (! is_array($row)) {
-                continue;
-            }
-
             $markdown[] = sprintf(
                 '| %s | `%s` | %s | %s | %s | %s | %s | %s |',
                 $this->cell($this->stringValue($row, 'name')),

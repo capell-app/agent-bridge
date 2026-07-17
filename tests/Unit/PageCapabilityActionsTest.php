@@ -22,6 +22,7 @@ use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
 use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
 use Capell\Core\Models\Page;
+use Capell\Core\Models\Translation;
 use Capell\Core\Support\Publishing\PublishSentinel;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Schema\Blueprint;
@@ -185,7 +186,7 @@ it('executes page capability lifecycle changes against persisted draft pages', f
         'updated_at' => now(),
     ]);
 
-    $created = Page::withoutEvents(fn (): mixed => (new CreateDraftPageCapabilityAction)->execute(pageInvocation([
+    $created = Page::withoutEvents(fn (): CapabilityResultData => (new CreateDraftPageCapabilityAction)->execute(pageInvocation([
         'name' => 'Agent-created landing page',
         'site_id' => $siteId,
         'blueprint_id' => $blueprintId,
@@ -193,19 +194,19 @@ it('executes page capability lifecycle changes against persisted draft pages', f
         'meta' => ['source' => 'agent'],
     ], pageCapabilityUser(collect(), isGlobalAdmin: true))));
 
-    $page = Page::query()->findOrFail($created->data['page_id']);
+    $page = findAgentBridgeCapabilityPage($created->data['page_id']);
     $page->pageUrls()->firstOrCreate([
         'site_id' => $siteId,
         'language_id' => 1,
         'url' => '/agent-created-landing-page',
     ], ['status' => true]);
 
-    $updated = Page::withoutEvents(fn (): mixed => (new UpdateDraftPageCapabilityAction)->execute(pageInvocation([
+    $updated = Page::withoutEvents(fn (): CapabilityResultData => (new UpdateDraftPageCapabilityAction)->execute(pageInvocation([
         'page_id' => $page->getKey(),
         'name' => 'Agent-updated landing page',
         'meta' => ['source' => 'agent', 'updated' => true],
     ], pageCapabilityUser(collect([(int) $siteId])))));
-    $disabled = Page::withoutEvents(fn (): mixed => (new DisablePageCapabilityAction)->execute(pageInvocation([
+    $disabled = Page::withoutEvents(fn (): CapabilityResultData => (new DisablePageCapabilityAction)->execute(pageInvocation([
         'page_id' => $page->getKey(),
     ], pageCapabilityUser(collect([(int) $siteId])))));
     $readiness = (new InspectPagePublishingReadinessCapabilityAction)->execute(pageInvocation([
@@ -252,12 +253,14 @@ it('finds pages by internal name title slug or URL within the actor site scope',
 
     foreach (['About record', 'About Capell', 'about', '/about'] as $query) {
         $result = $action->execute(pageInvocation(['query' => $query], $user));
+        $matches = agentBridgeCapabilityList($result->data['matches']);
+        $match = agentBridgeCapabilityArray($matches[0] ?? null);
 
-        expect($result->data['matches'])
+        expect($matches)
             ->toHaveCount(1)
-            ->and($result->data['matches'][0])
+            ->and($match)
             ->toMatchArray([
-                'id' => (int) $page->getKey(),
+                'id' => agentBridgeCapabilityInteger($page->getKey()),
                 'name' => 'About record',
                 'urls' => ['/about'],
             ]);
@@ -282,10 +285,16 @@ it('inspects a page by human reference without returning content unless requeste
         'page' => 'Our services',
         'include_content' => true,
     ], $user));
+    $summaryPage = agentBridgeCapabilityArray($summary->data['page']);
+    $summaryTranslations = agentBridgeCapabilityList($summaryPage['translations'] ?? null);
+    $summaryTranslation = agentBridgeCapabilityArray($summaryTranslations[0] ?? null);
+    $contentPage = agentBridgeCapabilityArray($withContent->data['page']);
+    $contentTranslations = agentBridgeCapabilityList($contentPage['translations'] ?? null);
+    $contentTranslation = agentBridgeCapabilityArray($contentTranslations[0] ?? null);
 
-    expect($summary->data['page']['translations'][0])
+    expect($summaryTranslation)
         ->not->toHaveKey('content')
-        ->and($withContent->data['page']['translations'][0]['content'])
+        ->and($contentTranslation['content'] ?? null)
         ->toBe('Private draft copy');
 });
 
@@ -306,10 +315,10 @@ it('returns a client navigation instruction for opening a page editor by name', 
         ->and($result->data)
         ->toMatchArray([
             'action' => 'open_url',
-            'page_id' => (int) $page->getKey(),
+            'page_id' => agentBridgeCapabilityInteger($page->getKey()),
             'name' => 'Contact',
         ])
-        ->and($result->data['url'])->toBeString()->not->toBeEmpty();
+        ->and(agentBridgeCapabilityString($result->data['url']))->not->toBeEmpty();
 });
 
 it('creates a translated page draft from human-readable authoring references', function (): void {
@@ -336,16 +345,19 @@ it('creates a translated page draft from human-readable authoring references', f
         'content' => 'Campaign draft copy',
     ], pageCapabilityUser(collect([(int) $siteId])))));
 
-    $page = Page::query()->with(['translations', 'pageUrls'])->findOrFail($result->data['page_id']);
+    $page = findAgentBridgeCapabilityPage($result->data['page_id'], ['translations', 'pageUrls']);
+    $translation = $page->translations->first();
 
-    expect((int) $page->site_id)->toBe((int) $siteId)
-        ->and((int) $page->blueprint_id)->toBe((int) $blueprintId)
-        ->and((int) $page->layout_id)->toBe((int) $layoutId)
+    $this->assertInstanceOf(Translation::class, $translation);
+
+    expect($page->site_id)->toBe($siteId)
+        ->and($page->blueprint_id)->toBe($blueprintId)
+        ->and($page->layout_id)->toBe($layoutId)
         ->and(PublishSentinel::isDraftValue($page->visible_from))->toBeTrue()
         ->and($page->translations)->toHaveCount(1)
-        ->and($page->translations->first()?->title)->toBe('The summer campaign')
-        ->and($page->translations->first()?->content)->toBe('Campaign draft copy')
-        ->and($page->translations->first()?->slug)->toBe('summer')
+        ->and($translation->title)->toBe('The summer campaign')
+        ->and($translation->content)->toBe('Campaign draft copy')
+        ->and($translation->slug)->toBe('summer')
         ->and($page->pageUrls->pluck('url')->all())->toBe(['/summer']);
 });
 
@@ -373,16 +385,19 @@ it('clones an existing page by name as a distinct disabled draft with copied con
         'slug' => 'consulting',
     ], pageCapabilityUser(collect([1])))));
 
-    $clone = Page::query()->with(['translations', 'pageUrls'])->findOrFail($result->data['page_id']);
+    $clone = findAgentBridgeCapabilityPage($result->data['page_id'], ['translations', 'pageUrls']);
+    $cloneTranslation = $clone->translations->first();
+
+    $this->assertInstanceOf(Translation::class, $cloneTranslation);
 
     expect($clone->getKey())->not->toBe($source->getKey())
         ->and($clone->uuid)->not->toBe($source->uuid)
         ->and($clone->name)->toBe('Consulting services')
         ->and(PublishSentinel::isDraftValue($clone->visible_from))->toBeTrue()
         ->and($clone->translations)->toHaveCount(1)
-        ->and($clone->translations->first()?->title)->toBe('Consulting')
-        ->and($clone->translations->first()?->content)->toBe('Original service copy')
-        ->and($clone->translations->first()?->slug)->toBe('consulting')
+        ->and($cloneTranslation->title)->toBe('Consulting')
+        ->and($cloneTranslation->content)->toBe('Original service copy')
+        ->and($cloneTranslation->slug)->toBe('consulting')
         ->and($clone->pageUrls->pluck('url')->all())->toBe(['/consulting']);
 });
 
@@ -395,6 +410,7 @@ it('updates page and translated content fields by URL reference', function (): v
         'content' => 'Old copy',
         'meta' => ['slug' => 'old-page'],
     ]));
+    $this->assertInstanceOf(Translation::class, $translation);
     Page::withoutEvents(fn (): mixed => $page->pageUrls()->create([
         'site_id' => 1,
         'language_id' => $languageId,
@@ -435,12 +451,16 @@ it('lists human-readable page authoring choices for an allowed site', function (
     $result = (new ListPageAuthoringOptionsCapabilityAction)->execute(pageInvocation([
         'site' => 'Authoring site',
     ], pageCapabilityUser(collect([(int) $siteId]))));
+    $site = agentBridgeCapabilityArray($result->data['site']);
+    $pageTypes = agentBridgeCapabilityList($result->data['page_types']);
+    $layouts = agentBridgeCapabilityList($result->data['layouts']);
+    $languages = agentBridgeCapabilityList($result->data['languages']);
 
-    expect($result->data['site'])
+    expect($site)
         ->toMatchArray(['id' => (int) $siteId, 'name' => 'Authoring site'])
-        ->and(array_column($result->data['page_types'], 'key'))->toContain('standard-page')
-        ->and(array_column($result->data['layouts'], 'key'))->toContain('standard-layout')
-        ->and(array_column($result->data['languages'], 'code'))->toContain('en');
+        ->and(array_column($pageTypes, 'key'))->toContain('standard-page')
+        ->and(array_column($layouts, 'key'))->toContain('standard-layout')
+        ->and(array_column($languages, 'code'))->toContain('en');
 });
 
 it('rejects ambiguous human page references and returns disambiguation guidance', function (): void {
@@ -486,23 +506,28 @@ it('finds inspects and opens an allowed site by domain or human name', function 
     $open = (new OpenSiteEditorCapabilityAction)->execute(pageInvocation([
         'site' => 'example.test',
     ], $user));
+    $sites = agentBridgeCapabilityList($search->data['sites']);
+    $site = agentBridgeCapabilityArray($sites[0] ?? null);
+    $domains = agentBridgeCapabilityList($site['domains'] ?? null);
+    $domain = agentBridgeCapabilityArray($domains[0] ?? null);
+    $inspectedSite = agentBridgeCapabilityArray($inspect->data['site']);
 
-    expect($search->data['sites'])->toHaveCount(1)
-        ->and($search->data['sites'][0])->toMatchArray([
+    expect($sites)->toHaveCount(1)
+        ->and($site)->toMatchArray([
             'id' => (int) $siteId,
             'name' => 'Main website',
         ])
-        ->and($search->data['sites'][0]['domains'][0])->toMatchArray([
+        ->and($domain)->toMatchArray([
             'domain' => 'example.test',
             'url' => 'https://example.test/',
         ])
-        ->and($inspect->data['site']['name'])->toBe('Main website')
+        ->and($inspectedSite['name'] ?? null)->toBe('Main website')
         ->and($open->data)->toMatchArray([
             'action' => 'open_url',
             'site_id' => (int) $siteId,
             'name' => 'Main website',
         ])
-        ->and($open->data['url'])->toBeString()->not->toBeEmpty();
+        ->and(agentBridgeCapabilityString($open->data['url']))->not->toBeEmpty();
 });
 
 it('previews and confirms native page publication transitions by human reference', function (): void {
@@ -524,7 +549,7 @@ it('previews and confirms native page publication transitions by human reference
 
     expect($preview->ok)->toBeTrue()
         ->and($preview->data)->toMatchArray([
-            'page_id' => (int) $page->getKey(),
+            'page_id' => agentBridgeCapabilityInteger($page->getKey()),
             'transition' => 'publish-now',
             'outcome' => 'changed',
             'before_state' => 'draft',
@@ -564,6 +589,57 @@ it('schedules page publication with a future date and rejects a missing schedule
     ], $user, 'capell.pages.schedule_publish')))
         ->toThrow(ValidationException::class);
 });
+
+/**
+ * @return array<array-key, mixed>
+ */
+function agentBridgeCapabilityArray(mixed $value): array
+{
+    throw_unless(is_array($value), UnexpectedValueException::class, 'Expected capability array data.');
+
+    return $value;
+}
+
+/**
+ * @return list<mixed>
+ */
+function agentBridgeCapabilityList(mixed $value): array
+{
+    throw_unless(is_array($value) && array_is_list($value), UnexpectedValueException::class, 'Expected capability list data.');
+
+    return $value;
+}
+
+function agentBridgeCapabilityInteger(mixed $value): int
+{
+    throw_unless(is_int($value), UnexpectedValueException::class, 'Expected capability integer data.');
+
+    return $value;
+}
+
+function agentBridgeCapabilityString(mixed $value): string
+{
+    throw_unless(is_string($value), UnexpectedValueException::class, 'Expected capability string data.');
+
+    return $value;
+}
+
+/**
+ * @param  list<string>  $relations
+ */
+function findAgentBridgeCapabilityPage(mixed $pageId, array $relations = []): Page
+{
+    throw_unless(is_int($pageId) || is_string($pageId), UnexpectedValueException::class, 'Expected a page identifier.');
+
+    $page = Page::query()
+        ->with($relations)
+        ->whereKey($pageId)
+        ->first();
+
+    throw_unless($page instanceof Page, UnexpectedValueException::class, 'Expected a capability page.');
+
+    return $page;
+}
 
 function createAgentBridgeCapabilityPage(int $siteId = 1): Page
 {

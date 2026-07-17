@@ -22,7 +22,6 @@ use Capell\Core\Enums\Publishing\PublicationTransitionOutcome;
 use Capell\Core\Models\Page;
 use Carbon\CarbonImmutable;
 use InvalidArgumentException;
-use UnexpectedValueException;
 
 final class TransitionPagePublicationCapabilityAction implements CapellAgentBridgeCapabilityAction
 {
@@ -159,16 +158,12 @@ final class TransitionPagePublicationCapabilityAction implements CapellAgentBrid
     {
         $result = EvaluatePublicationTransitionAction::run($request);
 
-        throw_unless($result instanceof PublicationTransitionResultData, UnexpectedValueException::class);
-
         return $result;
     }
 
     private function executeTransition(PublicationTransitionRequestData $request): PublicationTransitionResultData
     {
         $result = TransitionPublicationAction::run($request);
-
-        throw_unless($result instanceof PublicationTransitionResultData, UnexpectedValueException::class);
 
         return $result;
     }
@@ -178,8 +173,6 @@ final class TransitionPagePublicationCapabilityAction implements CapellAgentBrid
         ?PublicationTransitionRequestData $request = null,
     ): PublishReadinessData {
         $readiness = BuildPublishReadinessAction::run($page, $request);
-
-        throw_unless($readiness instanceof PublishReadinessData, UnexpectedValueException::class);
 
         return $readiness;
     }
