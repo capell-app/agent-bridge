@@ -151,7 +151,7 @@
         "riskTier": "critical",
         "publicSurface": {
             "routeNames": ["agent-bridge/capell", "capell-agent-bridge.home"],
-            "auth": "public",
+            "auth": "mixed",
             "csrfExemptRoutes": [],
             "signedRoutes": [],
             "tokenizedRoutes": ["agent-bridge/capell"],
@@ -161,8 +161,8 @@
         "sensitiveData": {
             "encryptedFields": [],
             "hashedTokenFields": [
-                "capell_agent_bridge_confirmations.token",
                 "capell_agent_bridge_confirmations.payload_hash",
+                "capell_agent_bridge_confirmations.token",
                 "capell_agent_bridge_tokens.token_hash"
             ],
             "redactedOutputClasses": [

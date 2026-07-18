@@ -160,7 +160,7 @@ it('registers the current agent bridge admin surface', function (): void {
     resetAgentBridgeAdminBridgeState();
 
     (new AgentBridgeAdminBridge)->register(
-        new AdminBridgeRegistrar,
+        resolve(AdminBridgeRegistrar::class),
         AdminBridgeContextData::forPackage(AgentBridgeServiceProvider::$packageName),
     );
 
