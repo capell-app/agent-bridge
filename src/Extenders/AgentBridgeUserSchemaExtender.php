@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Extenders;
 
-use Capell\Admin\Actions\Users\ShouldLoadUserResourceBridgeAction;
 use Capell\Admin\Data\Schemas\UserSchemaContextData;
-use Capell\Admin\Support\Schemas\AbstractUserSchemaExtender;
+use Capell\Admin\Support\Bridges\AbstractUserResourceBridge;
 use Capell\AgentBridge\Filament\Resources\Users\RelationManagers\AgentBridgeAuditEntriesRelationManager;
 use Capell\AgentBridge\Filament\Resources\Users\RelationManagers\AgentBridgeConfirmationsRelationManager;
 use Capell\AgentBridge\Filament\Resources\Users\RelationManagers\AgentBridgeTokensRelationManager;
@@ -24,20 +23,13 @@ use Illuminate\Support\Facades\Date;
 use Override;
 use Throwable;
 
-final class AgentBridgeUserSchemaExtender extends AbstractUserSchemaExtender
+final class AgentBridgeUserSchemaExtender extends AbstractUserResourceBridge
 {
     #[Override]
     public function supports(UserSchemaContextData $context): bool
     {
-        if (! class_exists(ShouldLoadUserResourceBridgeAction::class)) {
-            return false;
-        }
-
         try {
-            return ShouldLoadUserResourceBridgeAction::run(
-                'enable_agent_bridge_user_bridge',
-                resolve(AgentBridgeSettings::class)->enable_user_resource_bridge,
-            ) === true;
+            return resolve(AgentBridgeSettings::class)->enable_user_resource_bridge;
         } catch (Throwable) {
             return false;
         }

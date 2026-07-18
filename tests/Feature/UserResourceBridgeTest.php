@@ -2,12 +2,10 @@
 
 declare(strict_types=1);
 
-use Capell\Admin\Actions\Users\ShouldLoadUserResourceBridgeAction;
-use Capell\Admin\Contracts\Extenders\UserSchemaExtender;
+use Capell\Admin\Contracts\Bridges\UserResourceBridge;
 use Capell\Admin\Data\Bridges\AdminBridgeContextData;
 use Capell\Admin\Data\Schemas\UserSchemaContextData;
 use Capell\Admin\Facades\CapellAdmin;
-use Capell\Admin\Settings\AdminSettings;
 use Capell\Admin\Support\Bridges\AdminBridgeRegistrar;
 use Capell\Admin\Support\CapellAdminManager;
 use Capell\Admin\Support\Extensions\ExtensionManagementSurfaceRegistry;
@@ -50,12 +48,6 @@ function seedAgentBridgeSettings(): void
     $settingsMigration->up();
 }
 
-function seedAdminSettings(): void
-{
-    $settingsMigration = require dirname(__DIR__, 4) . '/vendor/capell-app/admin/database/settings/2026_05_10_190834_01_add_admin_settings.php';
-    $settingsMigration->up();
-}
-
 function invokeAgentBridgeProviderMethod(object $provider, string $method): void
 {
     $reflection = new ReflectionMethod($provider, $method);
@@ -79,7 +71,6 @@ function updateSetting(string $settingKey, mixed $value): void
     if ($settingsMigrator->exists($settingKey)) {
         $settingsMigrator->update($settingKey, fn (): mixed => $value);
 
-        app()->forgetInstance(AdminSettings::class);
         app()->forgetInstance(AgentBridgeSettings::class);
 
         return;
@@ -87,7 +78,6 @@ function updateSetting(string $settingKey, mixed $value): void
 
     $settingsMigrator->add($settingKey, $value);
 
-    app()->forgetInstance(AdminSettings::class);
     app()->forgetInstance(AgentBridgeSettings::class);
 }
 
@@ -142,8 +132,7 @@ it('runs the agent bridge settings migration idempotently', function (): void {
         ->and(Schema::hasTable('settings'))->toBeTrue();
 });
 
-it('gates the bridge behind both admin and package settings', function (): void {
-    seedAdminSettings();
+it('gates the bridge behind its package setting', function (): void {
     seedAgentBridgeSettings();
 
     $extender = new AgentBridgeUserSchemaExtender;
@@ -151,14 +140,7 @@ it('gates the bridge behind both admin and package settings', function (): void 
 
     expect($extender->supports($context))->toBeTrue();
 
-    updateSetting('admin.enable_agent_bridge_user_bridge', false);
-    app()->forgetInstance(AdminSettings::class);
-
-    expect($extender->supports($context))->toBeFalse();
-
-    updateSetting('admin.enable_agent_bridge_user_bridge', true);
     updateSetting('agent_bridge.enable_user_resource_bridge', false);
-    app()->forgetInstance(AdminSettings::class);
 
     $packageSettings = new AgentBridgeSettings;
     $packageSettings->enable_user_resource_bridge = false;
@@ -168,11 +150,10 @@ it('gates the bridge behind both admin and package settings', function (): void 
     expect($extender->supports($context))->toBeFalse();
 });
 
-it('tags the user schema extender when the admin bridge host exists', function (): void {
-    $taggedExtenders = iterator_to_array(app()->tagged(UserSchemaExtender::TAG));
+it('tags the user resource bridge when the admin bridge host exists', function (): void {
+    $taggedBridges = iterator_to_array(app()->tagged(UserResourceBridge::TAG));
 
-    expect(class_exists(ShouldLoadUserResourceBridgeAction::class))->toBeTrue()
-        ->and(collect($taggedExtenders)->contains(fn (object $extender): bool => $extender instanceof AgentBridgeUserSchemaExtender))->toBeTrue();
+    expect(collect($taggedBridges)->contains(fn (object $bridge): bool => $bridge instanceof AgentBridgeUserSchemaExtender))->toBeTrue();
 });
 
 it('registers the current agent bridge admin surface', function (): void {
@@ -185,8 +166,9 @@ it('registers the current agent bridge admin surface', function (): void {
 
     expect(resolve(ExtensionPageRegistry::class)->get(AgentBridgeServiceProvider::$packageName))
         ->toBe(CapellAgentBridgePromptBuilderPage::class)
-        ->and(CapellAdmin::getAdminSurfaceRegistry()->schemaExtendersForTag(UserSchemaExtender::TAG))
-        ->toContain(AgentBridgeUserSchemaExtender::class);
+        ->and(collect(app()->tagged(UserResourceBridge::TAG))->contains(
+            fn (object $bridge): bool => $bridge instanceof AgentBridgeUserSchemaExtender,
+        ))->toBeTrue();
 });
 
 it('keeps the legacy admin fallback when the bridge host is unavailable', function (): void {
@@ -196,11 +178,11 @@ it('keeps the legacy admin fallback when the bridge host is unavailable', functi
     try {
         invokeAgentBridgeProviderMethod(new AgentBridgeServiceProvider(app()), 'registerAdminIntegration');
 
-        $taggedExtenders = iterator_to_array(app()->tagged(UserSchemaExtender::TAG));
+        $taggedBridges = iterator_to_array(app()->tagged(UserResourceBridge::TAG));
 
         expect($host->extensionPages[AgentBridgeServiceProvider::$packageName] ?? [])
             ->toContain(CapellAgentBridgePromptBuilderPage::class)
-            ->and(collect($taggedExtenders)->contains(fn (object $extender): bool => $extender instanceof AgentBridgeUserSchemaExtender))->toBeTrue();
+            ->and(collect($taggedBridges)->contains(fn (object $bridge): bool => $bridge instanceof AgentBridgeUserSchemaExtender))->toBeTrue();
     } finally {
         app()->forgetInstance(CapellAdminManager::class);
         CapellAdmin::clearResolvedInstance(CapellAdminManager::class);

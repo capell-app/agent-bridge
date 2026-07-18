@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Providers;
 
-use Capell\Admin\Contracts\Extenders\UserSchemaExtender;
+use Capell\Admin\Contracts\Bridges\UserResourceBridge;
 use Capell\Admin\Data\Extensions\ExtensionManagementSurfaceData;
 use Capell\Admin\Facades\CapellAdmin;
 use Capell\Admin\Support\Bridges\AdminBridgeRegistrar;
@@ -195,12 +195,12 @@ final class AgentBridgeServiceProvider extends ServiceProvider
 
     private function registerUserResourceBridgeFallback(): void
     {
-        if (! interface_exists(UserSchemaExtender::class)) {
+        if (! interface_exists(UserResourceBridge::class)) {
             return;
         }
 
-        $this->app->bind(AgentBridgeUserSchemaExtender::class);
-        $this->app->tag([AgentBridgeUserSchemaExtender::class], UserSchemaExtender::TAG);
+        $this->app->scoped(AgentBridgeUserSchemaExtender::class);
+        $this->app->tag([AgentBridgeUserSchemaExtender::class], UserResourceBridge::TAG);
     }
 
     private function supportsAdminBridges(): bool
