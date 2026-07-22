@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Capell\AgentBridge\Actions\Media\UploadMediaCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\ClonePageCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\CreateDraftPageCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\DisablePageCapabilityAction;
@@ -20,8 +21,14 @@ use Capell\AgentBridge\Data\CapabilityInvocationData;
 use Capell\AgentBridge\Data\CapabilityResultData;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
+use Capell\AgentBridge\Exceptions\AgentBridgeMcpV1ConflictException;
 use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
+use Capell\Core\EventSourcing\Aggregates\PageAggregate;
+use Capell\Core\EventSourcing\Enums\PageWorkflowStatus;
+use Capell\Core\EventSourcing\Serializers\PageStateSerializer;
+use Capell\Core\EventSourcing\Support\EventSourcedRegistry;
 use Capell\Core\Models\Page;
+use Capell\Core\Models\PageWorkflowState;
 use Capell\Core\Models\Translation;
 use Capell\Core\Support\Publishing\PublishSentinel;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
@@ -31,6 +38,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 beforeEach(function (): void {
@@ -60,6 +68,34 @@ it('previews draft page creation with the validated payload', function (): void 
     expect($result->ok)->toBeTrue()
         ->and($result->message)->toBe('A new unpublished page record will be created.')
         ->and($result->data['page'])->toBe($payload);
+});
+
+it('claims media upload idempotency atomically and rejects key reuse with different content', function (): void {
+    createAgentBridgePageCapabilityTables();
+    $siteId = createAgentBridgeCapabilitySite('Media site', 1);
+    $key = (string) Str::uuid();
+    $payload = [
+        'site_id' => $siteId,
+        'idempotency_key' => $key,
+        'file_name' => 'pixel.png',
+        'content_base64' => 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    ];
+    $action = new UploadMediaCapabilityAction;
+
+    $first = $action->execute(pageInvocation($payload, pageCapabilityUser(collect([1]))));
+    $retry = $action->execute(pageInvocation($payload, pageCapabilityUser(collect([1]))));
+
+    expect($first->data['replayed'])->toBeFalse()
+        ->and($retry->data['replayed'])->toBeTrue()
+        ->and($retry->data['media_id'])->toBe($first->data['media_id'])
+        ->and(DB::table('capell_agent_bridge_media_uploads')->count())->toBe(1);
+
+    expect(fn (): CapabilityResultData => $action->execute(pageInvocation([
+        ...$payload,
+        'file_name' => 'different.png',
+        'content_base64' => base64_encode((string) base64_decode($payload['content_base64'], true) . 'different'),
+    ], pageCapabilityUser(collect([1])))))
+        ->toThrow(AgentBridgeMcpV1ConflictException::class);
 });
 
 it('rejects draft page creation payloads without required page fields', function (): void {
@@ -101,6 +137,7 @@ it('previews safe draft page updates without exposing the page id as a change', 
 
     $result = (new UpdateDraftPageCapabilityAction)->preview(pageInvocation([
         'page_id' => $page->getKey(),
+        'expected_revision' => agentBridgeDraftRevision($page),
         'name' => 'Updated campaign page',
         'meta' => ['hidden' => false],
     ]));
@@ -108,10 +145,7 @@ it('previews safe draft page updates without exposing the page id as a change', 
     expect($result->ok)->toBeTrue()
         ->and($result->message)->toBe('The selected page will be updated with safe editable fields.')
         ->and($result->data['page_id'])->toBe($page->getKey())
-        ->and($result->data['changes'])->toBe([
-            'name' => 'Updated campaign page',
-            'meta' => ['hidden' => false],
-        ]);
+        ->and($result->data['changed_fields'])->toBe(['name', 'meta']);
 });
 
 it('rejects draft page update payloads without a page id', function (): void {
@@ -125,6 +159,7 @@ it('rejects draft page update payloads that try to set admin metadata', function
 
     (new UpdateDraftPageCapabilityAction)->preview(pageInvocation([
         'page_id' => $page->getKey(),
+        'expected_revision' => agentBridgeDraftRevision($page),
         'admin' => ['configurator' => 'PrivilegedConfigurator'],
     ]));
 })->throws(ValidationException::class);
@@ -156,6 +191,7 @@ it('rejects page capabilities for pages outside the actor assigned sites', funct
 
     expect(fn (): CapabilityResultData => (new UpdateDraftPageCapabilityAction)->preview(pageInvocation([
         'page_id' => $page->getKey(),
+        'expected_revision' => agentBridgeDraftRevision($page),
         'name' => 'Forbidden update',
     ], $user)))->toThrow(ValidationException::class)
         ->and(fn (): CapabilityResultData => (new DisablePageCapabilityAction)->preview(pageInvocation([
@@ -195,6 +231,7 @@ it('executes page capability lifecycle changes against persisted draft pages', f
     ], pageCapabilityUser(collect(), isGlobalAdmin: true))));
 
     $page = findAgentBridgeCapabilityPage($created->data['page_id']);
+    ensureAgentBridgeDraftRevision($page);
     $page->pageUrls()->firstOrCreate([
         'site_id' => $siteId,
         'language_id' => 1,
@@ -203,6 +240,7 @@ it('executes page capability lifecycle changes against persisted draft pages', f
 
     $updated = Page::withoutEvents(fn (): CapabilityResultData => (new UpdateDraftPageCapabilityAction)->execute(pageInvocation([
         'page_id' => $page->getKey(),
+        'expected_revision' => agentBridgeDraftRevision($page),
         'name' => 'Agent-updated landing page',
         'meta' => ['source' => 'agent', 'updated' => true],
     ], pageCapabilityUser(collect([(int) $siteId])))));
@@ -402,6 +440,8 @@ it('clones an existing page by name as a distinct disabled draft with copied con
 });
 
 it('updates page and translated content fields by URL reference', function (): void {
+    config()->set('activitylog', require dirname(__DIR__, 4) . '/vendor/spatie/laravel-activitylog/config/activitylog.php');
+    resolve(EventSourcedRegistry::class)->register(Page::class, PageAggregate::class, PageStateSerializer::class);
     $page = createAgentBridgeCapabilityPage();
     $languageId = createAgentBridgeCapabilityLanguage();
     $translation = Page::withoutEvents(fn (): mixed => $page->translations()->create([
@@ -417,21 +457,32 @@ it('updates page and translated content fields by URL reference', function (): v
         'url' => '/old-page',
         'status' => true,
     ]));
+    ensureAgentBridgeDraftRevision($page, revision: 0);
 
-    $result = Page::withoutEvents(fn (): CapabilityResultData => (new UpdateDraftPageCapabilityAction)->execute(pageInvocation([
+    $result = (new UpdateDraftPageCapabilityAction)->execute(pageInvocation([
         'page' => '/old-page',
+        'expected_revision' => 0,
         'name' => 'Updated page record',
         'title' => 'New title',
         'content' => 'New copy',
         'slug' => 'new-page',
-    ], pageCapabilityUser(collect([1])))));
+    ], pageCapabilityUser(collect([1]))));
 
     expect($result->data['updated'])->toContain('name', 'title', 'content', 'slug')
+        ->and($result->data['revision'])->toBe(1)
+        ->and(agentBridgeDraftRevision($page))->toBe(1)
         ->and($page->refresh()->name)->toBe('Updated page record')
         ->and($translation->refresh()->title)->toBe('New title')
         ->and($translation->content)->toBe('New copy')
         ->and($translation->slug)->toBe('new-page')
         ->and($page->pageUrls()->first()?->url)->toBe('/new-page');
+
+    expect(fn (): CapabilityResultData => (new UpdateDraftPageCapabilityAction)->execute(pageInvocation([
+        'page_id' => $page->getKey(),
+        'expected_revision' => 0,
+        'title' => 'Stale overwrite',
+    ], pageCapabilityUser(collect([1])))))
+        ->toThrow(AgentBridgeMcpV1ConflictException::class);
 });
 
 it('lists human-readable page authoring choices for an allowed site', function (): void {
@@ -661,16 +712,41 @@ function createAgentBridgeCapabilityPage(int $siteId = 1): Page
         'created_at' => now(),
         'updated_at' => now(),
     ]);
+    $uuid = (string) Str::uuid();
     $pageId = DB::table('pages')->insertGetId([
+        'uuid' => $uuid,
         'name' => 'Agent Page ' . $siteId,
         'site_id' => $siteId,
         'blueprint_id' => $blueprintId,
         'layout_id' => $layoutId,
+        'visible_from' => PublishSentinel::draftValue(),
         'created_at' => now(),
         'updated_at' => now(),
     ]);
 
-    return Page::query()->findOrFail($pageId);
+    $page = Page::query()->findOrFail($pageId);
+    ensureAgentBridgeDraftRevision($page);
+
+    return $page;
+}
+
+function ensureAgentBridgeDraftRevision(Page $page, PageWorkflowStatus $status = PageWorkflowStatus::Draft, int $revision = 1): void
+{
+    if (! is_string($page->uuid) || $page->uuid === '') {
+        $page->forceFill(['uuid' => (string) Str::uuid()])->saveQuietly();
+    }
+
+    PageWorkflowState::query()->updateOrCreate(
+        ['page_uuid' => $page->uuid],
+        ['status' => $status, 'aggregate_version' => $revision],
+    );
+}
+
+function agentBridgeDraftRevision(Page $page): int
+{
+    $state = PageWorkflowState::query()->where('page_uuid', $page->uuid)->firstOrFail();
+
+    return $state->aggregate_version;
 }
 
 function createAgentBridgeCapabilitySite(string $name, ?int $siteId = null): int

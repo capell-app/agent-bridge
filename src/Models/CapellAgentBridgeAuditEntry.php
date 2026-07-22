@@ -18,6 +18,7 @@ use Override;
  * @property string $event
  * @property string|null $capability_key
  * @property string|null $scope
+ * @property string|null $ip_address_hash
  * @property array<array-key, mixed>|null $payload
  * @property array<array-key, mixed>|null $result
  * @property Authenticatable $user
@@ -34,7 +35,7 @@ final class CapellAgentBridgeAuditEntry extends Model
         'scope',
         'payload',
         'result',
-        'ip_address',
+        'ip_address_hash',
         'user_agent',
     ];
 

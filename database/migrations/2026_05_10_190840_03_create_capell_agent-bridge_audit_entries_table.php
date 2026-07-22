@@ -24,7 +24,7 @@ return new class extends Migration
             $table->string('scope')->nullable();
             $table->json('payload')->nullable();
             $table->json('result')->nullable();
-            $table->string('ip_address')->nullable();
+            $table->char('ip_address_hash', 64)->nullable();
             $table->string('user_agent')->nullable();
             $table->timestamps();
         });

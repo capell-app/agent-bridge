@@ -9,11 +9,14 @@ use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityAction;
 use Capell\AgentBridge\Data\Capabilities\UpdateDraftPageCapabilityInputData;
 use Capell\AgentBridge\Data\CapabilityInvocationData;
 use Capell\AgentBridge\Data\CapabilityResultData;
+use Capell\AgentBridge\Exceptions\AgentBridgeMcpV1ConflictException;
 use Capell\AgentBridge\Support\AgentBridgePolicyAuthorizer;
 use Capell\AgentBridge\Support\AgentBridgeRecordResolver;
 use Capell\AgentBridge\Support\AgentBridgeValue;
 use Capell\Core\Actions\SetupPageUrlsAction;
+use Capell\Core\EventSourcing\Enums\PageWorkflowStatus;
 use Capell\Core\Models\Page;
+use Capell\Core\Models\PageWorkflowState;
 use Capell\Core\Models\Translation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -25,6 +28,7 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
     public function preview(CapabilityInvocationData $invocation): CapabilityResultData
     {
         $payload = $this->validatedPayload($invocation->payload);
+        $input = UpdateDraftPageCapabilityInputData::fromPayload($payload);
         $page = $this->page($invocation, $payload);
 
         return new CapabilityResultData(
@@ -33,7 +37,14 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
             data: [
                 'page_id' => AgentBridgeValue::integer($page->getKey(), 'Page key'),
                 'name' => AgentBridgeValue::string($page->name, 'Page name'),
-                'changes' => array_diff_key($payload, ['page_id' => true, 'page' => true, 'site' => true, 'site_id' => true]),
+                'revision' => $this->assertDraftRevision($page, $input->expected_revision),
+                'changed_fields' => array_values(array_keys(array_diff_key($payload, [
+                    'page_id' => true,
+                    'page' => true,
+                    'site' => true,
+                    'site_id' => true,
+                    'expected_revision' => true,
+                ]))),
             ],
         );
     }
@@ -47,8 +58,6 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
         $updates = array_intersect_key($payload, array_flip([
             'name',
             'meta',
-            'visible_from',
-            'visible_until',
         ]));
         $translationFields = array_intersect_key($payload, array_flip([
             'title',
@@ -63,9 +72,11 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
             operation: 'agent-bridge-update',
         );
 
-        $updated = DB::transaction(function () use ($page, $payload, $input, $updates, $translationFields): array {
+        $updated = DB::transaction(function () use ($page, $payload, $input, $updates, $translationFields, $invocation): array {
+            $page = Page::query()->whereKey($page->getKey())->lockForUpdate()->firstOrFail();
+            $this->assertDraftRevision($page, $input->expected_revision, lock: true);
+            resolve(AgentBridgePolicyAuthorizer::class)->authorize($invocation->user, 'update', $page);
             $updated = array_keys($updates);
-            $page->forceFill($updates)->save();
 
             if ($translationFields !== []) {
                 $site = $page->site;
@@ -105,6 +116,8 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
                 SetupPageUrlsAction::run($page);
             }
 
+            $page->forceFill($updates)->save();
+
             return array_values(array_unique($updated));
         });
 
@@ -113,6 +126,7 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
             message: (string) __('capell-agent-bridge::admin.result_page_updated'),
             data: [
                 'page_id' => AgentBridgeValue::integer($page->getKey(), 'Page key'),
+                'revision' => $this->currentRevision($page),
                 'updated' => $updated,
             ],
         );
@@ -129,11 +143,10 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
             'page_id' => ['required_without:page', 'integer'],
             'site' => ['sometimes', 'nullable'],
             'site_id' => ['sometimes', 'nullable', 'integer'],
+            'expected_revision' => ['required', 'integer', 'min:0'],
             'name' => ['sometimes', 'string', 'max:255'],
             'meta' => ['sometimes', 'nullable', 'array'],
             'admin' => ['prohibited'],
-            'visible_from' => ['sometimes', 'nullable', 'date'],
-            'visible_until' => ['sometimes', 'nullable', 'date'],
             'language' => ['sometimes', 'nullable'],
             'language_id' => ['sometimes', 'nullable', 'integer'],
             'title' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -152,6 +165,38 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
         }
 
         return $payload;
+    }
+
+    private function assertDraftRevision(Page $page, ?int $expectedRevision, bool $lock = false): int
+    {
+        $query = PageWorkflowState::query()->where('page_uuid', $page->uuid);
+
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        $state = $query->first();
+
+        throw_unless(
+            $state instanceof PageWorkflowState
+                && $state->status === PageWorkflowStatus::Draft
+                && $page->publishVisibilityState()->value === 'draft'
+                && $expectedRevision !== null
+                && $state->aggregate_version === $expectedRevision,
+            AgentBridgeMcpV1ConflictException::class,
+            'Draft page revision conflict.',
+        );
+
+        return $state->aggregate_version;
+    }
+
+    private function currentRevision(Page $page): int
+    {
+        $state = PageWorkflowState::query()->where('page_uuid', $page->uuid)->first();
+
+        throw_unless($state instanceof PageWorkflowState, AgentBridgeMcpV1ConflictException::class, 'Draft page revision conflict.');
+
+        return $state->aggregate_version;
     }
 
     /** @param array<string, mixed> $payload */

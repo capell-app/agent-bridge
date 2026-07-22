@@ -13,6 +13,8 @@ it('documents Laravel Boost and Capell Agent Bridge setup paths', function (): v
         ->toContain('boost.agent-bridge.tools.include')
         ->toContain('capell-list-capabilities')
         ->toContain('capell-preview-capability')
+        ->toContain('mcp-v1-external-client.json')
+        ->toContain('Publishing remains human-only')
         ->toContain('## Verifying In A Host App')
         ->not->toContain('/Users/ben/');
 });

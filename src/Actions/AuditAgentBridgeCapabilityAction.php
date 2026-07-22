@@ -44,7 +44,7 @@ final class AuditAgentBridgeCapabilityAction
             'scope' => $scope,
             'payload' => $payload === [] ? null : $sanitizer->sanitize($payload),
             'result' => $resultPayload === null ? null : $sanitizer->sanitize($resultPayload),
-            'ip_address' => $request->ip(),
+            'ip_address_hash' => HashAgentBridgeIpAddressAction::run($request->ip()),
             'user_agent' => $request->userAgent(),
         ]);
 

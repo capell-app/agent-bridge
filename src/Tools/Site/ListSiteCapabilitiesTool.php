@@ -6,6 +6,7 @@ namespace Capell\AgentBridge\Tools\Site;
 
 use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
+use Capell\AgentBridge\Support\AgentBridgeMcpV1Policy;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
@@ -21,12 +22,20 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 #[IsReadOnly]
 final class ListSiteCapabilitiesTool extends Tool
 {
-    public function handle(CapellAgentBridgeCapabilityRegistry $registry, AuthenticatedAgentBridgeClientData $client): ResponseFactory
-    {
+    public function handle(
+        CapellAgentBridgeCapabilityRegistry $registry,
+        AuthenticatedAgentBridgeClientData $client,
+        ?AgentBridgeMcpV1Policy $policy = null,
+    ): ResponseFactory {
+        $policy ??= resolve(AgentBridgeMcpV1Policy::class);
+        $capabilities = $policy->allowedCapabilities(
+            $registry->visibleFor(CapabilityServerEnum::Site, $client->scopes),
+        );
+
         return Response::structured([
-            'capabilities' => $registry
-                ->visibleFor(CapabilityServerEnum::Site, $client->scopes)
-                ->map(fn ($capability): array => $capability->toPayload())
+            'version' => '1.0',
+            'capabilities' => $capabilities
+                ->map(fn ($capability): array => $policy->capabilityPayload($capability))
                 ->all(),
         ]);
     }

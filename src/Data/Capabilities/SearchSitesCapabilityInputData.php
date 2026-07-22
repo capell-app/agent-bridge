@@ -11,5 +11,6 @@ final class SearchSitesCapabilityInputData extends Data
     public function __construct(
         public readonly ?string $query = null,
         public readonly int $limit = 20,
+        public readonly int $cursor = 0,
     ) {}
 }

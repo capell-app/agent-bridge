@@ -18,6 +18,7 @@ use Capell\AgentBridge\Filament\Settings\AgentBridgeSettingsSchema;
 use Capell\AgentBridge\Livewire\PromptBuilderToolbarAction;
 use Capell\AgentBridge\Models\CapellAgentBridgeAuditEntry;
 use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
+use Capell\AgentBridge\Models\CapellAgentBridgeMediaUpload;
 use Capell\AgentBridge\Models\CapellAgentBridgeSavedPrompt;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Settings\AgentBridgeSettings;
@@ -126,6 +127,7 @@ final class AgentBridgeServiceProvider extends ServiceProvider
         CapellCore::registerModels([
             CapellAgentBridgeToken::class,
             CapellAgentBridgeConfirmation::class,
+            CapellAgentBridgeMediaUpload::class,
             CapellAgentBridgeAuditEntry::class,
             CapellAgentBridgeSavedPrompt::class,
         ]);

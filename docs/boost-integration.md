@@ -9,6 +9,8 @@ Boost is for local development assistance. It can discover Capell package guidan
 
 The authenticated Capell Site Agent Bridge server is for site operations. It uses Capell Agent Bridge tokens, capability scopes, previews, confirmations, and audit records.
 
+For external-client compatibility, `tests/Fixtures/mcp-v1-external-client.json` freezes transport identifiers, the three registered tool envelopes, schema digests, the closed draft-only catalogue, and safe result fields. Runtime transport/security tests remain the authority for authentication, execution, confirmation replay, and sanitized retention-bounded audit behaviour. Publishing remains human-only in Capell admin.
+
 ## Package Discovery
 
 Laravel Boost discovers third-party package guidance from installed packages:

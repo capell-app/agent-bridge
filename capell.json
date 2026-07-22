@@ -48,7 +48,8 @@
                 "Capell\\AgentBridge\\Models\\CapellAgentBridgeToken",
                 "Capell\\AgentBridge\\Models\\CapellAgentBridgeConfirmation",
                 "Capell\\AgentBridge\\Models\\CapellAgentBridgeAuditEntry",
-                "Capell\\AgentBridge\\Models\\CapellAgentBridgeSavedPrompt"
+                "Capell\\AgentBridge\\Models\\CapellAgentBridgeSavedPrompt",
+                "Capell\\AgentBridge\\Models\\CapellAgentBridgeMediaUpload"
             ]
         },
         {
@@ -75,7 +76,8 @@
                 "capell_agent_bridge_tokens",
                 "capell_agent_bridge_confirmations",
                 "capell_agent_bridge_audit_entries",
-                "capell_agent_bridge_saved_prompts"
+                "capell_agent_bridge_saved_prompts",
+                "capell_agent_bridge_media_uploads"
             ]
         },
         {
@@ -118,7 +120,8 @@
                 "capell.packages.install",
                 "capell.sites.search",
                 "capell.sites.inspect",
-                "capell.sites.open_editor"
+                "capell.sites.open_editor",
+                "capell.media.upload"
             ],
             "requiresPreviewConfirmation": true
         },
@@ -134,7 +137,8 @@
             "capell_agent_bridge_tokens",
             "capell_agent_bridge_confirmations",
             "capell_agent_bridge_audit_entries",
-            "capell_agent_bridge_saved_prompts"
+            "capell_agent_bridge_saved_prompts",
+            "capell_agent_bridge_media_uploads"
         ]
     },
     "commands": {
@@ -146,7 +150,11 @@
     },
     "settings": ["Capell\\AgentBridge\\Settings\\AgentBridgeSettings"],
     "permissions": ["agent-bridge.manage-tokens", "agent-bridge.view-audit"],
-    "capabilities": ["agent-bridge", "agent-bridge-admin"],
+    "capabilities": [
+        "agent-bridge",
+        "agent-bridge-admin",
+        "agent-bridge-mcp-v1-draft-only"
+    ],
     "security": {
         "riskTier": "critical",
         "publicSurface": {
@@ -161,6 +169,7 @@
         "sensitiveData": {
             "encryptedFields": [],
             "hashedTokenFields": [
+                "capell_agent_bridge_audit_entries.ip_address_hash",
                 "capell_agent_bridge_confirmations.payload_hash",
                 "capell_agent_bridge_confirmations.token",
                 "capell_agent_bridge_tokens.token_hash"

@@ -31,6 +31,7 @@ use Laravel\Mcp\Server\McpServiceProvider as LaravelMcpServiceProvider;
 use Livewire\LivewireServiceProvider;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
 use Override;
+use Spatie\EventSourcing\EventSourcingServiceProvider;
 use Spatie\LaravelSettings\LaravelSettingsServiceProvider;
 
 abstract class TestCase extends OrchestraTestCase
@@ -82,6 +83,7 @@ abstract class TestCase extends OrchestraTestCase
             LivewireServiceProvider::class,
             TablesServiceProvider::class,
             LaravelSettingsServiceProvider::class,
+            EventSourcingServiceProvider::class,
             CapellServiceProvider::class,
             AdminServiceProvider::class,
             InstalledAgentBridgePackageServiceProvider::class,

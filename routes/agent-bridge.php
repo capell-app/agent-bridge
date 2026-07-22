@@ -6,6 +6,7 @@ use Capell\AgentBridge\Http\Middleware\AuthenticateCapellAgentBridgeToken;
 use Capell\AgentBridge\Http\Middleware\ThrottleAgentBridgeRequests;
 use Capell\AgentBridge\Http\Middleware\ThrottleAgentBridgeRequestsByIp;
 use Capell\AgentBridge\Servers\CapellKnowledgeServer;
+use Capell\AgentBridge\Servers\CapellLocalSiteServer;
 use Capell\AgentBridge\Servers\CapellSiteServer;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Facades\Mcp;
@@ -33,6 +34,12 @@ if (is_string($homeRoute) && $homeRoute !== '') {
 }
 
 if (class_exists(Mcp::class)) {
+    $localHandle = config('capell-agent-bridge.local.handle', 'capell-site');
+
+    if (is_string($localHandle) && $localHandle !== '') {
+        Mcp::local($localHandle, CapellLocalSiteServer::class);
+    }
+
     if (is_string($knowledgeRoute) && $knowledgeRoute !== '') {
         Mcp::web($knowledgeRoute, CapellKnowledgeServer::class)
             ->middleware([

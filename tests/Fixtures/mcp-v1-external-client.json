@@ -1,0 +1,95 @@
+{
+    "protocol": "capell-agent-bridge-mcp-v1",
+    "serverVersion": "1.0.0",
+    "transports": {
+        "http": {
+            "route": "agent-bridge/capell",
+            "authentication": "per-user-bearer-token"
+        },
+        "stdio": {
+            "handle": "capell-site",
+            "authentication": "explicit-local-user-token"
+        }
+    },
+    "tools": {
+        "capell-site-list-capabilities": { "required": [] },
+        "capell-site-run-capability": { "required": ["capability", "payload"] },
+        "capell-site-confirm-capability": {
+            "required": ["confirmationToken", "payload"]
+        }
+    },
+    "publicResultFields": ["ok", "message", "data", "warnings"],
+    "capabilities": [
+        {
+            "key": "capell.pages.search",
+            "scope": "capell.pages.read",
+            "risk": "read",
+            "requiresConfirmation": false,
+            "inputSchemaSha256": "8317c280bc99836a2e5a86e46547c8832e20a2c261cbd175dc5b74bbafca7a92",
+            "outputSchemaSha256": "4f544d83ac9969067ff6a26ed2b0506c3be5fa773a3306c810830575101680b8"
+        },
+        {
+            "key": "capell.pages.inspect",
+            "scope": "capell.pages.read",
+            "risk": "read",
+            "requiresConfirmation": false,
+            "inputSchemaSha256": "cfa7a52606984b7c8d260984ee09cce6b5b8c32c57ee2bf527f14f6ed09259a8",
+            "outputSchemaSha256": "4f544d83ac9969067ff6a26ed2b0506c3be5fa773a3306c810830575101680b8"
+        },
+        {
+            "key": "capell.pages.authoring_options",
+            "scope": "capell.pages.read",
+            "risk": "read",
+            "requiresConfirmation": false,
+            "inputSchemaSha256": "9db734dde7f61b10605889babcaf8d5a669a9cb7440f44511f537e24a01f62cf",
+            "outputSchemaSha256": "4f544d83ac9969067ff6a26ed2b0506c3be5fa773a3306c810830575101680b8"
+        },
+        {
+            "key": "capell.pages.create_draft",
+            "scope": "capell.pages.write",
+            "risk": "high",
+            "requiresConfirmation": true,
+            "inputSchemaSha256": "27cb9d58d73c99192a8e62e277f65a8d42cba3fa7d9f399004b7df7494c35d7c",
+            "outputSchemaSha256": "4f544d83ac9969067ff6a26ed2b0506c3be5fa773a3306c810830575101680b8"
+        },
+        {
+            "key": "capell.pages.update_draft",
+            "scope": "capell.pages.write",
+            "risk": "high",
+            "requiresConfirmation": true,
+            "inputSchemaSha256": "45301d7d39789a85ef0614c42edd5c1bfc1698426a7d190eb448dec59bbe2af1",
+            "outputSchemaSha256": "4f544d83ac9969067ff6a26ed2b0506c3be5fa773a3306c810830575101680b8"
+        },
+        {
+            "key": "capell.sites.search",
+            "scope": "capell.sites.read",
+            "risk": "read",
+            "requiresConfirmation": false,
+            "inputSchemaSha256": "a166d9e6a3fa70aa048a9bace0031e279a906ad38aca52c2f329ee090dd96028",
+            "outputSchemaSha256": "4f544d83ac9969067ff6a26ed2b0506c3be5fa773a3306c810830575101680b8"
+        },
+        {
+            "key": "capell.sites.inspect",
+            "scope": "capell.sites.read",
+            "risk": "read",
+            "requiresConfirmation": false,
+            "inputSchemaSha256": "f1ebefa32d8c6c3d57aee0fe4ab6cdaea34216f2f0cf8de7cb816697ff73c694",
+            "outputSchemaSha256": "4f544d83ac9969067ff6a26ed2b0506c3be5fa773a3306c810830575101680b8"
+        },
+        {
+            "key": "capell.media.upload",
+            "scope": "capell.media.write",
+            "risk": "high",
+            "requiresConfirmation": true,
+            "inputSchemaSha256": "74896247abe698d7a253da0b4b6d72618c45a4c4779b294c2a81b3f1cce99def",
+            "outputSchemaSha256": "4f544d83ac9969067ff6a26ed2b0506c3be5fa773a3306c810830575101680b8"
+        }
+    ],
+    "mutationContract": {
+        "previewFirst": true,
+        "confirmationSingleUse": true,
+        "mediaIdempotencyKey": "uuid",
+        "audit": "redacted-retention-bounded"
+    },
+    "refusalContract": "all-capabilities-outside-closed-allowlist"
+}

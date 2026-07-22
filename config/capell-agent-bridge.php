@@ -12,6 +12,11 @@ return [
 
     'site_auth_guard' => env('CAPELL_AGENT_BRIDGE_AUTH_GUARD', 'web'),
 
+    'local' => [
+        'handle' => env('CAPELL_AGENT_BRIDGE_LOCAL_HANDLE', 'capell-site'),
+        'token' => env('CAPELL_AGENT_BRIDGE_LOCAL_TOKEN', ''),
+    ],
+
     'token_prefix' => env('CAPELL_AGENT_BRIDGE_TOKEN_PREFIX', 'cagent-bridge_'),
 
     'confirmation_ttl_minutes' => env('CAPELL_AGENT_BRIDGE_CONFIRMATION_TTL_MINUTES', 10),
@@ -29,6 +34,8 @@ return [
     'inspect_app_runtime' => env('CAPELL_AGENT_BRIDGE_INSPECT_APP_RUNTIME', false),
 
     'audit_retention_days' => env('CAPELL_AGENT_BRIDGE_AUDIT_RETENTION_DAYS', 90),
+
+    'audit_hash_secret' => env('CAPELL_AGENT_BRIDGE_AUDIT_HASH_SECRET'),
 
     'enable_user_resource_bridge' => true,
 

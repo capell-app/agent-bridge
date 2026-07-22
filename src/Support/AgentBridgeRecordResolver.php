@@ -159,6 +159,7 @@ final class AgentBridgeRecordResolver
         int|string|null $siteReference = null,
         int $limit = 10,
         array $with = [],
+        int $offset = 0,
     ): Collection {
         $search = trim($search);
         $limit = max(1, min(50, $limit));
@@ -211,6 +212,7 @@ final class AgentBridgeRecordResolver
             ->with($relations)
             ->orderBy('site_id')
             ->orderBy('name')
+            ->offset(max(0, $offset))
             ->limit(min(200, $limit * 4))
             ->get()
             ->filter(fn (Page $page): bool => $authorizer->allows($user, 'view', $page))

@@ -26,6 +26,7 @@ final class SearchPagesCapabilityAction implements CapellAgentBridgeCapabilityAc
             'site' => ['sometimes', 'nullable'],
             'site_id' => ['sometimes', 'nullable', 'integer'],
             'limit' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'cursor' => ['sometimes', 'integer', 'min:0', 'max:10000'],
         ])->validate();
         $payload = SearchPagesCapabilityInputData::fromPayload($invocation->payload);
 
@@ -35,8 +36,11 @@ final class SearchPagesCapabilityAction implements CapellAgentBridgeCapabilityAc
             user: $invocation->user,
             search: $payload->query,
             siteReference: $payload->site_id ?? $payload->site,
-            limit: $payload->limit,
+            limit: $payload->limit + 1,
+            offset: $payload->cursor,
         );
+        $hasMore = $matches->count() > $payload->limit;
+        $matches = $matches->take($payload->limit)->values();
 
         return new CapabilityResultData(
             ok: true,
@@ -46,6 +50,8 @@ final class SearchPagesCapabilityAction implements CapellAgentBridgeCapabilityAc
             data: [
                 'query' => $payload->query,
                 'count' => $matches->count(),
+                'has_more' => $hasMore,
+                'next_cursor' => $hasMore ? $payload->cursor + $matches->count() : null,
                 'matches' => $matches
                     ->map(fn (Page $page): array => $presenter->present($page))
                     ->values()

@@ -6,6 +6,7 @@ namespace Capell\AgentBridge\Capabilities;
 
 use Capell\Admin\Filament\Pages\ExtensionsPage;
 use Capell\AgentBridge\Actions\Cache\ClearCapellCacheCapabilityAction;
+use Capell\AgentBridge\Actions\Media\UploadMediaCapabilityAction;
 use Capell\AgentBridge\Actions\Packages\InspectPackageCapabilityAction;
 use Capell\AgentBridge\Actions\Packages\InstallPackageCapabilityAction;
 use Capell\AgentBridge\Actions\Packages\SearchPackagesCapabilityAction;
@@ -36,6 +37,7 @@ use Capell\AgentBridge\Data\Capabilities\SearchSitesCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\SiteReferenceCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\TransitionPagePublicationCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\UpdateDraftPageCapabilityInputData;
+use Capell\AgentBridge\Data\Capabilities\UploadMediaCapabilityInputData;
 use Capell\AgentBridge\Data\CapabilityData;
 use Capell\AgentBridge\Data\CapabilityResultData;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
@@ -54,6 +56,7 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
         $this->registerPagePublicationCapabilities($registry);
         $this->registerPackageCapabilities($registry);
         $this->registerSiteCapabilities($registry);
+        $this->registerMediaCapabilities($registry);
     }
 
     private function registerCacheCapability(CapellAgentBridgeCapabilityRegistry $registry): void
@@ -436,6 +439,27 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.sites_open_editor'),
             examples: $this->translationList('capability_examples.sites_open_editor'),
             discoveryPriority: 85,
+        ));
+    }
+
+    private function registerMediaCapabilities(CapellAgentBridgeCapabilityRegistry $registry): void
+    {
+        $registry->register(new CapabilityData(
+            key: 'capell.media.upload',
+            name: $this->translation('capability_media_upload_name'),
+            description: $this->translation('capability_media_upload_description'),
+            scope: 'capell.media.write',
+            server: CapabilityServerEnum::Site,
+            risk: CapabilityRiskEnum::High,
+            actionClass: UploadMediaCapabilityAction::class,
+            requiredPackage: 'capell-app/core',
+            inputDataClass: UploadMediaCapabilityInputData::class,
+            outputDataClass: CapabilityResultData::class,
+            inputSchema: CapabilitySchemas::uploadMediaInput(),
+            outputSchema: CapabilitySchemas::capabilityResultOutput(),
+            auditEvent: 'capell_agent-bridge.media.upload',
+            category: 'media',
+            discoveryPriority: 80,
         ));
     }
 

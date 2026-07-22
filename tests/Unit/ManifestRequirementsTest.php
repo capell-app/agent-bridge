@@ -18,6 +18,7 @@ use Capell\AgentBridge\Manifest\AgentBridgeSettingsContribution;
 use Capell\AgentBridge\Manifest\AgentBridgeUserSchemaExtenderContribution;
 use Capell\AgentBridge\Models\CapellAgentBridgeAuditEntry;
 use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
+use Capell\AgentBridge\Models\CapellAgentBridgeMediaUpload;
 use Capell\AgentBridge\Models\CapellAgentBridgeSavedPrompt;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Settings\AgentBridgeSettings;
@@ -123,8 +124,10 @@ describe('agent-bridge capell.json manifest', function (): void {
                 'capell_agent_bridge_confirmations',
                 'capell_agent_bridge_audit_entries',
                 'capell_agent_bridge_saved_prompts',
+                'capell_agent_bridge_media_uploads',
             ])
             ->and(data_get($manifestData, 'commands.pruneAudit'))->toBe('capell:agent-bridge-prune-audit')
+            ->and(data_get($manifestData, 'capabilities', []))->toContain('agent-bridge-mcp-v1-draft-only')
             ->and(data_get($manifestData, 'settings'))->toBe([AgentBridgeSettings::class])
             ->and(data_get($manifestData, 'security.publicSurface.tokenizedRoutes', []))->toContain('agent-bridge/capell')
             ->and(data_get($manifestData, 'security.publicSurface.throttledRoutes', []))->toContain('agent-bridge/capell')
@@ -154,6 +157,7 @@ describe('agent-bridge capell.json manifest', function (): void {
                     CapellAgentBridgeConfirmation::class,
                     CapellAgentBridgeAuditEntry::class,
                     CapellAgentBridgeSavedPrompt::class,
+                    CapellAgentBridgeMediaUpload::class,
                 ],
             ])
             ->toContain([
@@ -181,6 +185,7 @@ describe('agent-bridge capell.json manifest', function (): void {
                     'capell_agent_bridge_confirmations',
                     'capell_agent_bridge_audit_entries',
                     'capell_agent_bridge_saved_prompts',
+                    'capell_agent_bridge_media_uploads',
                 ],
             ])
             ->toContain([
@@ -222,6 +227,7 @@ describe('agent-bridge capell.json manifest', function (): void {
                     'capell.sites.search',
                     'capell.sites.inspect',
                     'capell.sites.open_editor',
+                    'capell.media.upload',
                 ],
                 'requiresPreviewConfirmation' => true,
             ])

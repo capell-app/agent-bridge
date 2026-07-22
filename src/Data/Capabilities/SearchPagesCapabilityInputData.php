@@ -14,6 +14,7 @@ final class SearchPagesCapabilityInputData extends Data
         public readonly int|string|null $site = null,
         public readonly ?int $site_id = null,
         public readonly int $limit = 10,
+        public readonly int $cursor = 0,
     ) {}
 
     /** @param array<string, mixed> $payload */
@@ -24,6 +25,7 @@ final class SearchPagesCapabilityInputData extends Data
             site: AgentBridgeValue::reference($payload['site'] ?? null, 'Site reference'),
             site_id: AgentBridgeValue::nullableInteger($payload['site_id'] ?? null, 'Site ID'),
             limit: AgentBridgeValue::integer($payload['limit'] ?? 10, 'Search limit'),
+            cursor: AgentBridgeValue::integer($payload['cursor'] ?? 0, 'Search cursor'),
         );
     }
 }

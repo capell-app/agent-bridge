@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Capell\AgentBridge\Actions\BuildAgentBridgeCapabilityCatalogAction;
 use Capell\AgentBridge\Actions\InvokeAgentBridgeCapabilityPreviewAction;
+use Capell\AgentBridge\Actions\Pages\CreateDraftPageCapabilityAction;
+use Capell\AgentBridge\Capabilities\BuiltInAgentBridgeCapabilityProvider;
 use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
 use Capell\AgentBridge\Data\Capabilities\CreateDraftPageCapabilityInputData;
 use Capell\AgentBridge\Data\CapabilityData;
@@ -25,12 +27,12 @@ use Capell\AgentBridge\Tools\Boost\ListBoostCapabilitiesTool;
 use Capell\AgentBridge\Tools\Boost\PreviewBoostCapabilityTool;
 use Capell\AgentBridge\Tools\Knowledge\ListKnowledgePackagesTool;
 use Capell\AgentBridge\Tools\Knowledge\ReadKnowledgeDocumentTool;
-use Capell\AgentBridge\Tools\Site\ConfirmSiteCapabilityTool;
 use Capell\AgentBridge\Tools\Site\InspectSiteStateTool;
 use Capell\AgentBridge\Tools\Site\ListSiteCapabilitiesTool;
 use Capell\AgentBridge\Tools\Site\QuerySiteAuditEntriesTool;
 use Capell\AgentBridge\Tools\Site\RunSiteCapabilityTool;
 use Capell\AgentBridge\Tools\Site\SuggestSiteCapabilitiesTool;
+use Capell\Core\Facades\CapellCore;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\ResponseFactory;
 
@@ -135,36 +137,21 @@ it('can opt into runtime state for trusted inspect calls', function (): void {
 });
 
 it('lists site capabilities allowed by the authenticated client scopes', function (): void {
+    CapellCore::shouldReceive('isPackageInstalled')->andReturnTrue();
+
     $registry = new CapellAgentBridgeCapabilityRegistry;
-    $registry->register(new CapabilityData(
-        key: 'capell.fake.allowed',
-        name: 'Fake allowed',
-        description: 'Allowed fake capability.',
-        scope: 'capell.fake.allowed',
-        server: CapabilityServerEnum::Site,
-        risk: CapabilityRiskEnum::Read,
-        actionClass: FakeCapabilityAction::class,
-    ));
-    $registry->register(new CapabilityData(
-        key: 'capell.fake.hidden',
-        name: 'Fake hidden',
-        description: 'Hidden fake capability.',
-        scope: 'capell.fake.hidden',
-        server: CapabilityServerEnum::Site,
-        risk: CapabilityRiskEnum::Read,
-        actionClass: FakeCapabilityAction::class,
-    ));
+    (new BuiltInAgentBridgeCapabilityProvider)->registerCapabilities($registry);
 
     $response = (new ListSiteCapabilitiesTool)->handle(
         $registry,
-        new AuthenticatedAgentBridgeClientData(tokenId: 1, name: 'Scoped client', scopes: ['capell.fake.allowed']),
+        new AuthenticatedAgentBridgeClientData(tokenId: 1, name: 'Scoped client', scopes: ['capell.sites.read']),
     );
 
     $capabilities = agentBridgeStructuredContent($response)['capabilities'];
     $capabilityKeys = is_array($capabilities) ? array_column($capabilities, 'key') : [];
 
     expect($capabilityKeys)
-        ->toBe(['capell.fake.allowed']);
+        ->toBe(['capell.sites.search', 'capell.sites.inspect']);
 });
 
 it('suggests scoped site capabilities from a natural language request', function (): void {
@@ -176,7 +163,7 @@ it('suggests scoped site capabilities from a natural language request', function
         scope: 'capell.pages.write',
         server: CapabilityServerEnum::Site,
         risk: CapabilityRiskEnum::High,
-        actionClass: FakeCapabilityAction::class,
+        actionClass: CreateDraftPageCapabilityAction::class,
         category: 'pages',
         intents: ['clone page', 'copy page'],
         examples: ['Clone the About page.'],
@@ -202,20 +189,9 @@ it('suggests scoped site capabilities from a natural language request', function
 });
 
 it('lists built-in capability schemas for agent discovery', function (): void {
+    CapellCore::shouldReceive('isPackageInstalled')->andReturnTrue();
     $registry = new CapellAgentBridgeCapabilityRegistry;
-    $registry->register(new CapabilityData(
-        key: 'capell.pages.create_draft',
-        name: 'Create draft page',
-        description: 'Create a draft-like unpublished page record for an existing site, type, and layout.',
-        scope: 'capell.pages.write',
-        server: CapabilityServerEnum::Site,
-        risk: CapabilityRiskEnum::High,
-        actionClass: FakeCapabilityAction::class,
-        inputDataClass: CreateDraftPageCapabilityInputData::class,
-        outputDataClass: CapabilityResultData::class,
-        inputSchema: CapabilitySchemas::createDraftPageInput(),
-        outputSchema: CapabilitySchemas::capabilityResultOutput(),
-    ));
+    (new BuiltInAgentBridgeCapabilityProvider)->registerCapabilities($registry);
 
     $response = (new ListSiteCapabilitiesTool)->handle(
         $registry,
@@ -227,8 +203,7 @@ it('lists built-in capability schemas for agent discovery', function (): void {
     $createDraft = firstCapabilityByKey($capabilities, 'capell.pages.create_draft');
 
     expect($createDraft)
-        ->and($createDraft['inputDataClass'] ?? null)->toBe(CreateDraftPageCapabilityInputData::class)
-        ->and($createDraft['outputDataClass'] ?? null)->toBe(CapabilityResultData::class)
+        ->not->toHaveKeys(['inputDataClass', 'outputDataClass', 'actionClass', 'requiredPackage', 'policyAbility', 'auditEvent'])
         ->and(requiredSchemaFields($createDraft['inputSchema'] ?? null))->toBe(['name'])
         ->and(schemaProperties($createDraft['inputSchema'] ?? null))->toHaveKeys([
             'site',
@@ -280,8 +255,9 @@ it('queries audit entries for the authenticated token', function (): void {
         ->and($entries[0]['payload'])->toBe(['name' => 'Audit me']);
 });
 
-it('runs and confirms site capability previews for authenticated clients', function (): void {
-    $registry = resolve(CapellAgentBridgeCapabilityRegistry::class);
+it('denies non-v1 capabilities before previewing them for authenticated clients', function (): void {
+    $registry = new CapellAgentBridgeCapabilityRegistry;
+    app()->instance(CapellAgentBridgeCapabilityRegistry::class, $registry);
     $registry->register(new CapabilityData(
         key: 'capell.fake.confirmed',
         name: 'Fake confirmed',
@@ -313,7 +289,7 @@ it('runs and confirms site capability previews for authenticated clients', funct
         scopes: ['capell.fake.confirmed'],
     );
 
-    $preview = agentBridgeStructuredContent((new RunSiteCapabilityTool)->handle(
+    $response = agentBridgeStructuredContent((new RunSiteCapabilityTool)->handle(
         new Request([
             'capability' => 'capell.fake.confirmed',
             'payload' => ['name' => 'Preview me'],
@@ -322,30 +298,18 @@ it('runs and confirms site capability previews for authenticated clients', funct
         $token,
     ));
 
-    $confirmed = agentBridgeStructuredContent((new ConfirmSiteCapabilityTool)->handle(
-        new Request([
-            'confirmationToken' => $preview['confirmationToken'],
-            'payload' => ['name' => 'Preview me'],
-        ]),
-        $client,
-        $token,
-    ));
-    $confirmedResult = $confirmed['result'] ?? null;
-
-    throw_unless(is_array($confirmedResult), RuntimeException::class, 'Expected confirmed capability result payload.');
-
-    expect($preview['mode'])->toBe('preview')
-        ->and($confirmed['mode'])->toBe('confirmed')
-        ->and($confirmedResult['message'])->toBe('Executed fake capability.');
+    expect($response['ok'])->toBeFalse()
+        ->and($response['error']['code'])->toBe('forbidden');
 });
 
-it('directly executes read-only site capabilities without confirmation', function (): void {
-    $registry = resolve(CapellAgentBridgeCapabilityRegistry::class);
+it('rejects a counterfeit action registered under an allowlisted capability key', function (): void {
+    $registry = new CapellAgentBridgeCapabilityRegistry;
+    app()->instance(CapellAgentBridgeCapabilityRegistry::class, $registry);
     $registry->register(new CapabilityData(
-        key: 'capell.fake.readonly',
+        key: 'capell.sites.search',
         name: 'Fake readonly',
         description: 'Readonly fake capability.',
-        scope: 'capell.fake.readonly',
+        scope: 'capell.sites.read',
         server: CapabilityServerEnum::Site,
         risk: CapabilityRiskEnum::Read,
         actionClass: FakeCapabilityAction::class,
@@ -363,30 +327,26 @@ it('directly executes read-only site capabilities without confirmation', functio
     $token->forceFill([
         'name' => 'Readonly client',
         'token_hash' => CapellAgentBridgeToken::hashPlainTextToken('readonly-token'),
-        'scopes' => ['capell.fake.readonly'],
+        'scopes' => ['capell.sites.read'],
         'user_type' => $user->getMorphClass(),
         'user_id' => $user->getKey(),
     ])->save();
 
     $response = agentBridgeStructuredContent((new RunSiteCapabilityTool)->handle(
         new Request([
-            'capability' => 'capell.fake.readonly',
-            'payload' => ['name' => 'Execute me'],
+            'capability' => 'capell.sites.search',
+            'payload' => ['query' => 'Execute me'],
         ]),
         new AuthenticatedAgentBridgeClientData(
             tokenId: (int) $token->getKey(),
             name: 'Readonly client',
-            scopes: ['capell.fake.readonly'],
+            scopes: ['capell.sites.read'],
         ),
         $token,
     ));
-    $result = $response['result'] ?? null;
 
-    throw_unless(is_array($result), RuntimeException::class, 'Expected executed capability result payload.');
-
-    expect($response['mode'])->toBe('executed')
-        ->and($response['capability'])->toBe('capell.fake.readonly')
-        ->and($result['message'])->toBe('Executed fake capability.');
+    expect($response['ok'])->toBeFalse()
+        ->and($response['error']['code'])->toBe('forbidden');
 });
 
 it('hashes capability payloads deterministically regardless of key order', function (): void {

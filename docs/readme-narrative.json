@@ -1,6 +1,6 @@
 {
     "whatThisPluginAdds": {
-        "text": "Agent Bridge connects MCP clients to read-only Capell knowledge and scoped site capabilities with token authentication, preview confirmation, and audit records.",
+        "text": "Agent Bridge connects MCP clients to read-only Capell knowledge and a frozen, draft-only site capability contract over per-user HTTP and explicit-user local stdio, with preview confirmation and redacted audit records.",
         "evidence": [
             "capell.json",
             "routes/agent-bridge.php",

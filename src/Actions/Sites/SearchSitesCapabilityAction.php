@@ -23,9 +23,12 @@ final class SearchSitesCapabilityAction implements CapellAgentBridgeCapabilityAc
     {
         $payload = validator($invocation->payload, [
             'query' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'limit' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'cursor' => ['sometimes', 'integer', 'min:0', 'max:10000'],
         ])->validate();
         $query = mb_strtolower(trim((string) ($payload['query'] ?? '')));
+        $limit = (int) ($payload['limit'] ?? 20);
+        $cursor = (int) ($payload['cursor'] ?? 0);
         $sites = resolve(AgentBridgeRecordResolver::class)
             ->authorizedSites($invocation->user)
             ->filter(function (Site $site) use ($query): bool {
@@ -43,8 +46,10 @@ final class SearchSitesCapabilityAction implements CapellAgentBridgeCapabilityAc
 
                 return str_contains($haystack, $query);
             })
-            ->take((int) ($payload['limit'] ?? 20))
+            ->slice($cursor, $limit + 1)
             ->values();
+        $hasMore = $sites->count() > $limit;
+        $sites = $sites->take($limit)->values();
         $presenter = resolve(AgentBridgeSitePresenter::class);
 
         return new CapabilityResultData(
@@ -53,6 +58,8 @@ final class SearchSitesCapabilityAction implements CapellAgentBridgeCapabilityAc
             data: [
                 'count' => $sites->count(),
                 'sites' => $sites->map(fn (Site $site): array => $presenter->present($site))->all(),
+                'has_more' => $hasMore,
+                'next_cursor' => $hasMore ? $cursor + $sites->count() : null,
             ],
         );
     }

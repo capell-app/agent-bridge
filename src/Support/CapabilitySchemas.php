@@ -53,19 +53,36 @@ final class CapabilitySchemas
                 ['required' => ['page']],
                 ['required' => ['page_id']],
             ],
+            'required' => ['expected_revision'],
             'properties' => [
                 ...self::pageReferenceProperties(),
                 'page_id' => ['type' => 'integer'],
+                'expected_revision' => ['type' => 'integer', 'minimum' => 0],
                 'name' => ['type' => 'string', 'maxLength' => 255],
                 'meta' => ['type' => ['object', 'null']],
-                'visible_from' => ['type' => ['string', 'null'], 'format' => 'date-time'],
-                'visible_until' => ['type' => ['string', 'null'], 'format' => 'date-time'],
                 'language' => self::recordReference('Language code, name, locale, or ID.'),
                 'language_id' => ['type' => ['integer', 'null']],
                 'title' => ['type' => ['string', 'null'], 'maxLength' => 255],
                 'content' => ['type' => ['string', 'array', 'object', 'null']],
                 'slug' => ['type' => ['string', 'null'], 'maxLength' => 191],
                 'translation_meta' => ['type' => ['object', 'null']],
+            ],
+            'additionalProperties' => false,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public static function uploadMediaInput(): array
+    {
+        return [
+            'type' => 'object',
+            'required' => ['site_id', 'idempotency_key', 'file_name', 'content_base64'],
+            'properties' => [
+                'site_id' => ['type' => 'integer'],
+                'idempotency_key' => ['type' => 'string', 'format' => 'uuid', 'maxLength' => 36],
+                'file_name' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 191],
+                'content_base64' => ['type' => 'string', 'maxLength' => 2_796_204],
+                'alt' => ['type' => ['string', 'null'], 'maxLength' => 500],
             ],
             'additionalProperties' => false,
         ];
@@ -108,6 +125,7 @@ final class CapabilitySchemas
                 'site' => self::recordReference('Optional site name, domain, or ID.'),
                 'site_id' => ['type' => ['integer', 'null']],
                 'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50, 'default' => 10],
+                'cursor' => ['type' => 'integer', 'minimum' => 0, 'maximum' => 10000, 'default' => 0],
             ],
             'additionalProperties' => false,
         ];
@@ -186,7 +204,8 @@ final class CapabilitySchemas
                 'query' => ['type' => ['string', 'null'], 'maxLength' => 255],
                 'status' => ['type' => 'string', 'enum' => ['all', 'installed', 'available'], 'default' => 'all'],
                 'include_core' => ['type' => 'boolean', 'default' => false],
-                'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'default' => 20],
+                'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50, 'default' => 20],
+                'cursor' => ['type' => 'integer', 'minimum' => 0, 'maximum' => 10000, 'default' => 0],
             ],
             'additionalProperties' => false,
         ];
