@@ -187,6 +187,15 @@ describe('agent-bridge capell.json manifest', function (): void {
                     'capell_agent_bridge_saved_prompts',
                     'capell_agent_bridge_media_uploads',
                 ],
+                'migrationFiles' => [
+                    '2026_05_10_190840_01_create_capell_agent-bridge_tokens_table',
+                    '2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table',
+                    '2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table',
+                    '2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table',
+                    '2026_07_09_000001_add_ip_address_hash_to_agent_bridge_audit_entries_table',
+                    '2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table',
+                    '2026_07_20_000001_create_capell_agent_bridge_media_uploads_table',
+                ],
             ])
             ->toContain([
                 'type' => 'console-command',

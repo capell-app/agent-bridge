@@ -74,7 +74,7 @@ final class UploadMediaCapabilityAction implements CapellAgentBridgeCapabilityAc
                 $existing = Media::query()->find($claim->media_id);
                 throw_unless($existing instanceof Media, AgentBridgeMcpV1ConflictException::class, 'Media idempotency record is incomplete.');
 
-                return $this->result($existing, $site, replayed: true);
+                return $this->result($existing, $site, $sha256, replayed: true);
             }
 
             $media = $site
@@ -82,7 +82,7 @@ final class UploadMediaCapabilityAction implements CapellAgentBridgeCapabilityAc
                 ->usingName(pathinfo($input->file_name, PATHINFO_FILENAME))
                 ->usingFileName($input->file_name)
                 ->withCustomProperties(['capell' => ['agent_bridge' => ['idempotency_key' => $input->idempotency_key, 'sha256' => $sha256]]])
-                ->toMediaCollection('uploads', (string) config('media-library.disk_name', 'public'));
+                ->toMediaCollection('uploads', AgentBridgeValue::string(config('media-library.disk_name', 'public'), 'Media library disk name'));
 
             throw_unless($media instanceof Media, ValidationException::class, 'Media backend returned an unsupported record.');
 
@@ -96,7 +96,7 @@ final class UploadMediaCapabilityAction implements CapellAgentBridgeCapabilityAc
 
             $claim->forceFill(['media_id' => $media->getKey()])->save();
 
-            return $this->result($media, $site, replayed: false);
+            return $this->result($media, $site, $sha256, replayed: false);
         }, 3);
     }
 
@@ -134,7 +134,7 @@ final class UploadMediaCapabilityAction implements CapellAgentBridgeCapabilityAc
         return [$input, $site, $bytes, $mime];
     }
 
-    private function result(Media $media, Site $site, bool $replayed): CapabilityResultData
+    private function result(Media $media, Site $site, string $sha256, bool $replayed): CapabilityResultData
     {
         return new CapabilityResultData(
             ok: true,
@@ -147,6 +147,7 @@ final class UploadMediaCapabilityAction implements CapellAgentBridgeCapabilityAc
                 'file_name' => $media->file_name,
                 'mime_type' => $media->mime_type,
                 'size' => $media->size,
+                'sha256' => $sha256,
                 'replayed' => $replayed,
             ],
         );

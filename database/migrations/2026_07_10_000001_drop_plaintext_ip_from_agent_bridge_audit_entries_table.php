@@ -13,6 +13,7 @@ return new class extends Migration
 {
     private const string TABLE = 'capell_agent_bridge_audit_entries';
 
+    /** @contract-migration-approved Removes plaintext IP data after the hash backfill. */
     public function up(): void
     {
         if (! Schema::hasTable(self::TABLE) || ! Schema::hasColumn(self::TABLE, 'ip_address')) {

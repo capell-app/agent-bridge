@@ -12,6 +12,7 @@ use Capell\AgentBridge\Actions\Pages\SearchPagesCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\UpdateDraftPageCapabilityAction;
 use Capell\AgentBridge\Actions\Sites\InspectSiteCapabilityAction;
 use Capell\AgentBridge\Actions\Sites\SearchSitesCapabilityAction;
+use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityAction;
 use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
 use Capell\AgentBridge\Data\Capabilities\CreateDraftPageCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\PageAuthoringOptionsCapabilityInputData;
@@ -32,7 +33,25 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use JsonException;
+use Spatie\LaravelData\Data;
 
+/**
+ * @phpstan-type McpV1CapabilityDefinition array{
+ *     scope: string,
+ *     action: class-string<CapellAgentBridgeCapabilityAction>,
+ *     required_package: string,
+ *     policy_ability: null,
+ *     input_data_class: class-string<Data>,
+ *     output_data_class: class-string<CapabilityResultData>,
+ *     risk: CapabilityRiskEnum,
+ *     supports_preview: bool,
+ *     requires_confirmation: bool,
+ *     input_schema: array<string, mixed>,
+ *     output_schema: array<string, mixed>,
+ *     audit_event: string,
+ *     public: bool
+ * }
+ */
 final class AgentBridgeMcpV1Policy
 {
     public const int MAX_PAYLOAD_BYTES = 2_900_000;
@@ -222,19 +241,53 @@ final class AgentBridgeMcpV1Policy
     }
 
     /**
-     * @return array<string, array{
-     *     scope: string,
-     *     action: class-string,
-     *     risk: CapabilityRiskEnum,
-     *     supports_preview: bool,
-     *     requires_confirmation: bool,
-     *     input_schema: array<string, mixed>,
-     *     output_schema: array<string, mixed>
-     * }>
+     * @return array<string, McpV1CapabilityDefinition>
      */
     private function definitions(): array
     {
-        $definition = static fn (string $scope, string $action, string $inputDataClass, array $inputSchema, string $auditEvent, CapabilityRiskEnum $risk, bool $requiresConfirmation): array => [
+        return [
+            'capell.sites.search' => $this->readDefinition('capell.sites.read', SearchSitesCapabilityAction::class, SearchSitesCapabilityInputData::class, CapabilitySchemas::searchSitesInput(), 'capell_agent-bridge.sites.search'),
+            'capell.sites.inspect' => $this->readDefinition('capell.sites.read', InspectSiteCapabilityAction::class, SiteReferenceCapabilityInputData::class, CapabilitySchemas::siteReferenceInput(), 'capell_agent-bridge.sites.inspect'),
+            'capell.pages.search' => $this->readDefinition('capell.pages.read', SearchPagesCapabilityAction::class, SearchPagesCapabilityInputData::class, CapabilitySchemas::searchPagesInput(), 'capell_agent-bridge.pages.search'),
+            'capell.pages.inspect' => $this->readDefinition('capell.pages.read', InspectPageCapabilityAction::class, PageReferenceCapabilityInputData::class, CapabilitySchemas::pageReferenceInput(includeContent: true), 'capell_agent-bridge.pages.inspect'),
+            'capell.pages.authoring_options' => $this->readDefinition('capell.pages.read', ListPageAuthoringOptionsCapabilityAction::class, PageAuthoringOptionsCapabilityInputData::class, CapabilitySchemas::pageAuthoringOptionsInput(), 'capell_agent-bridge.pages.authoring_options'),
+            'capell.pages.create_draft' => $this->writeDefinition('capell.pages.write', CreateDraftPageCapabilityAction::class, CreateDraftPageCapabilityInputData::class, CapabilitySchemas::createDraftPageInput(), 'capell_agent-bridge.pages.create_draft'),
+            'capell.pages.update_draft' => $this->writeDefinition('capell.pages.write', UpdateDraftPageCapabilityAction::class, UpdateDraftPageCapabilityInputData::class, CapabilitySchemas::updateDraftPageInput(), 'capell_agent-bridge.pages.update_draft'),
+            'capell.media.upload' => $this->writeDefinition('capell.media.write', UploadMediaCapabilityAction::class, UploadMediaCapabilityInputData::class, CapabilitySchemas::uploadMediaInput(), 'capell_agent-bridge.media.upload'),
+        ];
+    }
+
+    /**
+     * @param  class-string<CapellAgentBridgeCapabilityAction>  $action
+     * @param  class-string<Data>  $inputDataClass
+     * @param  array<string, mixed>  $inputSchema
+     * @return McpV1CapabilityDefinition
+     */
+    private function readDefinition(string $scope, string $action, string $inputDataClass, array $inputSchema, string $auditEvent): array
+    {
+        return $this->definition($scope, $action, $inputDataClass, $inputSchema, $auditEvent, CapabilityRiskEnum::Read, false);
+    }
+
+    /**
+     * @param  class-string<CapellAgentBridgeCapabilityAction>  $action
+     * @param  class-string<Data>  $inputDataClass
+     * @param  array<string, mixed>  $inputSchema
+     * @return McpV1CapabilityDefinition
+     */
+    private function writeDefinition(string $scope, string $action, string $inputDataClass, array $inputSchema, string $auditEvent): array
+    {
+        return $this->definition($scope, $action, $inputDataClass, $inputSchema, $auditEvent, CapabilityRiskEnum::High, true);
+    }
+
+    /**
+     * @param  class-string<CapellAgentBridgeCapabilityAction>  $action
+     * @param  class-string<Data>  $inputDataClass
+     * @param  array<string, mixed>  $inputSchema
+     * @return McpV1CapabilityDefinition
+     */
+    private function definition(string $scope, string $action, string $inputDataClass, array $inputSchema, string $auditEvent, CapabilityRiskEnum $risk, bool $requiresConfirmation): array
+    {
+        return [
             'scope' => $scope,
             'action' => $action,
             'required_package' => 'capell-app/core',
@@ -249,22 +302,9 @@ final class AgentBridgeMcpV1Policy
             'audit_event' => $auditEvent,
             'public' => false,
         ];
-        $read = static fn (string $scope, string $action, string $inputDataClass, array $inputSchema, string $auditEvent): array => $definition($scope, $action, $inputDataClass, $inputSchema, $auditEvent, CapabilityRiskEnum::Read, false);
-        $write = static fn (string $scope, string $action, string $inputDataClass, array $inputSchema, string $auditEvent): array => $definition($scope, $action, $inputDataClass, $inputSchema, $auditEvent, CapabilityRiskEnum::High, true);
-
-        return [
-            'capell.sites.search' => $read('capell.sites.read', SearchSitesCapabilityAction::class, SearchSitesCapabilityInputData::class, CapabilitySchemas::searchSitesInput(), 'capell_agent-bridge.sites.search'),
-            'capell.sites.inspect' => $read('capell.sites.read', InspectSiteCapabilityAction::class, SiteReferenceCapabilityInputData::class, CapabilitySchemas::siteReferenceInput(), 'capell_agent-bridge.sites.inspect'),
-            'capell.pages.search' => $read('capell.pages.read', SearchPagesCapabilityAction::class, SearchPagesCapabilityInputData::class, CapabilitySchemas::searchPagesInput(), 'capell_agent-bridge.pages.search'),
-            'capell.pages.inspect' => $read('capell.pages.read', InspectPageCapabilityAction::class, PageReferenceCapabilityInputData::class, CapabilitySchemas::pageReferenceInput(includeContent: true), 'capell_agent-bridge.pages.inspect'),
-            'capell.pages.authoring_options' => $read('capell.pages.read', ListPageAuthoringOptionsCapabilityAction::class, PageAuthoringOptionsCapabilityInputData::class, CapabilitySchemas::pageAuthoringOptionsInput(), 'capell_agent-bridge.pages.authoring_options'),
-            'capell.pages.create_draft' => $write('capell.pages.write', CreateDraftPageCapabilityAction::class, CreateDraftPageCapabilityInputData::class, CapabilitySchemas::createDraftPageInput(), 'capell_agent-bridge.pages.create_draft'),
-            'capell.pages.update_draft' => $write('capell.pages.write', UpdateDraftPageCapabilityAction::class, UpdateDraftPageCapabilityInputData::class, CapabilitySchemas::updateDraftPageInput(), 'capell_agent-bridge.pages.update_draft'),
-            'capell.media.upload' => $write('capell.media.write', UploadMediaCapabilityAction::class, UploadMediaCapabilityInputData::class, CapabilitySchemas::uploadMediaInput(), 'capell_agent-bridge.media.upload'),
-        ];
     }
 
-    private function tokenBelongsToActor(CapellAgentBridgeToken $token, Model $actor): bool
+    private function tokenBelongsToActor(CapellAgentBridgeToken $token, Model&Authenticatable $actor): bool
     {
         $actorIdentifier = $actor->getAuthIdentifier();
 
@@ -332,18 +372,18 @@ final class AgentBridgeMcpV1Policy
             'message' => $this->string($result['message'] ?? null),
             'data' => match ($capabilityKey) {
                 'capell.sites.search' => [
-                    'count' => (int) ($data['count'] ?? 0),
+                    'count' => $this->integerValue($data['count'] ?? null),
                     'sites' => $this->arrayItems($data['sites'] ?? null, fn (array $site): array => $this->site($site)),
                     'has_more' => (bool) ($data['has_more'] ?? false),
-                    'next_cursor' => is_numeric($data['next_cursor'] ?? null) ? (int) $data['next_cursor'] : null,
+                    'next_cursor' => $this->nullableIntegerValue($data['next_cursor'] ?? null),
                 ],
                 'capell.sites.inspect' => ['site' => $this->site($this->array($data['site'] ?? null))],
                 'capell.pages.search' => [
                     'query' => $this->string($data['query'] ?? null),
-                    'count' => (int) ($data['count'] ?? 0),
+                    'count' => $this->integerValue($data['count'] ?? null),
                     'matches' => $this->arrayItems($data['matches'] ?? null, fn (array $page): array => $this->page($page)),
                     'has_more' => (bool) ($data['has_more'] ?? false),
-                    'next_cursor' => is_numeric($data['next_cursor'] ?? null) ? (int) $data['next_cursor'] : null,
+                    'next_cursor' => $this->nullableIntegerValue($data['next_cursor'] ?? null),
                 ],
                 'capell.pages.inspect' => ['page' => $this->page($this->array($data['page'] ?? null))],
                 'capell.pages.authoring_options' => $this->authoringOptions($data),
@@ -356,11 +396,14 @@ final class AgentBridgeMcpV1Policy
         ];
     }
 
-    /** @param array<string, mixed> $site @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $site
+     * @return array<string, mixed>
+     */
     private function site(array $site): array
     {
         return [
-            'id' => (int) ($site['id'] ?? 0),
+            'id' => $this->integerValue($site['id'] ?? null),
             'name' => $this->string($site['name'] ?? null),
             'default' => (bool) ($site['default'] ?? false),
             'language' => $this->namedKey($site['language'] ?? null, includeCode: true),
@@ -374,16 +417,19 @@ final class AgentBridgeMcpV1Policy
         ];
     }
 
-    /** @param array<string, mixed> $page @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $page
+     * @return array<string, mixed>
+     */
     private function page(array $page): array
     {
         return [
-            'id' => (int) ($page['id'] ?? 0),
+            'id' => $this->integerValue($page['id'] ?? null),
             'name' => $this->string($page['name'] ?? null),
             'site' => $this->namedKey($page['site'] ?? null),
             'page_type' => $this->namedKey($page['page_type'] ?? null),
             'layout' => $this->namedKey($page['layout'] ?? null),
-            'parent_id' => is_numeric($page['parent_id'] ?? null) ? (int) $page['parent_id'] : null,
+            'parent_id' => $this->nullableIntegerValue($page['parent_id'] ?? null),
             'publishing_state' => $this->string($page['publishing_state'] ?? null),
             'urls' => array_values(array_filter(array_map(fn (mixed $url): ?string => $this->publicUrl($url), $this->list($page['urls'] ?? null)))),
             'translations' => $this->arrayItems($page['translations'] ?? null, fn (array $translation): array => [
@@ -396,11 +442,14 @@ final class AgentBridgeMcpV1Policy
         ];
     }
 
-    /** @param array<string, mixed> $data @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
     private function authoringOptions(array $data): array
     {
         $option = fn (array $item): array => [
-            'id' => (int) ($item['id'] ?? 0),
+            'id' => $this->integerValue($item['id'] ?? null),
             'name' => $this->string($item['name'] ?? null),
             'key' => $this->string($item['key'] ?? null),
             'code' => $this->string($item['code'] ?? null),
@@ -415,11 +464,14 @@ final class AgentBridgeMcpV1Policy
         ];
     }
 
-    /** @param array<string, mixed> $data @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
     private function createDraftResult(array $data): array
     {
         return [
-            'page_id' => is_numeric($data['page_id'] ?? null) ? (int) $data['page_id'] : null,
+            'page_id' => $this->nullableIntegerValue($data['page_id'] ?? null),
             'name' => $this->string($data['name'] ?? null),
             'title' => $this->string($data['title'] ?? null),
             'slug' => $this->string($data['slug'] ?? null),
@@ -435,26 +487,32 @@ final class AgentBridgeMcpV1Policy
         ];
     }
 
-    /** @param array<string, mixed> $data @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
     private function updateDraftResult(array $data): array
     {
         return [
-            'page_id' => is_numeric($data['page_id'] ?? null) ? (int) $data['page_id'] : null,
+            'page_id' => $this->nullableIntegerValue($data['page_id'] ?? null),
             'name' => $this->string($data['name'] ?? null),
-            'revision' => is_numeric($data['revision'] ?? null) ? (int) $data['revision'] : null,
+            'revision' => $this->nullableIntegerValue($data['revision'] ?? null),
             'changed_fields' => $this->stringItems($data['changed_fields'] ?? $data['updated'] ?? null),
         ];
     }
 
-    /** @param array<string, mixed> $data @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
     private function mediaUploadResult(array $data): array
     {
         return [
-            'media_id' => is_numeric($data['media_id'] ?? null) ? (int) $data['media_id'] : null,
-            'site_id' => is_numeric($data['site_id'] ?? null) ? (int) $data['site_id'] : null,
+            'media_id' => $this->nullableIntegerValue($data['media_id'] ?? null),
+            'site_id' => $this->nullableIntegerValue($data['site_id'] ?? null),
             'file_name' => $this->string($data['file_name'] ?? null),
             'mime_type' => $this->string($data['mime_type'] ?? null),
-            'size' => (int) ($data['size'] ?? 0),
+            'size' => $this->integerValue($data['size'] ?? null),
             'sha256' => $this->string($data['sha256'] ?? null),
             'replayed' => (bool) ($data['replayed'] ?? false),
         ];
@@ -468,7 +526,7 @@ final class AgentBridgeMcpV1Policy
         }
 
         $projected = [
-            'id' => is_numeric($value['id'] ?? null) ? (int) $value['id'] : null,
+            'id' => $this->nullableIntegerValue($value['id'] ?? null),
             'name' => $this->string($value['name'] ?? null),
             'key' => $this->string($value['key'] ?? null),
         ];
@@ -480,10 +538,27 @@ final class AgentBridgeMcpV1Policy
         return $projected;
     }
 
-    /** @param callable(array<string, mixed>): array<string, mixed> $projector @return list<array<string, mixed>> */
+    /**
+     * @param  callable(array<string, mixed>): array<string, mixed>  $projector
+     * @return list<array<string, mixed>>
+     */
     private function arrayItems(mixed $value, callable $projector): array
     {
-        return array_values(array_map($projector, array_slice(array_filter($this->list($value), 'is_array'), 0, 50)));
+        $items = [];
+
+        foreach ($this->list($value) as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $items[] = $projector($this->array($item));
+
+            if (count($items) === 50) {
+                break;
+            }
+        }
+
+        return $items;
     }
 
     /** @return list<mixed> */
@@ -507,6 +582,20 @@ final class AgentBridgeMcpV1Policy
     private function string(mixed $value): string
     {
         return is_string($value) ? mb_strcut($value, 0, self::MAX_OUTPUT_STRING_BYTES) : '';
+    }
+
+    private function integerValue(mixed $value): int
+    {
+        return AgentBridgeValue::integer($value, 'MCP v1 integer output value');
+    }
+
+    private function nullableIntegerValue(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return $this->integerValue($value);
     }
 
     private function publicUrl(mixed $value): ?string

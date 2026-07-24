@@ -9,19 +9,19 @@ use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
 use Capell\AgentBridge\Data\CapabilityData;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\AgentBridge\Support\AgentBridgeMcpV1ErrorMapper;
 use Capell\AgentBridge\Support\AgentBridgeMcpV1Policy;
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\AgentBridge\Tests\Fixtures\User;
 use Illuminate\Auth\Access\AuthorizationException;
 
+/** @param list<string> $scopes */
 function mcpV1Token(User $user, array $scopes = ['capell.sites.read']): CapellAgentBridgeToken
 {
     $created = CreateAgentBridgeTokenAction::run($user, 'MCP v1 client', $scopes);
-    $token = $created['token'] ?? null;
 
-    throw_unless($token instanceof CapellAgentBridgeToken, RuntimeException::class, 'Expected Agent Bridge token.');
-
-    return $token;
+    return $created['token'];
 }
 
 function mcpV1Capability(string $key): CapabilityData
@@ -70,7 +70,7 @@ it('rechecks the current token owner and lifecycle at execution', function (): v
         'password' => 'secret',
     ]);
     $token = mcpV1Token($owner);
-    $client = new AuthenticatedAgentBridgeClientData((int) $token->getKey(), 'MCP v1 client', ['capell.sites.read']);
+    $client = new AuthenticatedAgentBridgeClientData(AgentBridgeValue::integer($token->getKey(), 'MCP token key'), 'MCP v1 client', ['capell.sites.read']);
     $policy = new AgentBridgeMcpV1Policy;
     $capability = mcpV1Capability('capell.sites.search');
 
@@ -90,7 +90,7 @@ it('denies unknown capabilities before registry resolution', function (): void {
         'password' => 'secret',
     ]);
     $token = mcpV1Token($user, ['*']);
-    $client = new AuthenticatedAgentBridgeClientData((int) $token->getKey(), 'MCP v1 client', ['*']);
+    $client = new AuthenticatedAgentBridgeClientData(AgentBridgeValue::integer($token->getKey(), 'MCP token key'), 'MCP v1 client', ['*']);
 
     expect(fn (): array => InvokeAgentBridgeMcpV1CapabilityAction::run(
         capabilityKey: 'capell.internal.reflective_action',
@@ -131,9 +131,40 @@ it('projects site tool output without exposing adversarial admin or implementati
 
     $encoded = json_encode($projected, JSON_THROW_ON_ERROR);
 
-    expect($projected['result']['data']['sites'][0]['domains'][0]['url'])->toBe('https://example.test/')
+    expect(mcpV1NestedValue($projected, ['result', 'data', 'sites', 0, 'domains', 0, 'url']))->toBe('https://example.test/')
         ->and($encoded)->not->toContain('edit_url', 'permissions', 'signed_url', 'signature=secret', '/admin/');
 });
+
+it('rejects malformed and out-of-range capability integer output with one stable error', function (array $data): void {
+    $policy = new AgentBridgeMcpV1Policy;
+    $capability = mcpV1Capability('capell.sites.search');
+
+    $mapped = mcpV1MapProjectionFailure(
+        fn (): array => $policy->projectOutput($capability, [
+            'mode' => 'executed',
+            'capability' => 'capell.sites.search',
+            'result' => [
+                'ok' => true,
+                'message' => 'Sites found.',
+                'data' => $data,
+                'warnings' => [],
+            ],
+        ]),
+    );
+
+    expect($mapped)->toBe([
+        'ok' => false,
+        'error' => [
+            'code' => 'internal_error',
+            'message' => __('capell-agent-bridge::messages.mcp_v1.errors.internal_error'),
+        ],
+    ])->and(json_encode($mapped, JSON_THROW_ON_ERROR))->not->toContain('integer output value');
+})->with([
+    'malformed required integer' => [['count' => 'one', 'sites' => []]],
+    'malformed nullable integer' => [['count' => 1, 'sites' => [], 'next_cursor' => 1.5]],
+    'out-of-range required integer' => [['count' => '999999999999999999999999999999', 'sites' => []]],
+    'out-of-range nullable integer' => [['count' => 1, 'sites' => [], 'next_cursor' => '999999999999999999999999999999']],
+]);
 
 it('publishes only safe schema metadata for allowlisted capabilities', function (): void {
     $capability = mcpV1Capability('capell.sites.search');
@@ -163,7 +194,7 @@ it('projects page content as portable text without authoring or implementation m
         ]]],
     ]);
 
-    $content = $projected['result']['data']['page']['translations'][0]['content'];
+    $content = mcpV1ArrayValue(mcpV1NestedValue($projected, ['result', 'data', 'page', 'translations', 0, 'content']), 'Projected page content');
     $encoded = json_encode($content, JSON_THROW_ON_ERROR);
 
     expect($content)->toBe(['format' => 'plain_text', 'text' => 'Safe public copy'])
@@ -182,8 +213,8 @@ it('rejects counterfeit risk confirmation preview and schema metadata', function
         ['outputSchema' => ['type' => 'string']],
         ['requiredPackage' => 'counterfeit/package'],
         ['policyAbility' => 'counterfeit.manage'],
-        ['inputDataClass' => stdClass::class],
-        ['outputDataClass' => stdClass::class],
+        ['inputDataClass' => AuthenticatedAgentBridgeClientData::class],
+        ['outputDataClass' => AuthenticatedAgentBridgeClientData::class],
         ['auditEvent' => 'counterfeit.audit'],
         ['public' => true],
     ] as $changes) {
@@ -217,3 +248,57 @@ it('rejects counterfeit risk confirmation preview and schema metadata', function
             ->toThrow(AuthorizationException::class, __('capell-agent-bridge::messages.mcp_v1.denied'));
     }
 });
+
+/**
+ * @param  array<string, mixed>  $payload
+ * @param  list<int|string>  $keys
+ */
+function mcpV1NestedValue(array $payload, array $keys): mixed
+{
+    $value = $payload;
+
+    foreach ($keys as $key) {
+        if (! is_array($value) || ! array_key_exists($key, $value)) {
+            return null;
+        }
+
+        $value = $value[$key];
+    }
+
+    return $value;
+}
+
+/** @return array<string, mixed> */
+function mcpV1ArrayValue(mixed $value, string $context): array
+{
+    if (! is_array($value)) {
+        throw new RuntimeException("{$context} must be an array.");
+    }
+
+    $array = [];
+
+    foreach ($value as $key => $item) {
+        if (! is_string($key)) {
+            throw new RuntimeException("{$context} must use string keys.");
+        }
+
+        $array[$key] = $item;
+    }
+
+    return $array;
+}
+
+/**
+ * @param  callable(): array<string, mixed>  $project
+ * @return array{ok: false, error: array{code: string, message: string}}
+ */
+function mcpV1MapProjectionFailure(callable $project): array
+{
+    try {
+        $project();
+    } catch (UnexpectedValueException $exception) {
+        return (new AgentBridgeMcpV1ErrorMapper)->map($exception);
+    }
+
+    throw new RuntimeException('Expected malformed capability output to fail closed.');
+}

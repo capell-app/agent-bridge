@@ -38,13 +38,13 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
                 'page_id' => AgentBridgeValue::integer($page->getKey(), 'Page key'),
                 'name' => AgentBridgeValue::string($page->name, 'Page name'),
                 'revision' => $this->assertDraftRevision($page, $input->expected_revision),
-                'changed_fields' => array_values(array_keys(array_diff_key($payload, [
+                'changed_fields' => array_keys(array_diff_key($payload, [
                     'page_id' => true,
                     'page' => true,
                     'site' => true,
                     'site_id' => true,
                     'expected_revision' => true,
-                ]))),
+                ])),
             ],
         );
     }

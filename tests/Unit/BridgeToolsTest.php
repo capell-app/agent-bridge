@@ -299,7 +299,7 @@ it('denies non-v1 capabilities before previewing them for authenticated clients'
     ));
 
     expect($response['ok'])->toBeFalse()
-        ->and($response['error']['code'])->toBe('forbidden');
+        ->and(agentBridgeErrorCode($response))->toBe('forbidden');
 });
 
 it('rejects a counterfeit action registered under an allowlisted capability key', function (): void {
@@ -346,7 +346,7 @@ it('rejects a counterfeit action registered under an allowlisted capability key'
     ));
 
     expect($response['ok'])->toBeFalse()
-        ->and($response['error']['code'])->toBe('forbidden');
+        ->and(agentBridgeErrorCode($response))->toBe('forbidden');
 });
 
 it('hashes capability payloads deterministically regardless of key order', function (): void {
@@ -369,6 +369,18 @@ function agentBridgeStructuredContent(ResponseFactory $response): array
     throw_unless(is_array($structuredContent), RuntimeException::class, 'Expected MCP response structured content.');
 
     return $structuredContent;
+}
+
+/** @param array<string, mixed> $response */
+function agentBridgeErrorCode(array $response): string
+{
+    $error = $response['error'] ?? null;
+
+    if (! is_array($error) || ! is_string($error['code'] ?? null)) {
+        throw new RuntimeException('Expected MCP response error code.');
+    }
+
+    return $error['code'];
 }
 
 /**

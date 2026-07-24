@@ -20,6 +20,8 @@ use Override;
  * @property int $id
  * @property string $name
  * @property string $token_hash
+ * @property string $user_type
+ * @property int $user_id
  * @property array<int, string> $scopes
  * @property bool $is_enabled
  * @property CarbonImmutable|null $revoked_at

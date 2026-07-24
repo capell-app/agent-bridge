@@ -27,8 +27,8 @@
         "php": "^8.4",
         "capell-app/admin": "^1.0",
         "capell-app/core": "^1.0",
-        "laravel/framework": "^11.45.3|^12.41.1|^13.0",
-        "laravel/mcp": "^0.6|^0.7",
+        "laravel/framework": "^12.61.1|^13.12.0",
+        "laravel/mcp": "^0.6|^0.7|^0.9",
         "lorisleiva/laravel-actions": "^2.8",
         "spatie/laravel-data": "^4.5",
         "spatie/laravel-package-tools": "^1.14.1"

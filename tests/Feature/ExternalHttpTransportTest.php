@@ -6,6 +6,10 @@ use Capell\AgentBridge\Actions\CreateAgentBridgeTokenAction;
 use Capell\AgentBridge\Tests\Fixtures\User;
 use Laravel\Mcp\Enums\ProtocolVersion;
 
+/**
+ * @param  array<string, mixed>  $params
+ * @return array<string, mixed>
+ */
 function externalHttpMcpRequest(int $id, string $method, array $params = []): array
 {
     return [
@@ -60,7 +64,13 @@ it('serves the frozen site tool catalogue through authenticated HTTP JSON-RPC', 
         ->assertJsonPath('jsonrpc', '2.0')
         ->assertJsonPath('id', 2);
 
-    $toolNames = collect($toolsResponse->json('result.tools'))
+    $tools = $toolsResponse->json('result.tools');
+
+    if (! is_array($tools)) {
+        throw new RuntimeException('Expected the MCP tool catalogue to be an array.');
+    }
+
+    $toolNames = collect($tools)
         ->pluck('name')
         ->sort()
         ->values()

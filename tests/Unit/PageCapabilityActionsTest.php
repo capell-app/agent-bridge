@@ -16,12 +16,15 @@ use Capell\AgentBridge\Actions\Pages\UpdateDraftPageCapabilityAction;
 use Capell\AgentBridge\Actions\Sites\InspectSiteCapabilityAction;
 use Capell\AgentBridge\Actions\Sites\OpenSiteEditorCapabilityAction;
 use Capell\AgentBridge\Actions\Sites\SearchSitesCapabilityAction;
+use Capell\AgentBridge\Capabilities\BuiltInAgentBridgeCapabilityProvider;
 use Capell\AgentBridge\Data\CapabilityData;
 use Capell\AgentBridge\Data\CapabilityInvocationData;
 use Capell\AgentBridge\Data\CapabilityResultData;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
 use Capell\AgentBridge\Exceptions\AgentBridgeMcpV1ConflictException;
+use Capell\AgentBridge\Support\AgentBridgeMcpV1Policy;
+use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
 use Capell\Core\EventSourcing\Aggregates\PageAggregate;
 use Capell\Core\EventSourcing\Enums\PageWorkflowStatus;
@@ -84,10 +87,31 @@ it('claims media upload idempotency atomically and rejects key reuse with differ
 
     $first = $action->execute(pageInvocation($payload, pageCapabilityUser(collect([1]))));
     $retry = $action->execute(pageInvocation($payload, pageCapabilityUser(collect([1]))));
+    $sha256 = hash('sha256', (string) base64_decode($payload['content_base64'], true));
+    $registry = new CapellAgentBridgeCapabilityRegistry;
+    (new BuiltInAgentBridgeCapabilityProvider)->registerCapabilities($registry);
+    $capability = $registry->get('capell.media.upload');
+    $policy = new AgentBridgeMcpV1Policy;
+    $freshProjection = agentBridgeCapabilityArray($policy->projectOutput($capability, [
+        'mode' => 'executed',
+        'result' => $first->toPayload(),
+    ])['result'] ?? null);
+    $replayProjection = agentBridgeCapabilityArray($policy->projectOutput($capability, [
+        'mode' => 'executed',
+        'result' => $retry->toPayload(),
+    ])['result'] ?? null);
+    $freshData = agentBridgeCapabilityArray($freshProjection['data'] ?? null);
+    $replayData = agentBridgeCapabilityArray($replayProjection['data'] ?? null);
 
     expect($first->data['replayed'])->toBeFalse()
         ->and($retry->data['replayed'])->toBeTrue()
         ->and($retry->data['media_id'])->toBe($first->data['media_id'])
+        ->and($first->data['sha256'])->toBe($sha256)
+        ->and($retry->data['sha256'])->toBe($sha256)
+        ->and($freshData['sha256'])->toBe($sha256)
+        ->and($freshData['replayed'])->toBeFalse()
+        ->and($replayData['sha256'])->toBe($sha256)
+        ->and($replayData['replayed'])->toBeTrue()
         ->and(DB::table('capell_agent_bridge_media_uploads')->count())->toBe(1);
 
     expect(fn (): CapabilityResultData => $action->execute(pageInvocation([
