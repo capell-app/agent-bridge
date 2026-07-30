@@ -66,12 +66,12 @@
                 <div class="space-y-5">
                     <div class="flex flex-wrap gap-2">
                         @foreach ([
-                                      'inspect_page_readiness' => __('capell-agent-bridge::admin.starter_inspect_readiness'),
-                                      'create_disabled_draft_page' => __('capell-agent-bridge::admin.starter_create_disabled_draft'),
-                                      'update_draft_content' => __('capell-agent-bridge::admin.starter_update_draft'),
-                                      'clear_cache' => __('capell-agent-bridge::admin.starter_clear_cache'),
-                                      'recommend_packages' => __('capell-agent-bridge::admin.starter_recommend_packages'),
-                                  ] as $starter => $label)
+                            'inspect_page_readiness' => __('capell-agent-bridge::admin.starter_inspect_readiness'),
+                            'create_disabled_draft_page' => __('capell-agent-bridge::admin.starter_create_disabled_draft'),
+                            'update_draft_content' => __('capell-agent-bridge::admin.starter_update_draft'),
+                            'clear_cache' => __('capell-agent-bridge::admin.starter_clear_cache'),
+                            'recommend_packages' => __('capell-agent-bridge::admin.starter_recommend_packages'),
+                        ] as $starter => $label)
                             <button
                                 type="button"
                                 wire:click="applyStarter('{{ $starter }}')"
@@ -157,10 +157,10 @@
                         </label>
 
                         @foreach ([
-                                      'target' => ['label' => __('capell-agent-bridge::admin.target'), 'help' => __('capell-agent-bridge::admin.target_help'), 'placeholder' => __('capell-agent-bridge::admin.target_placeholder')],
-                                      'constraints' => ['label' => __('capell-agent-bridge::admin.constraints'), 'help' => __('capell-agent-bridge::admin.constraints_help'), 'placeholder' => __('capell-agent-bridge::admin.constraints_placeholder')],
-                                      'success_criteria' => ['label' => __('capell-agent-bridge::admin.success_criteria'), 'help' => __('capell-agent-bridge::admin.success_criteria_help'), 'placeholder' => __('capell-agent-bridge::admin.success_criteria_placeholder')],
-                                  ] as $field => $copy)
+                            'target' => ['label' => __('capell-agent-bridge::admin.target'), 'help' => __('capell-agent-bridge::admin.target_help'), 'placeholder' => __('capell-agent-bridge::admin.target_placeholder')],
+                            'constraints' => ['label' => __('capell-agent-bridge::admin.constraints'), 'help' => __('capell-agent-bridge::admin.constraints_help'), 'placeholder' => __('capell-agent-bridge::admin.constraints_placeholder')],
+                            'success_criteria' => ['label' => __('capell-agent-bridge::admin.success_criteria'), 'help' => __('capell-agent-bridge::admin.success_criteria_help'), 'placeholder' => __('capell-agent-bridge::admin.success_criteria_placeholder')],
+                        ] as $field => $copy)
                             <label class="space-y-1 md:col-span-3">
                                 <span
                                     class="text-sm font-medium text-gray-700 dark:text-gray-200"
@@ -244,11 +244,7 @@
                             x-on:click="
                                 $wire
                                     .refreshPromptForCopy()
-                                    .then(() =>
-                                        navigator.clipboard.writeText(
-                                            $wire.preparedPrompt,
-                                        ),
-                                    )
+                                    .then(() => navigator.clipboard.writeText($wire.preparedPrompt))
                             "
                             class="rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                         >

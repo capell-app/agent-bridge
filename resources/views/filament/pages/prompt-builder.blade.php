@@ -43,9 +43,7 @@
             },
         }"
         x-on:capell-agent-bridge-focus-command.window="
-            $nextTick(() =>
-                document.getElementById('capell-ai-command')?.focus(),
-            )
+            $nextTick(() => document.getElementById('capell-ai-command')?.focus())
         "
     >
         <section
@@ -156,7 +154,7 @@
                         <button
                             type="button"
                             class="hover:bg-primary-50 hover:text-primary-600 focus:ring-primary-500 dark:hover:bg-primary-500/20 dark:hover:text-primary-300 absolute top-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition focus:ring-2 focus:outline-none dark:bg-white/10 dark:text-gray-300"
-                            x-show="voiceAvailable && !listening"
+                            x-show="voiceAvailable && ! listening"
                             x-on:click="startVoice"
                             title="{{ __('capell-agent-bridge::admin.command_start_voice') }}"
                             aria-label="{{ __('capell-agent-bridge::admin.command_start_voice') }}"
@@ -194,7 +192,7 @@
                         >
                             {{ __('capell-agent-bridge::admin.command_listening') }}
                         </span>
-                        <span x-show="!voiceAvailable">
+                        <span x-show="! voiceAvailable">
                             {{ __('capell-agent-bridge::admin.command_voice_optional') }}
                         </span>
                         <span
@@ -272,7 +270,7 @@
                                     </span>
                                 </span>
                                 <span
-                                    @class ([
+                                    @class([
                                     'shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide',
                                     'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' => ($suggestion['risk'] ?? '') === 'read',
                                     'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300' => ($suggestion['risk'] ?? '') !== 'read',
@@ -304,7 +302,7 @@
             </div>
         @endif
 
-        @php ($selectedCapability = $this->selectedCapability())
+        @php($selectedCapability = $this->selectedCapability())
 
         @if ($selectedCapability !== null || $commandResponse !== [])
             <div class="grid gap-6 xl:grid-cols-2">
@@ -393,9 +391,11 @@
                 @if ($commandResponse !== [])
                     <x-filament::section>
                         <x-slot name="heading">
-                            {{ $pendingConfirmationToken !== null
+                            {{
+                                $pendingConfirmationToken !== null
                                 ? __('capell-agent-bridge::admin.command_confirmation_heading')
-                                : __('capell-agent-bridge::admin.command_result_heading') }}
+                                : __('capell-agent-bridge::admin.command_result_heading')
+                            }}
                         </x-slot>
 
                         <x-slot name="description">
@@ -408,7 +408,7 @@
                         >
                             <div class="flex items-center gap-2">
                                 <span
-                                    @class ([
+                                    @class([
                                     'rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide',
                                     'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300' => ($commandResponse['mode'] ?? '') === 'preview',
                                     'bg-danger-50 text-danger-700 dark:bg-danger-500/10 dark:text-danger-300' => ($commandResponse['mode'] ?? '') === 'rejected',
