@@ -108,6 +108,48 @@ Keep side effects in `execute()`. `preview()` should not write.
 | `requiredPackage` | Optional package name checked through Capell Core before the capability is visible. |
 | `policyAbility`   | Optional authorization ability.                                                     |
 | `auditEvent`      | Event name stored by the audit action.                                              |
+| `commandPatterns` | Optional direct-command grammar owned by this capability. See below.                |
+
+## Direct Command Patterns
+
+Agent Bridge is a deterministic control plane, not an inference provider. It never calls a model: the connected AI client supplies the reasoning, and Agent Bridge constrains, validates, previews, confirms, and audits what that client proposes.
+
+The in-product command surface interprets a bounded set of direct commands. Each capability owns its own grammar through `commandPatterns`, so an extension package contributes command shapes alongside its capability instead of editing Agent Bridge.
+
+```php
+use Capell\AgentBridge\Data\CapabilityCommandPatternData;
+
+commandPatterns: [
+    new CapabilityCommandPatternData(
+        expression: '/^send\s+(?:the\s+)?(?<newsletter>.+?)\s+newsletter\s+(?:at|on)\s+(?<send_at>.+)$/i',
+        phrase: (string) __('demo-kit::admin.command_pattern_send_newsletter'),
+        fields: ['newsletter' => ['newsletter'], 'send_at' => ['send_at']],
+        required: ['newsletter', 'send_at'],
+    ),
+],
+```
+
+| Field        | Meaning                                                                                    |
+| ------------ | ------------------------------------------------------------------------------------------ |
+| `expression` | Anchored PCRE pattern matched against the squished command. Never exposed to clients.      |
+| `phrase`     | Translated, human-readable shape shown to administrators and trusted clients.              |
+| `fields`     | Named capture => the payload fields it populates. One capture may populate several fields. |
+| `required`   | Payload fields this pattern guarantees to supply.                                          |
+
+Registration fails with the capability key and offending field when a pattern emits a field the capability's input schema (or input Data boundary) does not declare, claims a `required` field no capture supplies, or uses an unanchored or invalid expression.
+
+### Outcomes
+
+Interpretation returns one of four explicit outcomes, and never manufactures a capability key or payload:
+
+| Outcome     | Meaning                                                                                            |
+| ----------- | -------------------------------------------------------------------------------------------------- |
+| `exact`     | One pattern produced a complete, schema-compatible payload. Confidence is 1.0.                     |
+| `suggested` | No pattern matched, but one visible capability ranked clearly above the rest. Nothing is selected. |
+| `ambiguous` | Several capabilities are plausible, or a pattern could not extract a value it guarantees.          |
+| `unmatched` | No visible capability has meaningful evidence of a match.                                          |
+
+Only capabilities visible to the current server and token scopes take part in interpretation or ranking. Interpretation does not run anything: preview, policy recheck, and one-use confirmation remain the only invocation path, and an exact match is still only a proposed capability input.
 
 ## Config Keys
 
@@ -121,6 +163,16 @@ Keep side effects in `execute()`. `preview()` should not write.
 | `capell-agent-bridge.routes.home`                 | Optional discovery document route. Disabled by default.                    |
 | `capell-agent-bridge.routes.knowledge`            | Optional knowledge server route. Disabled by default.                      |
 | `capell-agent-bridge.routes.site`                 | Authenticated site MCP server route. Enabled by default.                   |
+| `capell-agent-bridge.interpretation.*`            | Ranking thresholds for direct-command interpretation. See below.           |
+
+Interpretation thresholds are conservative by default. Changing them never changes scopes, policies, or execution authority.
+
+| Key                                                              | Use                                                                                                              |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `capell-agent-bridge.interpretation.minimum_evidence_score`      | Below this ranking score the outcome is `unmatched`. Defaults to `12`.                                           |
+| `capell-agent-bridge.interpretation.minimum_term_coverage`       | Fraction of the command's meaningful terms the leader must account for. Defaults to `0.5`.                       |
+| `capell-agent-bridge.interpretation.suggestion_separation_ratio` | How far ahead of the runner-up the leader must be to be `suggested` rather than `ambiguous`. Defaults to `1.35`. |
+| `capell-agent-bridge.interpretation.suggestion_limit`            | How many ranked capabilities accompany a suggested or ambiguous outcome. Defaults to `5`.                        |
 
 Token, confirmation, and audit table names are migration concerns. Keep them out of public setup docs unless a host app overrides storage.
 

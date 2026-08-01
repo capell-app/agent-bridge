@@ -53,6 +53,7 @@ it('serializes capability definitions into agent payloads', function (): void {
             'intents' => [],
             'examples' => [],
             'discoveryPriority' => 0,
+            'commandPatterns' => [],
         ]);
 });
 

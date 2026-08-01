@@ -13,12 +13,18 @@ use Lorisleiva\Actions\Concerns\AsFake;
 use Lorisleiva\Actions\Concerns\AsObject;
 
 /**
- * @method static array{query: string, suggestions: list<array<string, mixed>>} run(string $query, CapabilityServerEnum $server = CapabilityServerEnum::Site, ?array<int, string> $scopes = null, int $limit = 5)
+ * @method static array{query: string, queryTokens: list<string>, suggestions: list<array<string, mixed>>} run(string $query, CapabilityServerEnum $server = CapabilityServerEnum::Site, ?array<int, string> $scopes = null, int $limit = 5)
  */
 final class SuggestAgentBridgeCapabilitiesAction
 {
     use AsFake;
     use AsObject;
+
+    /** Awarded when the whole query is exactly a capability key or name. */
+    private const int IDENTIFIER_SCORE = 200;
+
+    /** Awarded when every token of a declared intent appears in the query. */
+    private const int COVERED_INTENT_SCORE = 50;
 
     /** @var list<string> */
     private const array STOP_WORDS = [
@@ -53,7 +59,7 @@ final class SuggestAgentBridgeCapabilitiesAction
 
     /**
      * @param  list<string>|null  $scopes
-     * @return array{query: string, suggestions: list<array<string, mixed>>}
+     * @return array{query: string, queryTokens: list<string>, suggestions: list<array<string, mixed>>}
      */
     public function handle(
         string $query,
@@ -83,6 +89,9 @@ final class SuggestAgentBridgeCapabilitiesAction
 
         return [
             'query' => $query,
+            // Returned so callers can judge evidence coverage without re-implementing
+            // this action's normalization and stop-word rules.
+            'queryTokens' => $queryTokens,
             'suggestions' => array_values(array_map(
                 static fn (CapabilitySuggestionData $suggestion): array => $suggestion->toPayload(),
                 array_slice($suggestions, 0, $limit),
@@ -99,58 +108,69 @@ final class SuggestAgentBridgeCapabilitiesAction
             return new CapabilitySuggestionData(
                 capability: $capability,
                 score: max(0, $capability->discoveryPriority),
+                scoreComponents: ['discovery_priority' => max(0, $capability->discoveryPriority)],
             );
         }
 
-        $score = 0;
         $matchedTerms = [];
+        $components = [];
         $normalizedKey = $this->normalize($capability->key);
         $normalizedName = $this->normalize($capability->name);
 
         if ($normalizedQuery === $normalizedKey || $normalizedQuery === $normalizedName) {
-            $score += 200;
+            $components['identifier'] = self::IDENTIFIER_SCORE;
         }
 
+        /** @var list<array{group: string, value: string, weight: int, isIntent: bool}> $fields */
         $fields = [
-            [$capability->key, 8, false],
-            [$capability->name, 10, false],
-            [$capability->description, 4, false],
-            [$capability->category, 5, false],
-            ...array_map(static fn (string $intent): array => [$intent, 14, true], $capability->intents),
-            ...array_map(static fn (string $example): array => [$example, 6, false], $capability->examples),
+            ['group' => 'key', 'value' => $capability->key, 'weight' => 8, 'isIntent' => false],
+            ['group' => 'name', 'value' => $capability->name, 'weight' => 10, 'isIntent' => false],
+            ['group' => 'description', 'value' => $capability->description, 'weight' => 4, 'isIntent' => false],
+            ['group' => 'category', 'value' => $capability->category, 'weight' => 5, 'isIntent' => false],
+            ...array_map(
+                static fn (string $intent): array => ['group' => 'intent', 'value' => $intent, 'weight' => 14, 'isIntent' => true],
+                $capability->intents,
+            ),
+            ...array_map(
+                static fn (string $example): array => ['group' => 'example', 'value' => $example, 'weight' => 6, 'isIntent' => false],
+                $capability->examples,
+            ),
         ];
 
-        foreach ($fields as [$value, $weight, $isIntent]) {
-            $normalizedValue = $this->normalize((string) $value);
+        foreach ($fields as $field) {
+            $normalizedValue = $this->normalize($field['value']);
 
             if ($normalizedValue === '') {
                 continue;
             }
 
+            $group = $field['group'];
             $fieldTokens = $this->tokens($normalizedValue);
             $matches = array_values(array_intersect($queryTokens, $fieldTokens));
 
             if ($matches !== []) {
-                $score += count($matches) * (int) $weight;
+                $components[$group] = ($components[$group] ?? 0) + count($matches) * $field['weight'];
                 $matchedTerms = [...$matchedTerms, ...$matches];
             }
 
             if (str_contains($normalizedQuery, $normalizedValue)) {
-                $score += (int) $weight * 4;
+                $components[$group] = ($components[$group] ?? 0) + $field['weight'] * 4;
             }
 
-            if ($isIntent === true && $fieldTokens !== [] && array_diff($fieldTokens, $queryTokens) === []) {
-                $score += 50;
+            if ($field['isIntent'] && $fieldTokens !== [] && array_diff($fieldTokens, $queryTokens) === []) {
+                $components['intent_covered'] = ($components['intent_covered'] ?? 0) + self::COVERED_INTENT_SCORE;
             }
         }
 
         $matchedTerms = array_values(array_unique($matchedTerms));
         sort($matchedTerms);
+        ksort($components);
 
         return new CapabilitySuggestionData(
             capability: $capability,
-            score: $score,
+            score: array_sum($components),
             matchedTerms: $matchedTerms,
+            scoreComponents: $components,
         );
     }
 

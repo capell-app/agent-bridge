@@ -11,8 +11,10 @@ use Capell\AgentBridge\Actions\InterpretAgentBridgeCommandAction;
 use Capell\AgentBridge\Actions\PreviewAgentBridgeAdminCapabilityAction;
 use Capell\AgentBridge\Actions\SuggestAgentBridgeCapabilitiesAction;
 use Capell\AgentBridge\Data\AgentBridgePromptData;
+use Capell\AgentBridge\Data\CapabilityCommandPatternData;
 use Capell\AgentBridge\Data\CapabilityData;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
+use Capell\AgentBridge\Enums\CommandInterpretationOutcomeEnum;
 use Capell\AgentBridge\Support\AgentBridgeAdminConfirmationStore;
 use Capell\AgentBridge\Support\AgentBridgePolicyAuthorizer;
 use Capell\AgentBridge\Support\AgentBridgeValue;
@@ -60,6 +62,8 @@ final class CapellAgentBridgePromptBuilderPage extends Page implements HasForms
 
     /** @var array<string, mixed> */
     public array $commandResponse = [];
+
+    public string $commandOutcome = '';
 
     public string $selectedCapabilityKey = '';
 
@@ -213,6 +217,7 @@ final class CapellAgentBridgePromptBuilderPage extends Page implements HasForms
     {
         $this->discardPendingConfirmation();
         $this->commandPlan = [];
+        $this->commandOutcome = '';
         $this->commandResponse = [];
         $this->commandError = '';
         $this->refreshSuggestions(mb_strlen(trim($command)) >= 2 ? $command : '');
@@ -231,17 +236,10 @@ final class CapellAgentBridgePromptBuilderPage extends Page implements HasForms
         $this->commandError = '';
 
         $plan = InterpretAgentBridgeCommandAction::run($this->command);
-        $this->commandPlan = [
-            'command' => $plan->command,
-            'matched' => $plan->matched,
-            'capabilityKey' => $plan->capabilityKey,
-            'payload' => $plan->payload,
-            'summary' => $plan->summary,
-            'confidence' => $plan->confidence,
-            'missingFields' => $plan->missingFields,
-        ];
+        $this->commandPlan = $plan->toPayload();
+        $this->commandOutcome = $plan->outcome->value;
 
-        if ($plan->matched && $plan->capabilityKey !== null) {
+        if ($plan->outcome->isExact() && $plan->capabilityKey !== null) {
             $this->selectedCapabilityKey = $plan->capabilityKey;
             $this->payloadJson = $this->encodePayload($plan->payload);
             $this->refreshSuggestions($this->command);
@@ -249,8 +247,16 @@ final class CapellAgentBridgePromptBuilderPage extends Page implements HasForms
             return;
         }
 
+        // Nothing is pre-selected outside an exact match: a ranked suggestion is
+        // evidence for the administrator, never a decision made on their behalf.
+        $this->selectedCapabilityKey = '';
         $this->commandSuggestions = $plan->suggestions;
-        $this->commandError = (string) __('capell-agent-bridge::admin.command_choose_suggestion');
+
+        if ($plan->outcome === CommandInterpretationOutcomeEnum::Unmatched) {
+            $this->refreshSuggestions('');
+        }
+
+        $this->commandError = $plan->summary;
     }
 
     public function executeCommand(): void
@@ -288,16 +294,20 @@ final class CapellAgentBridgePromptBuilderPage extends Page implements HasForms
 
         $this->selectedCapabilityKey = $capability->key;
         $this->payloadJson = $this->encodePayload($this->payloadTemplate($capability));
+        $this->commandOutcome = CommandInterpretationOutcomeEnum::Exact->value;
         $this->commandPlan = [
             'command' => $this->command,
+            'outcome' => CommandInterpretationOutcomeEnum::Exact->value,
             'matched' => true,
             'capabilityKey' => $capability->key,
             'payload' => $this->payloadTemplate($capability),
             'summary' => (string) __('capell-agent-bridge::admin.command_capability_selected', [
                 'capability' => $capability->name,
             ]),
-            'confidence' => null,
+            'confidence' => 1.0,
             'missingFields' => [],
+            'suggestions' => [],
+            'matchedTerms' => [],
         ];
     }
 
@@ -359,6 +369,27 @@ final class CapellAgentBridgePromptBuilderPage extends Page implements HasForms
             ->send();
     }
 
+    /**
+     * The heading above the ranked list, which must never imply that Capell has
+     * already decided: suggestions and ambiguity are presented as choices.
+     */
+    public function commandSuggestionsHeading(): string
+    {
+        return (string) match ($this->commandOutcome) {
+            CommandInterpretationOutcomeEnum::Suggested->value => __('capell-agent-bridge::admin.command_plan_suggested_heading'),
+            CommandInterpretationOutcomeEnum::Ambiguous->value => __('capell-agent-bridge::admin.command_plan_ambiguous_heading'),
+            default => __('capell-agent-bridge::admin.command_suggestions_heading'),
+        };
+    }
+
+    /** @return list<string> */
+    public function commandMatchedTerms(): array
+    {
+        $terms = $this->commandPlan['matchedTerms'] ?? [];
+
+        return is_array($terms) ? array_values(array_filter($terms, 'is_string')) : [];
+    }
+
     /** @return list<array{label:string, command:string}> */
     public function commandExamples(): array
     {
@@ -398,6 +429,10 @@ final class CapellAgentBridgePromptBuilderPage extends Page implements HasForms
             'requiresConfirmation' => $capability->needsConfirmation(),
             'inputSchema' => $capability->inputSchema,
             'examples' => $capability->examples,
+            'commandPatterns' => array_map(
+                static fn (CapabilityCommandPatternData $pattern): array => $pattern->toPayload(),
+                $capability->commandPatterns,
+            ),
         ], $capabilities);
     }
 

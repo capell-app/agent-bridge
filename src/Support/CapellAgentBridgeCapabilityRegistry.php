@@ -16,11 +16,17 @@ final class CapellAgentBridgeCapabilityRegistry
     /** @var array<string, CapabilityData> */
     private array $capabilities = [];
 
+    public function __construct(
+        private readonly AgentBridgeCommandPatternValidator $patternValidator = new AgentBridgeCommandPatternValidator,
+    ) {}
+
     public function register(CapabilityData $capability): void
     {
         if (isset($this->capabilities[$capability->key])) {
             throw new InvalidArgumentException(sprintf('Agent Bridge capability [%s] is already registered.', $capability->key));
         }
+
+        $this->patternValidator->validate($capability);
 
         $this->capabilities[$capability->key] = $capability;
     }

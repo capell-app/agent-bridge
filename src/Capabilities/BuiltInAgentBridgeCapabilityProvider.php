@@ -38,6 +38,7 @@ use Capell\AgentBridge\Data\Capabilities\SiteReferenceCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\TransitionPagePublicationCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\UpdateDraftPageCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\UploadMediaCapabilityInputData;
+use Capell\AgentBridge\Data\CapabilityCommandPatternData;
 use Capell\AgentBridge\Data\CapabilityData;
 use Capell\AgentBridge\Data\CapabilityResultData;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
@@ -80,6 +81,12 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.cache_clear'),
             examples: $this->translationList('capability_examples.cache_clear'),
             discoveryPriority: 20,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:clear|flush|refresh)\s+(?:the\s+)?(?:capell\s+)?caches?$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_cache_clear'),
+                ),
+            ],
         ));
     }
 
@@ -104,6 +111,14 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.pages_search'),
             examples: $this->translationList('capability_examples.pages_search'),
             discoveryPriority: 100,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:find|search|look\s+up)\s+(?:the\s+)?(?<query>.+?)\s+page$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_pages_search'),
+                    fields: ['query' => ['query']],
+                    required: ['query'],
+                ),
+            ],
         ));
 
         $registry->register(new CapabilityData(
@@ -125,6 +140,14 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.pages_inspect'),
             examples: $this->translationList('capability_examples.pages_inspect'),
             discoveryPriority: 90,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:inspect|show)\s+(?:the\s+)?(?<page>.+?)\s+page(?:\s+details)?$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_pages_inspect'),
+                    fields: ['page' => ['page']],
+                    required: ['page'],
+                ),
+            ],
         ));
 
         $registry->register(new CapabilityData(
@@ -146,6 +169,20 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.pages_open_editor'),
             examples: $this->translationList('capability_examples.pages_open_editor'),
             discoveryPriority: 95,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:open|edit)\s+(?:the\s+)?(?:page\s+)?(?<page>.+?)\s+page(?:\s+(?:record|editor))?$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_pages_open_editor'),
+                    fields: ['page' => ['page']],
+                    required: ['page'],
+                ),
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:open|edit)\s+(?:the\s+)?page\s+(?<page>.+?)(?:\s+(?:record|editor))?$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_pages_open_editor_prefixed'),
+                    fields: ['page' => ['page']],
+                    required: ['page'],
+                ),
+            ],
         ));
 
         $registry->register(new CapabilityData(
@@ -188,6 +225,14 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.pages_inspect_readiness'),
             examples: $this->translationList('capability_examples.pages_inspect_readiness'),
             discoveryPriority: 65,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:check|inspect|show)\s+(?:the\s+)?(?<page>.+?)\s+page\s+(?:publishing\s+)?readiness$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_pages_inspect_readiness'),
+                    fields: ['page' => ['page']],
+                    required: ['page'],
+                ),
+            ],
         ));
     }
 
@@ -211,6 +256,14 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.pages_create_draft'),
             examples: $this->translationList('capability_examples.pages_create_draft'),
             discoveryPriority: 100,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^create\s+(?:a\s+|the\s+)?(?:new\s+)?(?:disabled\s+|draft\s+)?page(?:\s+(?:called|named))?\s+(?<name>.+)$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_pages_create_draft'),
+                    fields: ['name' => ['name', 'title']],
+                    required: ['name'],
+                ),
+            ],
         ));
 
         $registry->register(new CapabilityData(
@@ -231,6 +284,14 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.pages_clone'),
             examples: $this->translationList('capability_examples.pages_clone'),
             discoveryPriority: 90,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:clone|duplicate|copy)\s+(?:the\s+)?(?<page>.+?)\s+page(?:\s+(?:as|to)\s+(?<name>.+))?$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_pages_clone'),
+                    fields: ['page' => ['page'], 'name' => ['name', 'title']],
+                    required: ['page'],
+                ),
+            ],
         ));
 
         $registry->register(new CapabilityData(
@@ -251,6 +312,7 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.pages_update'),
             examples: $this->translationList('capability_examples.pages_update'),
             discoveryPriority: 85,
+            commandPatterns: $this->pageFieldUpdatePatterns(),
         ));
 
         $registry->register(new CapabilityData(
@@ -276,13 +338,48 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
 
     private function registerPagePublicationCapabilities(CapellAgentBridgeCapabilityRegistry $registry): void
     {
-        /** @var list<array{key:string, suffix:string, time_field:string|null, priority:int}> $definitions */
+        /** @var list<array{key:string, suffix:string, time_field:string|null, priority:int, expression:string, phrase:string}> $definitions */
         $definitions = [
-            ['key' => 'capell.pages.publish_now', 'suffix' => 'pages_publish_now', 'time_field' => null, 'priority' => 80],
-            ['key' => 'capell.pages.schedule_publish', 'suffix' => 'pages_schedule_publish', 'time_field' => 'publish_at', 'priority' => 75],
-            ['key' => 'capell.pages.schedule_unpublish', 'suffix' => 'pages_schedule_unpublish', 'time_field' => 'unpublish_at', 'priority' => 60],
-            ['key' => 'capell.pages.unpublish', 'suffix' => 'pages_unpublish', 'time_field' => null, 'priority' => 70],
-            ['key' => 'capell.pages.revert_to_draft', 'suffix' => 'pages_revert_to_draft', 'time_field' => null, 'priority' => 65],
+            [
+                'key' => 'capell.pages.publish_now',
+                'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_publish_now'),
+                'suffix' => 'pages_publish_now',
+                'time_field' => null,
+                'priority' => 80,
+                'expression' => '/^(?:publish|launch|make\s+live)\s+(?:the\s+)?(?<page>.+?)\s+page(?:\s+now)?$/i',
+            ],
+            [
+                'key' => 'capell.pages.schedule_publish',
+                'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_schedule_publish'),
+                'suffix' => 'pages_schedule_publish',
+                'time_field' => 'publish_at',
+                'priority' => 75,
+                'expression' => '/^schedule\s+(?:the\s+)?(?<page>.+?)\s+page\s+(?:to\s+publish\s+)?(?:at|for|on)\s+(?<publish_at>.+)$/i',
+            ],
+            [
+                'key' => 'capell.pages.schedule_unpublish',
+                'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_schedule_unpublish'),
+                'suffix' => 'pages_schedule_unpublish',
+                'time_field' => 'unpublish_at',
+                'priority' => 60,
+                'expression' => '/^schedule\s+(?:the\s+)?(?<page>.+?)\s+page\s+(?:to\s+)?(?:unpublish|expire|go\s+offline)\s+(?:at|for|on)\s+(?<unpublish_at>.+)$/i',
+            ],
+            [
+                'key' => 'capell.pages.unpublish',
+                'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_unpublish'),
+                'suffix' => 'pages_unpublish',
+                'time_field' => null,
+                'priority' => 70,
+                'expression' => '/^(?:unpublish|disable|take\s+offline)\s+(?:the\s+)?(?<page>.+?)\s+page(?:\s+now)?$/i',
+            ],
+            [
+                'key' => 'capell.pages.revert_to_draft',
+                'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_revert_to_draft'),
+                'suffix' => 'pages_revert_to_draft',
+                'time_field' => null,
+                'priority' => 65,
+                'expression' => '/^(?:revert|return|switch)\s+(?:the\s+)?(?<page>.+?)\s+page\s+(?:back\s+)?to\s+draft$/i',
+            ],
         ];
 
         foreach ($definitions as $definition) {
@@ -304,6 +401,18 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
                 intents: $this->translationList('capability_intents.' . $definition['suffix']),
                 examples: $this->translationList('capability_examples.' . $definition['suffix']),
                 discoveryPriority: $definition['priority'],
+                commandPatterns: [
+                    new CapabilityCommandPatternData(
+                        expression: $definition['expression'],
+                        phrase: $definition['phrase'],
+                        fields: $definition['time_field'] === null
+                            ? ['page' => ['page']]
+                            : ['page' => ['page'], $definition['time_field'] => [$definition['time_field']]],
+                        required: $definition['time_field'] === null
+                            ? ['page']
+                            : ['page', $definition['time_field']],
+                    ),
+                ],
             ));
         }
     }
@@ -330,6 +439,13 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.packages_search'),
             examples: $this->translationList('capability_examples.packages_search'),
             discoveryPriority: 70,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:find|search|list|show)\s+(?<query>.*?)\s*(?:packages|extensions)$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_packages_search'),
+                    fields: ['query' => ['query']],
+                ),
+            ],
         ));
 
         $registry->register(new CapabilityData(
@@ -352,6 +468,14 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.packages_inspect'),
             examples: $this->translationList('capability_examples.packages_inspect'),
             discoveryPriority: 65,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:inspect|show|review)\s+(?:the\s+)?(?:package|extension)\s+(?<package>.+)$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_packages_inspect'),
+                    fields: ['package' => ['package']],
+                    required: ['package'],
+                ),
+            ],
         ));
 
         $registry->register(new CapabilityData(
@@ -373,6 +497,20 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.packages_install'),
             examples: $this->translationList('capability_examples.packages_install'),
             discoveryPriority: 80,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:install|activate|enable)\s+(?:the\s+)?(?:package|extension)\s+(?<package>.+)$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_packages_install'),
+                    fields: ['package' => ['package']],
+                    required: ['package'],
+                ),
+                new CapabilityCommandPatternData(
+                    expression: '/^install\s+(?<package>.+?)(?:\s+package)?$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_packages_install_short'),
+                    fields: ['package' => ['package']],
+                    required: ['package'],
+                ),
+            ],
         ));
     }
 
@@ -397,6 +535,13 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.sites_search'),
             examples: $this->translationList('capability_examples.sites_search'),
             discoveryPriority: 75,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:find|search|list|show)\s+(?<query>.*?)\s*(?:sites|websites)$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_sites_search'),
+                    fields: ['query' => ['query']],
+                ),
+            ],
         ));
 
         $registry->register(new CapabilityData(
@@ -418,6 +563,14 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.sites_inspect'),
             examples: $this->translationList('capability_examples.sites_inspect'),
             discoveryPriority: 70,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:inspect|show)\s+(?:the\s+)?(?:site|website)\s+(?<site>.+)$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_sites_inspect'),
+                    fields: ['site' => ['site']],
+                    required: ['site'],
+                ),
+            ],
         ));
 
         $registry->register(new CapabilityData(
@@ -439,6 +592,20 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             intents: $this->translationList('capability_intents.sites_open_editor'),
             examples: $this->translationList('capability_examples.sites_open_editor'),
             discoveryPriority: 85,
+            commandPatterns: [
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:open|edit|manage)\s+(?:the\s+)?(?:site|website)(?:\s+record)?\s+(?<site>.+?)(?:\s+editor)?$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_sites_open_editor'),
+                    fields: ['site' => ['site']],
+                    required: ['site'],
+                ),
+                new CapabilityCommandPatternData(
+                    expression: '/^(?:open|edit|manage)\s+(?:the\s+)?(?<site>.+?)\s+(?:site|website)(?:\s+(?:record|editor))?$/i',
+                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_sites_open_editor_suffixed'),
+                    fields: ['site' => ['site']],
+                    required: ['site'],
+                ),
+            ],
         ));
     }
 
@@ -461,6 +628,37 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             category: 'media',
             discoveryPriority: 80,
         ));
+    }
+
+    /**
+     * One pattern per updatable field rather than a single pattern that captures
+     * the field name: an anchored literal keeps the emitted payload key
+     * verifiable against the input schema at registration time.
+     *
+     * @return list<CapabilityCommandPatternData>
+     */
+    private function pageFieldUpdatePatterns(): array
+    {
+        /** @var list<array{field: string, phrase: string}> $fields */
+        $fields = [
+            ['field' => 'title', 'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_update_title')],
+            ['field' => 'slug', 'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_update_slug')],
+            ['field' => 'name', 'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_update_name')],
+        ];
+
+        return array_map(
+            static fn (array $definition): CapabilityCommandPatternData => new CapabilityCommandPatternData(
+                expression: sprintf(
+                    '/^(?:update|change|rename)\s+(?:the\s+)?(?<page>.+?)\s+page\s+%s\s+(?:to|as)\s+(?<%s>.+)$/i',
+                    $definition['field'],
+                    $definition['field'],
+                ),
+                phrase: $definition['phrase'],
+                fields: ['page' => ['page'], $definition['field'] => [$definition['field']]],
+                required: ['page', $definition['field']],
+            ),
+            $fields,
+        );
     }
 
     private function translation(string $key): string

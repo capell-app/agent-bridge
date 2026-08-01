@@ -30,9 +30,12 @@ it('searches and inspects discovered packages without exposing implementation pa
     );
     $manager->forcePackageInstalled('vendor/analytics-suite', false);
 
+    // Non-exact search deliberately matches descriptions too, so the query has to
+    // be unique to the fixture: several shipped packages mention "analytics" in
+    // their own copy, and a broader query would couple this test to that copy.
     $search = (new SearchPackagesCapabilityAction)->execute(packageInvocation(
         'capell.packages.search',
-        ['query' => 'analytics'],
+        ['query' => 'analytics-suite'],
     ));
     $inspect = (new InspectPackageCapabilityAction)->execute(packageInvocation(
         'capell.packages.inspect',
@@ -65,6 +68,26 @@ it('searches and inspects discovered packages without exposing implementation pa
             'settings_migrations',
             'permissions',
         ]);
+});
+
+it('finds a package by a term that appears only in its description', function (): void {
+    $manager = resolve(CapellCoreManager::class);
+    $manager->registerPackage(
+        name: 'vendor/analytics-suite',
+        type: PackageTypeEnum::Plugin,
+        description: 'Privacy-aware reports for zamboni fleets.',
+    );
+    $manager->forcePackageInstalled('vendor/analytics-suite', false);
+
+    $search = (new SearchPackagesCapabilityAction)->execute(packageInvocation(
+        'capell.packages.search',
+        ['query' => 'zamboni'],
+    ));
+    $packages = $search->data['packages'];
+
+    $this->assertIsArray($packages);
+
+    expect(array_column($packages, 'name'))->toBe(['vendor/analytics-suite']);
 });
 
 it('installs only a Composer-present discovered package after an impact preview', function (): void {

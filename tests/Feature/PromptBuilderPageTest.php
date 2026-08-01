@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Capell\AgentBridge\Actions\BuildAgentBridgePromptAction;
 use Capell\AgentBridge\Actions\SaveAgentBridgePromptAction;
 use Capell\AgentBridge\Data\AgentBridgePromptData;
+use Capell\AgentBridge\Data\CapabilityCommandPatternData;
 use Capell\AgentBridge\Data\CapabilityData;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
@@ -138,6 +139,32 @@ it('plans commands and executes read and confirmed write capabilities from the a
         category: 'general',
         intents: ['write fake state'],
     ));
+    $registry->register(new CapabilityData(
+        key: 'capell.fake.open_page',
+        name: 'Open fake page',
+        description: 'Open a fake page record.',
+        scope: 'capell.fake.read',
+        server: CapabilityServerEnum::Site,
+        risk: CapabilityRiskEnum::Read,
+        actionClass: FakeCapabilityAction::class,
+        inputSchema: [
+            'type' => 'object',
+            'required' => ['page'],
+            'properties' => ['page' => ['type' => 'string']],
+            'additionalProperties' => false,
+        ],
+        requiresConfirmation: false,
+        category: 'general',
+        intents: ['open fake page'],
+        commandPatterns: [
+            new CapabilityCommandPatternData(
+                expression: '/^(?:open|edit)\s+(?:the\s+)?(?<page>.+?)\s+page$/i',
+                phrase: 'Open the {page} page',
+                fields: ['page' => ['page']],
+                required: ['page'],
+            ),
+        ],
+    ));
     app()->instance(CapellAgentBridgeCapabilityRegistry::class, $registry);
 
     $user = User::query()->create([
@@ -150,7 +177,8 @@ it('plans commands and executes read and confirmed write capabilities from the a
     Livewire::test(CapellAgentBridgePromptBuilderPage::class)
         ->set('command', 'Open the About page')
         ->call('planCommand')
-        ->assertSet('commandPlan.capabilityKey', 'capell.pages.open_editor')
+        ->assertSet('commandPlan.outcome', 'exact')
+        ->assertSet('commandPlan.capabilityKey', 'capell.fake.open_page')
         ->assertSet('commandPlan.payload.page', 'About')
         ->call('chooseCapability', 'capell.fake.read')
         ->set('payloadJson', '{"query":"About"}')
@@ -168,6 +196,80 @@ it('plans commands and executes read and confirmed write capabilities from the a
 
     expect(CapellAgentBridgeAuditEntry::query()->count())->toBe(3);
 });
+
+it('communicates each interpretation outcome in translated copy without preselecting anything', function (
+    string $command,
+    string $outcome,
+    string $translationKey,
+): void {
+    $registry = new CapellAgentBridgeCapabilityRegistry;
+    $registry->register(new CapabilityData(
+        key: 'capell.fake.clone_page',
+        name: 'Clone page',
+        description: 'Create a disabled copy of an existing page.',
+        scope: 'capell.fake.write',
+        server: CapabilityServerEnum::Site,
+        risk: CapabilityRiskEnum::High,
+        actionClass: FakeCapabilityAction::class,
+        category: 'general',
+        intents: ['duplicate an existing page'],
+    ));
+    $registry->register(new CapabilityData(
+        key: 'capell.fake.alpha',
+        name: 'Alpha',
+        description: 'Alpha.',
+        scope: 'capell.fake.write',
+        server: CapabilityServerEnum::Site,
+        risk: CapabilityRiskEnum::High,
+        actionClass: FakeCapabilityAction::class,
+        category: 'general',
+        intents: ['archive stale media'],
+    ));
+    $registry->register(new CapabilityData(
+        key: 'capell.fake.beta',
+        name: 'Beta',
+        description: 'Beta.',
+        scope: 'capell.fake.write',
+        server: CapabilityServerEnum::Site,
+        risk: CapabilityRiskEnum::High,
+        actionClass: FakeCapabilityAction::class,
+        category: 'general',
+        intents: ['archive stale media'],
+    ));
+    app()->instance(CapellAgentBridgeCapabilityRegistry::class, $registry);
+
+    $user = User::query()->create([
+        'name' => 'Outcome Reader',
+        'email' => 'outcome-reader@example.com',
+        'password' => 'password',
+    ]);
+    $this->actingAs($user);
+
+    Livewire::test(CapellAgentBridgePromptBuilderPage::class)
+        ->set('command', $command)
+        ->call('planCommand')
+        ->assertSet('commandOutcome', $outcome)
+        ->assertSet('selectedCapabilityKey', '')
+        ->assertSet('commandPlan.capabilityKey', null)
+        ->assertSet('commandError', fn (string $error): bool => $error !== '')
+        ->assertSee(__($translationKey));
+})->with([
+    'suggested' => [
+        'duplicate an existing page',
+        'suggested',
+        'capell-agent-bridge::admin.command_plan_suggested_heading',
+    ],
+    'ambiguous' => [
+        'archive stale media',
+        'ambiguous',
+        'capell-agent-bridge::admin.command_plan_ambiguous_heading',
+    ],
+    'unmatched' => [
+        'reconcile quarterly invoices',
+        'unmatched',
+        'capell-agent-bridge::admin.command_suggestions_heading',
+    ],
+]);
 
 it('keeps invalid advanced payloads client safe and makes no change', function (): void {
     $registry = new CapellAgentBridgeCapabilityRegistry;

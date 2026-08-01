@@ -240,12 +240,28 @@
 
             <x-filament::section>
                 <x-slot name="heading">
-                    {{ __('capell-agent-bridge::admin.command_suggestions_heading') }}
+                    {{ $this->commandSuggestionsHeading() }}
                 </x-slot>
 
                 <x-slot name="description">
                     {{ __('capell-agent-bridge::admin.command_suggestions_description') }}
                 </x-slot>
+
+                @if ($this->commandMatchedTerms() !== [])
+                    <div class="mb-3">
+                        <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                            {{ __('capell-agent-bridge::admin.command_plan_matched_terms') }}
+                        </p>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            @foreach ($this->commandMatchedTerms() as $term)
+                                <code
+                                    class="rounded bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-white/10 dark:text-gray-300"
+                                    >{{ $term }}</code
+                                >
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
 
                 <div class="space-y-2">
                     @forelse ($commandSuggestions as $suggestion)
@@ -342,6 +358,26 @@
                                     </span>
                                 @endif
                             </div>
+
+                            @if (data_get($selectedCapability, 'commandPatterns', []) !== [])
+                                <div>
+                                    <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                                        {{ __('capell-agent-bridge::admin.command_patterns_heading') }}
+                                    </p>
+                                    <ul class="mt-2 space-y-1">
+                                        @foreach (data_get($selectedCapability, 'commandPatterns', []) as $pattern)
+                                            <li
+                                                class="text-xs text-gray-600 dark:text-gray-400"
+                                            >
+                                                <code
+                                                    class="rounded bg-gray-100 px-2 py-1 dark:bg-white/10"
+                                                    >{{ $pattern['phrase'] }}</code
+                                                >
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
 
                             @if (data_get($selectedCapability, 'inputSchema.required', []) !== [])
                                 <div>

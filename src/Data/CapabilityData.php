@@ -19,6 +19,7 @@ final class CapabilityData extends Data
      * @param  array<string, mixed>|null  $outputSchema
      * @param  list<string>  $intents
      * @param  list<string>  $examples
+     * @param  list<CapabilityCommandPatternData>  $commandPatterns
      */
     public function __construct(
         public readonly string $key,
@@ -42,6 +43,7 @@ final class CapabilityData extends Data
         public readonly array $intents = [],
         public readonly array $examples = [],
         public readonly int $discoveryPriority = 0,
+        public readonly array $commandPatterns = [],
     ) {}
 
     public function needsConfirmation(): bool
@@ -70,7 +72,8 @@ final class CapabilityData extends Data
      *     category: string,
      *     intents: list<string>,
      *     examples: list<string>,
-     *     discoveryPriority: int
+     *     discoveryPriority: int,
+     *     commandPatterns: list<array{phrase: string, fields: list<string>, required: list<string>}>
      * }
      */
     public function toPayload(): array
@@ -96,6 +99,10 @@ final class CapabilityData extends Data
             'intents' => $this->intents,
             'examples' => $this->examples,
             'discoveryPriority' => $this->discoveryPriority,
+            'commandPatterns' => array_map(
+                static fn (CapabilityCommandPatternData $pattern): array => $pattern->toPayload(),
+                $this->commandPatterns,
+            ),
         ];
     }
 

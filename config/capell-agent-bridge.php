@@ -39,6 +39,27 @@ return [
 
     'enable_user_resource_bridge' => true,
 
+    /*
+     * Deterministic command interpretation thresholds. These calibrate how much
+     * evidence a fallback ranking needs before it may be offered as a
+     * suggestion. They never change scopes, policies, or execution authority: a
+     * suggestion is still only a proposed capability input.
+     */
+    'interpretation' => [
+        // Below this score the leading capability is treated as noise and the outcome is unmatched.
+        'minimum_evidence_score' => env('CAPELL_AGENT_BRIDGE_MINIMUM_EVIDENCE_SCORE', 12),
+
+        // Fraction of the command's meaningful terms the leader must account for.
+        // Guards against a single common word scoring highly across many fields.
+        'minimum_term_coverage' => env('CAPELL_AGENT_BRIDGE_MINIMUM_TERM_COVERAGE', 0.5),
+
+        // How far ahead of the runner-up the leader must be to count as a clear suggestion.
+        'suggestion_separation_ratio' => env('CAPELL_AGENT_BRIDGE_SUGGESTION_SEPARATION_RATIO', 1.35),
+
+        // How many ranked capabilities to return alongside a suggested or ambiguous outcome.
+        'suggestion_limit' => env('CAPELL_AGENT_BRIDGE_SUGGESTION_LIMIT', 5),
+    ],
+
     'public_docs_paths' => [
         base_path('README.md'),
         base_path('docs'),

@@ -18,16 +18,17 @@
     },
     "whyItMatters": {
         "developers": {
-            "text": "Capability providers register typed operations through CapellAgentBridgeCapabilityProvider, and mutating runs pass through preview, confirmation, policy, and audit Actions.",
+            "text": "Capability providers register typed operations through CapellAgentBridgeCapabilityProvider, contribute their own deterministic direct-command patterns alongside them, and mutating runs pass through preview, confirmation, policy, and audit Actions.",
             "evidence": [
                 "src/Contracts/CapellAgentBridgeCapabilityProvider.php",
                 "src/Support/CapellAgentBridgeCapabilityRegistry.php",
+                "src/Actions/InterpretAgentBridgeCommandAction.php",
                 "src/Actions/InvokeAgentBridgeCapabilityPreviewAction.php",
                 "tests/Feature/PreviewConfirmWorkflowTest.php"
             ]
         },
         "teams": {
-            "text": "Operators can limit an agent to approved capabilities, review a proposed change before execution, and inspect what each client ran.",
+            "text": "Agent Bridge is the governed AI connection for Capell: the connected AI client supplies the reasoning, while Agent Bridge limits an agent to approved capabilities, shows a proposed change before execution, and records what each client ran.",
             "evidence": [
                 "docs/overview.admin.md",
                 "docs/screenshots.json",
