@@ -13,7 +13,7 @@
             "targetType": "admin-surface",
             "target": "CapellAgentBridgePromptBuilderPage",
             "scenario": "admin-index",
-            "url": "/capell-agent-bridge/prompt-builder",
+            "url": "/agent-bridge/capell-agent-bridge/prompt-builder",
             "waitFor": "body",
             "required": true,
             "notes": "Requires `capell-app/agent-bridge` installed, settings migrated, and an admin session. This page is available at the Filament slug `capell-agent-bridge/prompt-builder`.",
@@ -48,7 +48,7 @@
             "targetType": "admin-surface",
             "target": "CapellAgentBridgePromptBuilderPage",
             "scenario": "admin-index",
-            "url": "/capell-agent-bridge/prompt-builder",
+            "url": "/agent-bridge/capell-agent-bridge/prompt-builder",
             "waitFor": "body",
             "required": false,
             "notes": "Blocked from marketplace promotion until the screenshot runner can seed and display a pending `CapellAgentBridgeConfirmation`. Existing committed output is runner evidence only and must not be promoted while it duplicates the prompt builder.",
@@ -87,6 +87,31 @@
             "useCase": "An operator confirms which Agent Bridge endpoints are enabled and whether token-authenticated requests can reach them.",
             "screenshotPath": "packages/agent-bridge/docs/screenshots/agent-bridge-server-health-output.png",
             "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/agent-bridge-server-health-output-dark.png"
+        },
+        {
+            "id": "agent-bridge-admin-sidebar-menu-open",
+            "title": "Agent Bridge prompt builder page with admin sidebar menu open.",
+            "package": "agent-bridge",
+            "surface": "admin",
+            "targetType": "admin-surface",
+            "target": "CapellAgentBridgePromptBuilderPage",
+            "scenario": "admin-index",
+            "url": "/agent-bridge/capell-agent-bridge/prompt-builder",
+            "waitFor": "body",
+            "required": false,
+            "notes": "Requires `capell-app/agent-bridge` installed, settings migrated, and an admin session. This page is available at the Filament slug `capell-agent-bridge/prompt-builder`. Capture this same admin surface with the fully collapsible sidebar opened.",
+            "useCase": "An administrator builds a scoped prompt for an external agent using the installed Capell package context.",
+            "screenshotPath": "packages/agent-bridge/docs/screenshots/agent-bridge-admin-sidebar-menu-open.png",
+            "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/agent-bridge-admin-sidebar-menu-open-dark.png",
+            "covers": [
+                "packages/agent-bridge/src/Filament/Pages/CapellAgentBridgePromptBuilderPage.php"
+            ],
+            "interactions": [
+                {
+                    "type": "click",
+                    "selector": ".fi-topbar-open-collapse-sidebar-btn"
+                }
+            ]
         }
     ]
 }

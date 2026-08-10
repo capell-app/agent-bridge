@@ -780,6 +780,10 @@ function createAgentBridgeCapabilitySite(string $name, ?int $siteId = null): int
         'language_id' => createAgentBridgeCapabilityLanguage(),
     ];
 
+    if (Schema::hasColumn('sites', 'uuid')) {
+        $attributes['uuid'] = (string) Str::uuid();
+    }
+
     if (Schema::hasColumn('sites', 'blueprint_id')) {
         $attributes['blueprint_id'] = createAgentBridgeCapabilityBlueprint('Site', 'agent-site', 'site');
     }

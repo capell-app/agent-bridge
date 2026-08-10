@@ -16,7 +16,7 @@ it('discovers package manifests with capability metadata', function (): void {
     expect($seoSuite)
         ->not->toBeNull()
         ->and($seoSuite['productGroup'])->toBe('Capell Search & SEO')
-        ->and($seoSuite['tier'])->toBe('premium')
+        ->and($seoSuite['tier'])->toBe('free')
         ->and($seoSuite['bundle'])->toBe('search-seo')
         ->and($seoSuite['contexts'])->toContain('admin')
         ->and($seoSuite['requires'])->toContain('capell-app/admin')
