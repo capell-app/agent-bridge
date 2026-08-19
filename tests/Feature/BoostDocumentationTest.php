@@ -16,5 +16,7 @@ it('documents Laravel Boost and Capell Agent Bridge setup paths', function (): v
         ->toContain('mcp-v1-external-client.json')
         ->toContain('Publishing remains human-only')
         ->toContain('## Verifying In A Host App')
-        ->not->toContain('/Users/ben/');
+        // Any machine-local absolute path, not just one author's home
+        // directory: generated Boost documentation must stay portable.
+        ->not->toMatch('#/(?:Users|home|root|var|tmp|private|opt|mnt|srv)(?:/[A-Za-z0-9._@+\-]+)+#');
 });
