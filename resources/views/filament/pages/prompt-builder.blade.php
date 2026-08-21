@@ -1,6 +1,8 @@
 <x-filament-panels::page>
     <div
         class="space-y-6"
+        data-voice-unavailable="{{ __('capell-agent-bridge::admin.command_voice_unavailable') }}"
+        data-voice-error="{{ __('capell-agent-bridge::admin.command_voice_error') }}"
         x-data="{
             listening: false,
             voiceAvailable: false,
@@ -13,7 +15,7 @@
                 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition
 
                 if (! Recognition) {
-                    this.voiceError = @js(__('capell-agent-bridge::admin.command_voice_unavailable'))
+                    this.voiceError = this.$root.dataset.voiceUnavailable
                     return
                 }
 
@@ -25,7 +27,7 @@
                 this.recognition.onstart = () => { this.listening = true }
                 this.recognition.onend = () => { this.listening = false }
                 this.recognition.onerror = () => {
-                    this.voiceError = @js(__('capell-agent-bridge::admin.command_voice_error'))
+                    this.voiceError = this.$root.dataset.voiceError
                     this.listening = false
                 }
                 this.recognition.onresult = (event) => {

@@ -114,6 +114,22 @@ it('renders the AI command centre while retaining the reusable prompt builder', 
         ->assertSeeHtml('window.SpeechRecognition');
 });
 
+it('keeps voice runtime translations outside the Alpine component expression', function (): void {
+    $user = User::query()->create([
+        'name' => 'Voice Runtime Admin',
+        'email' => 'voice-runtime-admin@example.com',
+        'password' => 'password',
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test(CapellAgentBridgePromptBuilderPage::class)
+        ->assertSeeHtml('data-voice-unavailable="' . __('capell-agent-bridge::admin.command_voice_unavailable') . '"')
+        ->assertSeeHtml('data-voice-error="' . __('capell-agent-bridge::admin.command_voice_error') . '"')
+        ->assertSeeHtml('this.$root.dataset.voiceUnavailable')
+        ->assertSeeHtml('this.$root.dataset.voiceError');
+});
+
 it('plans commands and executes read and confirmed write capabilities from the admin page', function (): void {
     $registry = new CapellAgentBridgeCapabilityRegistry;
     $registry->register(new CapabilityData(
