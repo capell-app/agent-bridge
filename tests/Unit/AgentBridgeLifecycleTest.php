@@ -132,6 +132,25 @@ it('registers agent bridge models with core discovery', function (): void {
     );
 });
 
+it('defers installed package registration until the application has booted', function (): void {
+    $source = file_get_contents(dirname(__DIR__, 2) . '/src/Providers/AgentBridgeServiceProvider.php');
+
+    throw_unless(is_string($source), RuntimeException::class, 'Unable to read the Agent Bridge service provider source.');
+
+    $bootMethod = strstr($source, 'public function boot(): void');
+
+    throw_unless(is_string($bootMethod), RuntimeException::class, 'Unable to locate the Agent Bridge service provider boot method.');
+
+    $installedRegistration = strstr($bootMethod, 'private function registerInstalledPackage(): void', true);
+
+    throw_unless(is_string($installedRegistration), RuntimeException::class, 'Unable to locate the deferred Agent Bridge registration boundary.');
+
+    expect($installedRegistration)
+        ->toContain('$this->app->booted(function (): void')
+        ->not->toContain('$this->registerSettingsIntegration()')
+        ->not->toContain('$this->registerAdminIntegration()');
+});
+
 function createLifecycleAuditEntry(User $user, CapellAgentBridgeToken $token, string $event, CarbonImmutable $createdAt): CapellAgentBridgeAuditEntry
 {
     $entry = new CapellAgentBridgeAuditEntry([

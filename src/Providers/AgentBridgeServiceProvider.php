@@ -51,7 +51,6 @@ final class AgentBridgeServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../../config/capell-agent-bridge.php', 'capell-agent-bridge');
-        $this->registerSettingsIntegration();
     }
 
     public function boot(): void
@@ -60,10 +59,17 @@ final class AgentBridgeServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__ . '/../../resources/views', 'capell-agent-bridge');
         Livewire::component('capell-agent-bridge.prompt-builder-toolbar-action', PromptBuilderToolbarAction::class);
 
-        if (! $this->isPackageInstalled()) {
-            return;
-        }
+        $this->app->booted(function (): void {
+            if (! $this->isPackageInstalled()) {
+                return;
+            }
 
+            $this->registerInstalledPackage();
+        });
+    }
+
+    private function registerInstalledPackage(): void
+    {
         $this->app->singleton(CapellAgentBridgeCapabilityRegistry::class, fn (): CapellAgentBridgeCapabilityRegistry => new CapellAgentBridgeCapabilityRegistry);
 
         $this->publishes([
@@ -78,9 +84,7 @@ final class AgentBridgeServiceProvider extends ServiceProvider
         $this->registerPolicyAbilities();
         $this->registerBoostIntegration();
         $this->registerBuiltInCapabilities();
-        $this->app->booted(function (): void {
-            $this->registerTaggedCapabilityProviders();
-        });
+        $this->registerTaggedCapabilityProviders();
         $this->registerCommands();
     }
 
@@ -175,8 +179,8 @@ final class AgentBridgeServiceProvider extends ServiceProvider
 
         config(['settings.settings' => $settings]);
 
-        app(PackageSurfaceRegistrar::class)->settingsClass(AgentBridgeSettings::group(), AgentBridgeSettings::class);
-        app(PackageSurfaceRegistrar::class)->settingsSchema(AgentBridgeSettings::group(), AgentBridgeSettingsSchema::class);
+        resolve(PackageSurfaceRegistrar::class)->settingsClass(AgentBridgeSettings::group(), AgentBridgeSettings::class);
+        resolve(PackageSurfaceRegistrar::class)->settingsSchema(AgentBridgeSettings::group(), AgentBridgeSettingsSchema::class);
 
         CapellAdmin::registerExtensionManagementSurface(ExtensionManagementSurfaceData::settings(
             packageName: self::$packageName,
@@ -185,7 +189,7 @@ final class AgentBridgeServiceProvider extends ServiceProvider
             icon: Heroicon::OutlinedSparkles,
         ));
 
-        app(PackageSurfaceRegistrar::class)->settingsMetadata(new SettingsGroupMetadata(
+        resolve(PackageSurfaceRegistrar::class)->settingsMetadata(new SettingsGroupMetadata(
             group: AgentBridgeSettings::group(),
             label: 'capell-agent-bridge::admin.settings_title',
             icon: Heroicon::OutlinedSparkles,
