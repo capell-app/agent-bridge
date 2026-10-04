@@ -298,6 +298,7 @@ return [
     'created_from_ip' => 'Created from IP',
     'delete_saved' => 'Delete saved',
     'enable_user_resource_bridge' => 'Show Agent Bridge details on users',
+    'enable_user_resource_bridge_helper' => 'Controls whether Agent Bridge activity details and related records are added to supported user edit pages.',
     'event' => 'Event',
     'expires_at' => 'Expires',
     'goal' => 'Goal',

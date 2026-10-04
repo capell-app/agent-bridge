@@ -27,10 +27,15 @@ use Capell\Core\Support\Settings\SettingsSchemaRegistry;
 use Capell\Tests\Support\LegacyAdminBridgeFallbackHost;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Icon;
+use Filament\Schemas\Concerns\InteractsWithSchemas;
+use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Component as LivewireComponent;
 use Spatie\LaravelSettings\Migrations\SettingsMigrator;
 
 function createAgentBridgeUser(string $email): User
@@ -114,11 +119,29 @@ it('hydrates agent bridge settings and registers the settings schema', function 
 });
 
 it('exposes a translated settings toggle', function (): void {
-    $components = AgentBridgeSettingsSchema::make(resolve(Filament\Schemas\Schema::class));
+    $livewire = new class extends LivewireComponent implements HasSchemas
+    {
+        use InteractsWithSchemas;
+    };
+    $schema = Filament\Schemas\Schema::make($livewire);
+    /** @var list<Component> $settingsComponents */
+    $settingsComponents = AgentBridgeSettingsSchema::make($schema);
+    $schema->components($settingsComponents);
+    $components = $schema->getComponents();
+    $helperText = 'Controls whether Agent Bridge activity details and related records are added to supported user edit pages.';
+    $translationKey = 'capell-agent-bridge::admin.enable_user_resource_bridge_helper';
+
+    /** @var Toggle $toggle */
+    $toggle = $components[0] ?? null;
+    throw_unless($toggle instanceof Toggle, RuntimeException::class, 'Expected the Agent Bridge setting to be a toggle.');
+    $afterLabelSchema = $toggle->getChildSchema(Toggle::AFTER_LABEL_SCHEMA_KEY);
+    $helperIcon = $afterLabelSchema?->getComponents()[0] ?? null;
+    throw_unless($helperIcon instanceof Icon, RuntimeException::class, 'Expected the Agent Bridge setting to have a helper icon.');
 
     expect($components)->toHaveCount(1)
-        ->and($components[0])->toBeInstanceOf(Toggle::class)
-        ->and($components[0]->getName())->toBe('enable_user_resource_bridge');
+        ->and($toggle->getName())->toBe('enable_user_resource_bridge')
+        ->and(__($translationKey))->toBe($helperText)
+        ->and($helperIcon->getTooltip())->toBe($helperText);
 });
 
 it('runs the agent bridge settings migration idempotently', function (): void {

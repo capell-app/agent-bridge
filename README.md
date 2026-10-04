@@ -10,8 +10,6 @@ Agent Bridge connects MCP clients to read-only Capell knowledge and a frozen, dr
 
 Admins can build scoped prompts and manage a user's client tokens, confirmations, and audit entries. Connected clients can call only the server routes and capabilities enabled for them.
 
-Evidence: [`capell.json`](capell.json), [`routes/agent-bridge.php`](routes/agent-bridge.php), [`src/Providers/AgentBridgeServiceProvider.php`](src/Providers/AgentBridgeServiceProvider.php), [`docs/screenshots.json`](docs/screenshots.json), [`src/Filament/Pages/CapellAgentBridgePromptBuilderPage.php`](src/Filament/Pages/CapellAgentBridgePromptBuilderPage.php), [`tests/Feature/UserResourceBridgeTest.php`](tests/Feature/UserResourceBridgeTest.php), [`tests/Feature/HomeRouteTest.php`](tests/Feature/HomeRouteTest.php).
-
 Status details:
 
 - Status: Available
@@ -27,8 +25,6 @@ Status details:
 
 **For teams:** Agent Bridge is the governed AI connection for Capell: the connected AI client supplies the reasoning, while Agent Bridge limits an agent to approved capabilities, shows a proposed change before execution, and records what each client ran.
 
-Evidence: [`src/Contracts/CapellAgentBridgeCapabilityProvider.php`](src/Contracts/CapellAgentBridgeCapabilityProvider.php), [`src/Support/CapellAgentBridgeCapabilityRegistry.php`](src/Support/CapellAgentBridgeCapabilityRegistry.php), [`src/Actions/InterpretAgentBridgeCommandAction.php`](src/Actions/InterpretAgentBridgeCommandAction.php), [`src/Actions/InvokeAgentBridgeCapabilityPreviewAction.php`](src/Actions/InvokeAgentBridgeCapabilityPreviewAction.php), [`tests/Feature/PreviewConfirmWorkflowTest.php`](tests/Feature/PreviewConfirmWorkflowTest.php), [`docs/overview.admin.md`](docs/overview.admin.md), [`docs/screenshots.json`](docs/screenshots.json).
-
 ## Screens And Workflow
 
 Screenshot contract: `docs/screenshots.json`.
@@ -39,7 +35,7 @@ Screenshot contract: `docs/screenshots.json`.
 
 - Agent Bridge prompt builder page (admin, required evidence).
 - Token management or setup surface (admin, supplementary evidence).
-- Capability preview and confirmation flow (admin, supplementary evidence).
+- Pending capability confirmations (admin, supplementary evidence).
 - Audit entry review (admin, supplementary evidence).
 - Agent Bridge server health output (admin, supplementary evidence).
 
@@ -62,6 +58,7 @@ Screenshot contract: `docs/screenshots.json`.
 - `packages/agent-bridge/database/migrations/2026_07_09_000001_add_ip_address_hash_to_agent_bridge_audit_entries_table.php`
 - `packages/agent-bridge/database/migrations/2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table.php`
 - `packages/agent-bridge/database/migrations/2026_07_20_000001_create_capell_agent_bridge_media_uploads_table.php`
+- `packages/agent-bridge/database/migrations/2026_09_29_120000_remove_implicit_timestamp_updates_from_agent_bridge.php`
 
 ### Settings migrations
 
@@ -132,6 +129,7 @@ Screenshot contract: `docs/screenshots.json`.
 - `SearchPagesCapabilityAction`
 - `TransitionPagePublicationCapabilityAction`
 - `UpdateDraftPageCapabilityAction`
+- `PrepareAgentBridgeScreenshotAction`
 - `PreviewAgentBridgeAdminCapabilityAction`
 - `PruneAgentBridgeAuditEntriesAction`
 - `QueryAgentBridgeAuditEntriesAction`
@@ -209,7 +207,7 @@ Screenshot contract: `docs/screenshots.json`.
 - Required tables: `capell_agent_bridge_tokens`, `capell_agent_bridge_confirmations`, `capell_agent_bridge_audit_entries`, `capell_agent_bridge_saved_prompts`, `capell_agent_bridge_media_uploads`.
 - Models: `CapellAgentBridgeAuditEntry`, `CapellAgentBridgeConfirmation`, `CapellAgentBridgeMediaUpload`, `CapellAgentBridgeSavedPrompt`, `CapellAgentBridgeToken`.
 - Core record references in migrations: `sites via site_id`, `users via user_id`, `media via media_id`.
-- Migration files: `2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php`, `2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php`, `2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php`, `2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table.php`, `2026_07_09_000001_add_ip_address_hash_to_agent_bridge_audit_entries_table.php`, `2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table.php`, `2026_07_20_000001_create_capell_agent_bridge_media_uploads_table.php`.
+- Migration files: `2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php`, `2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php`, `2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php`, `2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table.php`, `2026_07_09_000001_add_ip_address_hash_to_agent_bridge_audit_entries_table.php`, `2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table.php`, `2026_07_20_000001_create_capell_agent_bridge_media_uploads_table.php`, `2026_09_29_120000_remove_implicit_timestamp_updates_from_agent_bridge.php`.
 - Migration impact: run host migrations through the package install flow before opening package surfaces.
 - Deletion/retention behaviour: migrations declare cascade-on-delete relationships and null-on-delete relationships; retention is scheduled through `capell:agent-bridge-prune-audit` (daily; declared in the manifest).
 
@@ -249,12 +247,13 @@ Screenshot contract: `docs/screenshots.json`.
 ## Quick Start
 
 1. Install the package: `composer require capell-app/agent-bridge`.
-2. Open the package admin surface at `/agent-bridge/capell-agent-bridge/prompt-builder` and confirm Agent Bridge is available.
+2. Open the package admin surface at `/admin/agent-bridge/capell-agent-bridge/prompt-builder` and confirm Agent Bridge is available.
 
 ## Next Steps
 
 - [Package docs](docs/README.md)
 - [Overview](docs/overview.md)
+- [Worked extension examples](docs/extension-contracts.md)
 - Configuration files: [`config/capell-agent-bridge.php`](config/capell-agent-bridge.php).
 - [Troubleshooting](#troubleshooting)
 - [Screenshot contract](docs/screenshots.json)
@@ -262,6 +261,5 @@ Screenshot contract: `docs/screenshots.json`.
 - [Capell content language plan](../../docs/CONTENT_LANGUAGE_PLAN.md)
 - [Capell documentation design system](../../docs/DESIGN_SYSTEM.md)
 - [Capell and package ERD notes](../../docs/erd/capell-and-package-erds.md)
-- Focused tests: `vendor/bin/pest packages/agent-bridge/tests --configuration=phpunit.xml`.
 
 <!-- prettier-ignore-end -->

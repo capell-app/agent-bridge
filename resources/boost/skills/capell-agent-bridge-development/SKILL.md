@@ -1,6 +1,6 @@
 ---
 name: capell-agent-bridge-development
-description: Use when editing Capell Agent Bridge servers, tokens, capabilities, previews, or Boost bridge tools.
+description: Agent Bridge servers and capability adapters with token auth, previews, confirmations, and audit records. Use when editing Capell Agent Bridge servers, tokens, capabilities, previews, or Boost bridge tools.
 ---
 
 # Capell Agent Bridge
