@@ -23,4 +23,4 @@ Agent Bridge servers and capability adapters with token auth, previews, confirma
 - HTTP tokens and local principals remain per-user; scope never replaces current ownership and policy checks.
 - Confirmation is single-use. Only media upload has a UUID idempotency key; do not promise generic mutation replay.
 - Refuse publishing, visibility changes, package/cache operations, AI Creator apply/build/export, and arbitrary registry contributions.
-- Run `vendor/bin/pest packages/agent-bridge/tests`.
+- Verify customisations in the consuming application's test suite.

@@ -1,0 +1,133 @@
+{
+    "version": 3,
+    "package": "agent-bridge",
+    "scenarios": {
+        "default": {
+            "source": {
+                "ref": "origin/main",
+                "commit": "646068b2d21e233ea517c342d62bc0eca1762192",
+                "providers": {
+                    "Providers/AgentBridgeServiceProvider.php": "7d40ab5d19de535a1d883ea08b594056a4c7228681757dc48d5160101fa2c4ea"
+                }
+            },
+            "disabledContributions": [
+                "capell-agent-bridge.home",
+                "agent-bridge/capell/knowledge",
+                "agent-bridge/capell",
+                "capell:agent-bridge-prune-audit"
+            ],
+            "surfaces": {
+                "routes": [],
+                "livewire": [
+                    "capell-agent-bridge.prompt-builder-toolbar-action=Capell\\AgentBridge\\Livewire\\PromptBuilderToolbarAction"
+                ],
+                "filament": [
+                    "page:Capell\\AgentBridge\\Filament\\Pages\\CapellAgentBridgePromptBuilderPage"
+                ],
+                "listeners": [],
+                "gates": [
+                    "capell-agent-bridge.clear-cache|static Capell\\AgentBridge\\Providers\\AgentBridgeServiceProvider(mixed $user):bool"
+                ],
+                "policies": [],
+                "commands": ["capell:agent-bridge-prune-audit"],
+                "view-namespaces": ["capell-agent-bridge"],
+                "config-keys": [
+                    "capell-agent-bridge",
+                    "capell-agent-bridge.accept_legacy_token_hashes",
+                    "capell-agent-bridge.audit_hash_secret",
+                    "capell-agent-bridge.audit_retention_days",
+                    "capell-agent-bridge.confirmation_ttl_minutes",
+                    "capell-agent-bridge.enable_user_resource_bridge",
+                    "capell-agent-bridge.inspect_app_runtime",
+                    "capell-agent-bridge.interpretation",
+                    "capell-agent-bridge.interpretation.minimum_evidence_score",
+                    "capell-agent-bridge.interpretation.minimum_term_coverage",
+                    "capell-agent-bridge.interpretation.suggestion_limit",
+                    "capell-agent-bridge.interpretation.suggestion_separation_ratio",
+                    "capell-agent-bridge.last_used_throttle_minutes",
+                    "capell-agent-bridge.local",
+                    "capell-agent-bridge.local.handle",
+                    "capell-agent-bridge.local.token",
+                    "capell-agent-bridge.public_docs_paths",
+                    "capell-agent-bridge.public_docs_paths.0",
+                    "capell-agent-bridge.public_docs_paths.1",
+                    "capell-agent-bridge.public_docs_paths.2",
+                    "capell-agent-bridge.public_docs_paths.3",
+                    "capell-agent-bridge.rate_limit_enabled",
+                    "capell-agent-bridge.rate_limit_per_ip_per_minute",
+                    "capell-agent-bridge.rate_limit_per_minute",
+                    "capell-agent-bridge.routes",
+                    "capell-agent-bridge.routes.home",
+                    "capell-agent-bridge.routes.knowledge",
+                    "capell-agent-bridge.routes.site",
+                    "capell-agent-bridge.site_auth_guard",
+                    "capell-agent-bridge.token_prefix"
+                ],
+                "migrations": [
+                    "2026_05_10_190840_01_create_capell_agent-bridge_tokens_table",
+                    "2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table",
+                    "2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table",
+                    "2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table",
+                    "2026_07_09_000001_add_ip_address_hash_to_agent_bridge_audit_entries_table",
+                    "2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table",
+                    "2026_07_20_000001_create_capell_agent_bridge_media_uploads_table",
+                    "2026_09_29_120000_remove_implicit_timestamp_updates_from_agent_bridge"
+                ]
+            },
+            "uninstalledSurfaces": {
+                "routes": [],
+                "livewire": [
+                    "capell-agent-bridge.prompt-builder-toolbar-action=Capell\\AgentBridge\\Livewire\\PromptBuilderToolbarAction"
+                ],
+                "filament": [],
+                "listeners": [],
+                "gates": [],
+                "policies": [],
+                "commands": [],
+                "view-namespaces": ["capell-agent-bridge"],
+                "config-keys": [
+                    "capell-agent-bridge",
+                    "capell-agent-bridge.accept_legacy_token_hashes",
+                    "capell-agent-bridge.audit_hash_secret",
+                    "capell-agent-bridge.audit_retention_days",
+                    "capell-agent-bridge.confirmation_ttl_minutes",
+                    "capell-agent-bridge.enable_user_resource_bridge",
+                    "capell-agent-bridge.inspect_app_runtime",
+                    "capell-agent-bridge.interpretation",
+                    "capell-agent-bridge.interpretation.minimum_evidence_score",
+                    "capell-agent-bridge.interpretation.minimum_term_coverage",
+                    "capell-agent-bridge.interpretation.suggestion_limit",
+                    "capell-agent-bridge.interpretation.suggestion_separation_ratio",
+                    "capell-agent-bridge.last_used_throttle_minutes",
+                    "capell-agent-bridge.local",
+                    "capell-agent-bridge.local.handle",
+                    "capell-agent-bridge.local.token",
+                    "capell-agent-bridge.public_docs_paths",
+                    "capell-agent-bridge.public_docs_paths.0",
+                    "capell-agent-bridge.public_docs_paths.1",
+                    "capell-agent-bridge.public_docs_paths.2",
+                    "capell-agent-bridge.public_docs_paths.3",
+                    "capell-agent-bridge.rate_limit_enabled",
+                    "capell-agent-bridge.rate_limit_per_ip_per_minute",
+                    "capell-agent-bridge.rate_limit_per_minute",
+                    "capell-agent-bridge.routes",
+                    "capell-agent-bridge.routes.home",
+                    "capell-agent-bridge.routes.knowledge",
+                    "capell-agent-bridge.routes.site",
+                    "capell-agent-bridge.site_auth_guard",
+                    "capell-agent-bridge.token_prefix"
+                ],
+                "migrations": [
+                    "2026_05_10_190840_01_create_capell_agent-bridge_tokens_table",
+                    "2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table",
+                    "2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table",
+                    "2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table",
+                    "2026_07_09_000001_add_ip_address_hash_to_agent_bridge_audit_entries_table",
+                    "2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table",
+                    "2026_07_20_000001_create_capell_agent_bridge_media_uploads_table",
+                    "2026_09_29_120000_remove_implicit_timestamp_updates_from_agent_bridge"
+                ]
+            }
+        }
+    }
+}

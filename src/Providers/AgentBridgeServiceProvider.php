@@ -29,46 +29,47 @@ use Capell\AgentBridge\Tools\Boost\ListBoostCapabilitiesTool;
 use Capell\AgentBridge\Tools\Boost\PreviewBoostCapabilityTool;
 use Capell\Core\Facades\CapellCore;
 use Capell\Core\Support\Packages\PackageSurfaceRegistrar;
+use Capell\Core\Support\Packages\RegistersInstalledRuntime;
 use Capell\Core\Support\Settings\SettingsGroupMetadata;
 use Filament\Pages\Page;
 use Filament\Support\Facades\FilamentView;
 use Filament\Support\Icons\Heroicon;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Foundation\Application;
+use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Boost\AgentBridge\Boost;
 use Livewire\Livewire;
 use Override;
+use ReflectionProperty;
 use Throwable;
 
 final class AgentBridgeServiceProvider extends ServiceProvider
 {
+    use RegistersInstalledRuntime;
+
     public static string $packageName = 'capell-app/agent-bridge';
 
     #[Override]
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../../config/capell-agent-bridge.php', 'capell-agent-bridge');
+        $this->loadTranslationsFrom(__DIR__ . '/../../resources/lang', 'capell-agent-bridge');
+
+        $this->registerInstalledRuntime(self::$packageName);
     }
 
     public function boot(): void
     {
-        $this->loadTranslationsFrom(__DIR__ . '/../../resources/lang', 'capell-agent-bridge');
         $this->loadViewsFrom(__DIR__ . '/../../resources/views', 'capell-agent-bridge');
         Livewire::component('capell-agent-bridge.prompt-builder-toolbar-action', PromptBuilderToolbarAction::class);
-
-        $this->app->booted(function (): void {
-            if (! $this->isPackageInstalled()) {
-                return;
-            }
-
-            $this->registerInstalledPackage();
-        });
     }
 
-    private function registerInstalledPackage(): void
+    protected function bootInstalledRuntime(): void
     {
         $this->app->singleton(CapellAgentBridgeCapabilityRegistry::class, fn (): CapellAgentBridgeCapabilityRegistry => new CapellAgentBridgeCapabilityRegistry);
 
@@ -76,7 +77,15 @@ final class AgentBridgeServiceProvider extends ServiceProvider
             __DIR__ . '/../../config/capell-agent-bridge.php' => config_path('capell-agent-bridge.php'),
         ], 'capell-agent-bridge-config');
 
-        $this->loadRoutesFrom(__DIR__ . '/../../routes/agent-bridge.php');
+        $router = $this->app->make(Router::class);
+        $groups = new ReflectionProperty(Router::class, 'groupStack');
+        $previous = $groups->getValue($router);
+        $groups->setValue($router, []);
+        try {
+            $this->loadRoutesFrom(__DIR__ . '/../../routes/agent-bridge.php');
+        } finally {
+            $groups->setValue($router, $previous);
+        }
 
         $this->registerModels();
         $this->registerSettingsIntegration();
@@ -86,15 +95,6 @@ final class AgentBridgeServiceProvider extends ServiceProvider
         $this->registerBuiltInCapabilities();
         $this->registerTaggedCapabilityProviders();
         $this->registerCommands();
-    }
-
-    private function isPackageInstalled(): bool
-    {
-        if (! class_exists(CapellCore::class)) {
-            return true;
-        }
-
-        return CapellCore::isPackageInstalled(self::$packageName);
     }
 
     private function registerBoostIntegration(): void
@@ -241,6 +241,15 @@ final class AgentBridgeServiceProvider extends ServiceProvider
         $this->commands([
             PruneAgentBridgeAuditEntriesCommand::class,
         ]);
+
+        if (
+            $this->app instanceof Application
+            && $this->app->isBooted()
+            && $this->app->bound('installed-runtime.initially-installed')
+            && $this->app->make('installed-runtime.initially-installed') === false
+        ) {
+            Artisan::registerCommand($this->app->make(PruneAgentBridgeAuditEntriesCommand::class));
+        }
     }
 
     private function registerTaggedCapabilityProviders(): void

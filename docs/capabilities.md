@@ -175,9 +175,3 @@ Interpretation thresholds are conservative by default. Changing them never chang
 | `capell-agent-bridge.interpretation.suggestion_limit`            | How many ranked capabilities accompany a suggested or ambiguous outcome. Defaults to `5`.                        |
 
 Token, confirmation, and audit table names are migration concerns. Keep them out of public setup docs unless a host app overrides storage.
-
-## Verification
-
-```bash
-vendor/bin/pest packages/agent-bridge/tests --configuration=phpunit.xml
-```

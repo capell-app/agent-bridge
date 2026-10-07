@@ -24,7 +24,7 @@ return new class extends Migration
             $table->string('payload_hash', 64);
             $table->json('payload');
             $table->json('preview');
-            $table->timestamp('expires_at');
+            $table->dateTime('expires_at');
             $table->timestamp('used_at')->nullable();
             $table->timestamps();
         });
