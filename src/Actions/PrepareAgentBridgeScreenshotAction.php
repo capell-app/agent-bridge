@@ -18,18 +18,39 @@ final class PrepareAgentBridgeScreenshotAction
         throw_unless(app()->environment('local', 'testing') && getenv('CAPELL_SCREENSHOT_FIXTURE') === 'record-state', RuntimeException::class, 'Agent Bridge screenshot fixtures require the disposable screenshot environment.');
 
         (new CapellAgentBridgeToken)->getConnection()->transaction(static function () use ($user): void {
-            $token = CapellAgentBridgeToken::query()->firstOrNew([
-                'name' => 'Screenshot review token',
-                'user_type' => $user->getMorphClass(),
-                'user_id' => $user->getKey(),
-            ]);
-            $token->forceFill([
-                'user_type' => $user->getMorphClass(),
-                'user_id' => $user->getKey(),
-                'token_hash' => CapellAgentBridgeToken::hashPlainTextToken(Str::random(64)),
-                'scopes' => ['capell.pages.read'],
-                'is_enabled' => false,
-            ])->save();
+            $tokenDefinitions = [
+                ['name' => 'Screenshot review token', 'scopes' => ['capell.pages.read'], 'revoked_at' => null],
+                ['name' => 'Screenshot API token', 'scopes' => ['capell.pages.read', 'capell.pages.write'], 'revoked_at' => null],
+                ['name' => 'Screenshot read-only token', 'scopes' => ['capell.pages.read'], 'revoked_at' => null],
+                ['name' => 'Screenshot revoked token', 'scopes' => ['capell.pages.read'], 'revoked_at' => now()->subHour()],
+            ];
+
+            $token = null;
+
+            foreach ($tokenDefinitions as $tokenDefinition) {
+                $screenshotToken = CapellAgentBridgeToken::query()->firstOrNew([
+                    'name' => $tokenDefinition['name'],
+                    'user_type' => $user->getMorphClass(),
+                    'user_id' => $user->getKey(),
+                ]);
+                $screenshotToken->forceFill([
+                    'user_type' => $user->getMorphClass(),
+                    'user_id' => $user->getKey(),
+                    'token_hash' => CapellAgentBridgeToken::hashPlainTextToken(Str::random(64)),
+                    'scopes' => $tokenDefinition['scopes'],
+                    'is_enabled' => true,
+                    'revoked_at' => $tokenDefinition['revoked_at'],
+                    'created_from_ip' => '127.0.0.1',
+                    'expires_at' => null,
+                    'rotated_at' => null,
+                ])->save();
+
+                if ($tokenDefinition['name'] === 'Screenshot review token') {
+                    $token = $screenshotToken;
+                }
+            }
+
+            throw_unless($token instanceof CapellAgentBridgeToken, RuntimeException::class, 'The screenshot review token was not prepared.');
 
             $confirmation = CapellAgentBridgeConfirmation::query()->firstOrNew([
                 'agent_bridge_token_id' => $token->getKey(),

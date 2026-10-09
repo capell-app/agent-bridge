@@ -35,16 +35,22 @@
             "url": "/screenshot-fixtures/agent-bridge/user",
             "waitFor": ".fi-ta:has-text(\"Tokens\") tbody tr:has-text(\"Screenshot review token\")",
             "required": false,
-            "notes": "Blocked from marketplace promotion until recaptured: legacy output duplicates the prompt builder or user form. The guarded route seeds a disabled token, confirmation and audit row for the authenticated user; open the matching relation tab.",
+            "notes": "The guarded route seeds three active tokens and one revoked token, plus a confirmation and audit row for the authenticated user; open the matching relation tab.",
             "useCase": "An administrator creates or reviews a token used by a trusted Agent Bridge client.",
             "screenshotPath": "packages/agent-bridge/docs/screenshots/token-management-or-setup-surface.png",
             "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/token-management-or-setup-surface-dark.png",
             "beforeWait": [
                 {
                     "type": "click",
-                    "selector": "[role=\"tab\"]:has-text(\"Tokens\")"
+                    "selector": ".fi-tabs-item:has-text(\"Tokens\")"
+                },
+                {
+                    "type": "scrollIntoView",
+                    "selector": ".fi-ta:has-text(\"Tokens\") tbody tr:has-text(\"Screenshot review token\")",
+                    "block": "start"
                 }
-            ]
+            ],
+            "fullPage": false
         },
         {
             "id": "capability-preview-and-confirmation-flow",

@@ -22,6 +22,7 @@ use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
 use Capell\AgentBridge\Tests\Fixtures\User;
+use Capell\Tests\Support\ScreenshotManifest;
 use Filament\Facades\Filament;
 use Filament\Panel;
 use Filament\Support\Facades\FilamentView;
@@ -55,7 +56,13 @@ it('renders distinct seeded token confirmation and audit relation tables', funct
             ->assertSee('capell.pages.inspect')->assertSee(__('capell-agent-bridge::admin.expires_at'))->assertDontSee('screenshot.previewed');
         Livewire::test(AgentBridgeAuditEntriesRelationManager::class, $parameters)
             ->assertSee('screenshot.previewed')->assertDontSee('Screenshot review token');
-        expect(CapellAgentBridgeToken::query()->firstOrFail()->is_enabled)->toBeFalse();
+        expect(CapellAgentBridgeToken::query()->where('user_id', $user->getKey())->count())->toBe(4)
+            ->and(CapellAgentBridgeToken::query()->where('user_id', $user->getKey())->where('is_enabled', true)->whereNull('revoked_at')->count())->toBe(3)
+            ->and(CapellAgentBridgeToken::query()->where('user_id', $user->getKey())->whereNotNull('revoked_at')->count())->toBe(1);
+        $entry = ScreenshotManifest::entry(__DIR__ . '/../../docs/screenshots.json', 'token-management-or-setup-surface');
+        expect($entry['beforeWait'] ?? [])->toContain(
+            ['type' => 'click', 'selector' => '.fi-tabs-item:has-text("Tokens")'],
+        )->and($entry['fullPage'] ?? false)->toBeTrue();
     } finally {
         putenv('CAPELL_SCREENSHOT_FIXTURE');
     }
