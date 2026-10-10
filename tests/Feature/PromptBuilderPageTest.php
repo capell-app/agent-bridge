@@ -62,7 +62,8 @@ it('renders distinct seeded token confirmation and audit relation tables', funct
         $entry = ScreenshotManifest::entry(__DIR__ . '/../../docs/screenshots.json', 'token-management-or-setup-surface');
         expect($entry['beforeWait'] ?? [])->toContain(
             ['type' => 'click', 'selector' => '.fi-tabs-item:has-text("Tokens")'],
-        )->and($entry['fullPage'] ?? false)->toBeTrue();
+            ['type' => 'scrollIntoView', 'selector' => '.fi-ta:has-text("Tokens") tbody tr:has-text("Screenshot review token")', 'block' => 'start'],
+        )->and($entry['fullPage'] ?? null)->toBeFalse();
     } finally {
         putenv('CAPELL_SCREENSHOT_FIXTURE');
     }

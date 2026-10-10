@@ -76,7 +76,6 @@ describe('agent-bridge capell.json manifest', function (): void {
         $entries = collect(manifestEntries($contractData))->keyBy('id');
 
         foreach ([
-            'token-management-or-setup-surface',
             'capability-preview-and-confirmation-flow',
             'audit-entry-review',
             'agent-bridge-server-health-output',
@@ -88,6 +87,38 @@ describe('agent-bridge capell.json manifest', function (): void {
             expect($entry['required'] ?? null)->toBeFalse()
                 ->and($entry['notes'] ?? '')->toContain('Blocked from marketplace promotion')
                 ->and($entry['notes'] ?? '')->toContain('duplicates the prompt builder');
+        }
+    });
+
+    it('keeps the accepted token capture optional and outside the marketplace catalogue', function () use ($screenshotsContract, $manifest, $packagePath): void {
+        $entries = collect(manifestEntries($screenshotsContract()))->keyBy('id');
+        $entry = $entries->get('token-management-or-setup-surface');
+        throw_unless(is_array($entry), RuntimeException::class, 'Missing Agent Bridge token capture.');
+
+        expect($entry['required'] ?? null)->toBeFalse()
+            ->and($entry['fullPage'] ?? null)->toBeFalse()
+            ->and($entry['notes'] ?? '')->not->toContain('Blocked from marketplace promotion');
+        $marketplacePaths = collect(manifestScreenshots($manifest()))->pluck('path')->all();
+        expect($marketplacePaths)->not->toContain('docs/screenshots/token-management-or-setup-surface.png', 'docs/screenshots/token-management-or-setup-surface-dark.png');
+
+        $receipt = manifestJsonFileArray(dirname($packagePath, 2) . '/docs/screenshot-receipts/recapture-2026-10-06/agent-bridge--token-management-or-setup-surface.json');
+        $provenance = $receipt['provenance'] ?? null;
+        throw_unless(is_array($provenance), RuntimeException::class, 'Missing token capture provenance.');
+        $captures = $provenance['receipts'] ?? null;
+        throw_unless(is_array($captures), RuntimeException::class, 'Missing token capture receipts.');
+        expect($captures)->toHaveCount(2);
+        foreach ($captures as $capture) {
+            throw_unless(is_array($capture), RuntimeException::class, 'Invalid token capture receipt.');
+            $output = $capture['output'] ?? null;
+            $settings = $capture['capture'] ?? null;
+            throw_unless(is_array($output) && is_array($settings), RuntimeException::class, 'Missing token capture output or settings.');
+            $path = $output['path'] ?? null;
+            $sha256 = $output['sha256'] ?? null;
+            throw_unless(is_string($path) && is_string($sha256), RuntimeException::class, 'Invalid token capture output path or hash.');
+            expect($capture['acceptance'] ?? null)->toBe('accepted')
+                ->and($settings['fullPage'] ?? null)->toBeFalse()
+                ->and(File::exists(dirname($packagePath, 2) . '/' . $path))->toBeTrue()
+                ->and(hash_file('sha256', dirname($packagePath, 2) . '/' . $path))->toBe($sha256);
         }
     });
 
