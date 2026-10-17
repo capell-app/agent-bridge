@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Capell\Admin\Filament\Resources\Users\Pages\EditUser;
 use Capell\AgentBridge\Actions\BuildAgentBridgePromptAction;
-use Capell\AgentBridge\Actions\PrepareAgentBridgeScreenshotAction;
+use Capell\AgentBridge\Actions\Fixtures\PrepareAgentBridgeScreenshotAction;
 use Capell\AgentBridge\Actions\SaveAgentBridgePromptAction;
 use Capell\AgentBridge\Data\AgentBridgePromptData;
 use Capell\AgentBridge\Data\CapabilityCommandPatternData;
@@ -17,6 +17,7 @@ use Capell\AgentBridge\Filament\Resources\Users\RelationManagers\AgentBridgeConf
 use Capell\AgentBridge\Filament\Resources\Users\RelationManagers\AgentBridgeTokensRelationManager;
 use Capell\AgentBridge\Livewire\PromptBuilderToolbarAction;
 use Capell\AgentBridge\Models\CapellAgentBridgeAuditEntry;
+use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
 use Capell\AgentBridge\Models\CapellAgentBridgeSavedPrompt;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
@@ -30,6 +31,7 @@ use Filament\View\PanelsRenderHook;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Blade;
 use Livewire\Livewire;
+use Workbench\App\Actions\AssertScreenshotFixtureEnvironmentAction;
 
 beforeEach(function (): void {
     $panel = Panel::make()
@@ -45,7 +47,10 @@ beforeEach(function (): void {
 it('renders distinct seeded token confirmation and audit relation tables', function (): void {
     $user = User::query()->create(['name' => 'Screenshot operator', 'email' => 'screenshot@example.test', 'password' => 'password']);
     $this->actingAs($user);
+    $previousEmail = getenv('CAPELL_SCREENSHOT_ADMIN_EMAIL');
+    putenv('CAPELL_SCREENSHOT_ADMIN_EMAIL=screenshot@example.test');
     putenv('CAPELL_SCREENSHOT_FIXTURE=record-state');
+    putenv('CAPELL_SCREENSHOT_APP_PATH=' . base_path());
 
     try {
         (new PrepareAgentBridgeScreenshotAction)->handle($user);
@@ -66,6 +71,22 @@ it('renders distinct seeded token confirmation and audit relation tables', funct
         )->and($entry['fullPage'] ?? null)->toBeFalse();
     } finally {
         putenv('CAPELL_SCREENSHOT_FIXTURE');
+        putenv('CAPELL_SCREENSHOT_APP_PATH');
+        putenv($previousEmail === false ? 'CAPELL_SCREENSHOT_ADMIN_EMAIL' : 'CAPELL_SCREENSHOT_ADMIN_EMAIL=' . $previousEmail);
+    }
+});
+
+it('rejects direct Agent Bridge fixture writes outside the selected checkout', function (): void {
+    $user = User::query()->create(['name' => 'Fixture operator', 'email' => 'fixture@example.test', 'password' => 'password']);
+    putenv('CAPELL_SCREENSHOT_FIXTURE=record-state');
+    putenv('CAPELL_SCREENSHOT_APP_PATH=' . __DIR__);
+    try {
+        expect(fn () => (new PrepareAgentBridgeScreenshotAction)->handle($user))
+            ->toThrow(RuntimeException::class, 'explicit disposable screenshot environment');
+        expect(CapellAgentBridgeToken::query()->where('user_id', $user->getKey())->count())->toBe(0);
+    } finally {
+        putenv('CAPELL_SCREENSHOT_FIXTURE');
+        putenv('CAPELL_SCREENSHOT_APP_PATH');
     }
 });
 
@@ -498,4 +519,140 @@ it('saves a prompt from the toolbar component for the authenticated admin', func
             'goal' => 'inspect launch readiness',
             'target' => 'Homepage',
         ]);
+});
+
+it('refuses an authenticated actor other than the selected capture identity before writes', function (): void {
+    $previous = [];
+    foreach (['CAPELL_SCREENSHOT_FIXTURE', 'CAPELL_SCREENSHOT_APP_PATH', 'CAPELL_SCREENSHOT_ADMIN_EMAIL'] as $key) {
+        $previous[$key] = getenv($key);
+    }
+
+    putenv('CAPELL_SCREENSHOT_FIXTURE=record-state');
+    putenv('CAPELL_SCREENSHOT_APP_PATH=' . base_path());
+    putenv('CAPELL_SCREENSHOT_ADMIN_EMAIL=selected-capture@example.test');
+    $actor = new Illuminate\Foundation\Auth\User;
+    $actor->forceFill(['id' => 987654, 'email' => 'another-actor@example.test']);
+    $this->actingAs($actor);
+    $before = CapellAgentBridgeToken::query()->count();
+
+    try {
+        expect(fn () => (new PrepareAgentBridgeScreenshotAction)->handle($actor))->toThrow(RuntimeException::class, 'selected capture actor');
+        expect(CapellAgentBridgeToken::query()->count())->toBe($before);
+    } finally {
+        foreach ($previous as $key => $value) {
+            putenv($value === false ? $key : $key . '=' . $value);
+        }
+    }
+});
+
+it('rejects a different physical checkout and production even when fixture mode is selected', function (): void {
+    $previous = [getenv('CAPELL_SCREENSHOT_FIXTURE'), getenv('CAPELL_SCREENSHOT_APP_PATH')];
+    $environment = config('app.env');
+    $runtimeEnvironment = app()->environment();
+    $actor = new Illuminate\Foundation\Auth\User;
+    $before = CapellAgentBridgeToken::query()->count();
+    putenv('CAPELL_SCREENSHOT_FIXTURE=record-state');
+    try {
+        foreach (['foreign-checkout', 'production'] as $state) {
+            putenv('CAPELL_SCREENSHOT_APP_PATH=' . ($state === 'foreign-checkout' ? __DIR__ : base_path()));
+            config()->set('app.env', $state === 'production' ? 'production' : 'testing');
+            app()->instance('env', $state === 'production' ? 'production' : 'testing');
+            expect(fn () => (new PrepareAgentBridgeScreenshotAction)->handle($actor))->toThrow(RuntimeException::class, 'explicit disposable screenshot environment');
+            expect(CapellAgentBridgeToken::query()->count())->toBe($before);
+        }
+    } finally {
+        config()->set('app.env', $environment);
+        app()->instance('env', $runtimeEnvironment);
+        foreach (['CAPELL_SCREENSHOT_FIXTURE', 'CAPELL_SCREENSHOT_APP_PATH'] as $index => $key) {
+            putenv($previous[$index] === false ? $key : $key . '=' . $previous[$index]);
+        }
+    }
+});
+
+it('refuses to rotate a foreign same-name token belonging to the selected actor', function (): void {
+    $actor = User::query()->create(['name' => 'Capture operator', 'email' => 'admin@example.com', 'password' => 'password']);
+    $token = CapellAgentBridgeToken::query()->forceCreate([
+        'name' => 'Screenshot API token', 'user_type' => $actor->getMorphClass(), 'user_id' => $actor->getKey(),
+        'token_hash' => CapellAgentBridgeToken::hashPlainTextToken('customer-owned-secret'), 'scopes' => ['capell.pages.read'],
+    ]);
+    $before = $token->fresh()?->getRawOriginal();
+    $previous = [getenv('CAPELL_SCREENSHOT_FIXTURE'), getenv('CAPELL_SCREENSHOT_APP_PATH'), getenv('CAPELL_SCREENSHOT_ADMIN_EMAIL')];
+    putenv('CAPELL_SCREENSHOT_FIXTURE=record-state');
+    putenv('CAPELL_SCREENSHOT_APP_PATH=' . base_path());
+    putenv('CAPELL_SCREENSHOT_ADMIN_EMAIL=admin@example.com');
+    config()->set('auth.providers.users.model', User::class);
+    try {
+        expect(fn () => (new PrepareAgentBridgeScreenshotAction)->handle($actor))->toThrow(RuntimeException::class, 'token name is already in use');
+        expect($token->fresh()?->getRawOriginal())->toBe($before)
+            ->and(CapellAgentBridgeToken::query()->count())->toBe(1)
+            ->and(CapellAgentBridgeConfirmation::query()->count())->toBe(0)
+            ->and(CapellAgentBridgeAuditEntry::query()->count())->toBe(0);
+    } finally {
+        foreach (['CAPELL_SCREENSHOT_FIXTURE', 'CAPELL_SCREENSHOT_APP_PATH', 'CAPELL_SCREENSHOT_ADMIN_EMAIL'] as $index => $key) {
+            putenv($previous[$index] === false ? $key : $key . '=' . $previous[$index]);
+        }
+    }
+});
+
+it('preserves a foreign child on an owned screenshot token and rolls back token rotations', function (string $child): void {
+    $actor = User::query()->create(['name' => 'Capture operator', 'email' => 'admin@example.com', 'password' => 'password']);
+    $foreignActor = User::query()->create(['name' => 'Other operator', 'email' => 'foreign@example.test', 'password' => 'password']);
+    $previous = [getenv('CAPELL_SCREENSHOT_FIXTURE'), getenv('CAPELL_SCREENSHOT_APP_PATH'), getenv('CAPELL_SCREENSHOT_ADMIN_EMAIL')];
+    putenv('CAPELL_SCREENSHOT_FIXTURE=record-state');
+    putenv('CAPELL_SCREENSHOT_APP_PATH=' . base_path());
+    putenv('CAPELL_SCREENSHOT_ADMIN_EMAIL=admin@example.com');
+    try {
+        $action = new PrepareAgentBridgeScreenshotAction;
+        $action->handle($actor);
+        $token = CapellAgentBridgeToken::query()->where('name', 'Screenshot review token')->sole();
+        $record = $child === 'confirmation'
+            ? CapellAgentBridgeConfirmation::query()->sole()
+            : CapellAgentBridgeAuditEntry::query()->where('event', 'screenshot.previewed')->sole();
+        $record->forceFill(['user_type' => $foreignActor->getMorphClass(), 'user_id' => $foreignActor->getKey()])->save();
+        $before = $record->fresh()?->getRawOriginal();
+        $tokenBefore = $token->fresh()?->getRawOriginal();
+        expect(fn () => $action->handle($actor))->toThrow(RuntimeException::class, 'belongs to another record');
+        expect($record->fresh()?->getRawOriginal())->toBe($before)
+            ->and($token->fresh()?->getRawOriginal())->toBe($tokenBefore);
+    } finally {
+        foreach (['CAPELL_SCREENSHOT_FIXTURE', 'CAPELL_SCREENSHOT_APP_PATH', 'CAPELL_SCREENSHOT_ADMIN_EMAIL'] as $index => $key) {
+            putenv($previous[$index] === false ? $key : $key . '=' . $previous[$index]);
+        }
+    }
+})->with(['confirmation', 'audit']);
+
+it('refuses unresolved physical paths before any fixture work', function (): void {
+    $base = base_path();
+    $path = getenv('CAPELL_SCREENSHOT_APP_PATH');
+    $fixture = getenv('CAPELL_SCREENSHOT_FIXTURE');
+    $missing = $base . '/missing-screenshot-checkout';
+    putenv('CAPELL_SCREENSHOT_FIXTURE=record-state');
+    putenv('CAPELL_SCREENSHOT_APP_PATH=' . $missing);
+    app()->setBasePath($missing);
+    try {
+        expect(fn () => (new PrepareAgentBridgeScreenshotAction)->handle(new Illuminate\Foundation\Auth\User))->toThrow(RuntimeException::class, 'explicit disposable screenshot environment');
+    } finally {
+        app()->setBasePath($base);
+        putenv($path === false ? 'CAPELL_SCREENSHOT_APP_PATH' : 'CAPELL_SCREENSHOT_APP_PATH=' . $path);
+        putenv($fixture === false ? 'CAPELL_SCREENSHOT_FIXTURE' : 'CAPELL_SCREENSHOT_FIXTURE=' . $fixture);
+    }
+});
+
+it('refuses unresolved physical paths in the shared workbench assertion', function (): void {
+    require_once dirname(__DIR__, 4) . '/workbench/app/Actions/AssertScreenshotFixtureEnvironmentAction.php';
+    $base = base_path();
+    $path = getenv('CAPELL_SCREENSHOT_APP_PATH');
+    $fixture = getenv('CAPELL_SCREENSHOT_FIXTURE');
+    $missing = $base . '/missing-screenshot-checkout';
+    putenv('CAPELL_SCREENSHOT_FIXTURE=record-state');
+    putenv('CAPELL_SCREENSHOT_APP_PATH=' . $missing);
+    app()->setBasePath($missing);
+    try {
+        expect(fn () => (new AssertScreenshotFixtureEnvironmentAction)->handle())
+            ->toThrow(RuntimeException::class, 'explicitly selected disposable application');
+    } finally {
+        app()->setBasePath($base);
+        putenv($path === false ? 'CAPELL_SCREENSHOT_APP_PATH' : 'CAPELL_SCREENSHOT_APP_PATH=' . $path);
+        putenv($fixture === false ? 'CAPELL_SCREENSHOT_FIXTURE' : 'CAPELL_SCREENSHOT_FIXTURE=' . $fixture);
+    }
 });

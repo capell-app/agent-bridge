@@ -27,25 +27,24 @@ use Capell\AgentBridge\Support\AgentBridgeValue;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\AgentBridge\Tools\Boost\ListBoostCapabilitiesTool;
 use Capell\AgentBridge\Tools\Boost\PreviewBoostCapabilityTool;
+use Capell\Core\Actions\Install\RegisterProviderCommandsInCurrentProcessAction;
 use Capell\Core\Facades\CapellCore;
 use Capell\Core\Support\Packages\PackageSurfaceRegistrar;
 use Capell\Core\Support\Packages\RegistersInstalledRuntime;
+use Capell\Core\Support\Packages\RouteGroupIsolation;
 use Capell\Core\Support\Settings\SettingsGroupMetadata;
 use Filament\Pages\Page;
 use Filament\Support\Facades\FilamentView;
 use Filament\Support\Icons\Heroicon;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Foundation\Application;
 use Illuminate\Routing\Router;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Boost\AgentBridge\Boost;
 use Livewire\Livewire;
 use Override;
-use ReflectionProperty;
 use Throwable;
 
 final class AgentBridgeServiceProvider extends ServiceProvider
@@ -77,15 +76,9 @@ final class AgentBridgeServiceProvider extends ServiceProvider
             __DIR__ . '/../../config/capell-agent-bridge.php' => config_path('capell-agent-bridge.php'),
         ], 'capell-agent-bridge-config');
 
-        $router = $this->app->make(Router::class);
-        $groups = new ReflectionProperty(Router::class, 'groupStack');
-        $previous = $groups->getValue($router);
-        $groups->setValue($router, []);
-        try {
+        RouteGroupIsolation::run($this->app->make(Router::class), function (): void {
             $this->loadRoutesFrom(__DIR__ . '/../../routes/agent-bridge.php');
-        } finally {
-            $groups->setValue($router, $previous);
-        }
+        });
 
         $this->registerModels();
         $this->registerSettingsIntegration();
@@ -238,28 +231,23 @@ final class AgentBridgeServiceProvider extends ServiceProvider
             return;
         }
 
-        $this->commands([
-            PruneAgentBridgeAuditEntriesCommand::class,
-        ]);
-
-        if (
-            $this->app instanceof Application
-            && $this->app->isBooted()
-            && $this->app->bound('installed-runtime.initially-installed')
-            && $this->app->make('installed-runtime.initially-installed') === false
-        ) {
-            Artisan::registerCommand($this->app->make(PruneAgentBridgeAuditEntriesCommand::class));
-        }
+        RegisterProviderCommandsInCurrentProcessAction::run(function (): void {
+            $this->commands([PruneAgentBridgeAuditEntriesCommand::class]);
+        });
     }
 
     private function registerTaggedCapabilityProviders(): void
     {
-        $registry = $this->app->make(CapellAgentBridgeCapabilityRegistry::class);
+        // Tagged providers can translate metadata from packages whose namespaces
+        // are not loaded until their own providers boot.
+        $this->app->booted(function (): void {
+            $registry = $this->app->make(CapellAgentBridgeCapabilityRegistry::class);
 
-        foreach ($this->app->tagged(CapellAgentBridgeCapabilityProvider::class) as $provider) {
-            if ($provider instanceof CapellAgentBridgeCapabilityProvider) {
-                $provider->registerCapabilities($registry);
+            foreach ($this->app->tagged(CapellAgentBridgeCapabilityProvider::class) as $provider) {
+                if ($provider instanceof CapellAgentBridgeCapabilityProvider) {
+                    $provider->registerCapabilities($registry);
+                }
             }
-        }
+        });
     }
 }

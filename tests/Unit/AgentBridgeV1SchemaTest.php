@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
+use Capell\AgentBridge\Actions\CreateAgentBridgeTokenAction;
 use Capell\AgentBridge\Capabilities\BuiltInAgentBridgeCapabilityProvider;
+use Capell\AgentBridge\Servers\CapellLocalSiteServer;
 use Capell\AgentBridge\Support\AgentBridgeMcpV1Policy;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
-use Capell\AgentBridge\Tools\Site\ConfirmSiteCapabilityTool;
-use Capell\AgentBridge\Tools\Site\ListSiteCapabilitiesTool;
-use Capell\AgentBridge\Tools\Site\RunSiteCapabilityTool;
+use Capell\AgentBridge\Tests\Fixtures\User;
+use Capell\Tests\Support\InMemoryMcpTransport;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\File;
+use Laravel\Mcp\Facades\Mcp;
 
 it('matches the frozen external client v1 catalogue and schemas', function (): void {
     $registry = new CapellAgentBridgeCapabilityRegistry;
@@ -20,6 +23,7 @@ it('matches the frozen external client v1 catalogue and schemas', function (): v
         ->values()
         ->all();
 
+    // Frozen schema digests protect the versioned wire contract consumed by external clients.
     $snapshot = array_map(static fn (array $capability): array => [
         'key' => $capability['key'],
         'scope' => $capability['scope'],
@@ -46,14 +50,6 @@ it('matches the frozen external client v1 catalogue and schemas', function (): v
     $fixtureStdioTransport = agentBridgeV1Object($fixtureTransports['stdio'] ?? null, 'Fixture stdio transport');
     $fixtureHttpRoute = agentBridgeV1String($fixtureHttpTransport['route'] ?? null, 'Fixture HTTP route');
     $fixtureStdioHandle = agentBridgeV1String($fixtureStdioTransport['handle'] ?? null, 'Fixture stdio handle');
-    $packagePath = dirname(__DIR__, 2);
-    $server = File::get($packagePath . '/src/Servers/CapellSiteServer.php');
-    $localServer = File::get($packagePath . '/src/Servers/CapellLocalSiteServer.php');
-    $routes = File::get($packagePath . '/routes/agent-bridge.php');
-    $runTool = File::get($packagePath . '/src/Tools/Site/RunSiteCapabilityTool.php');
-    $confirmTool = File::get($packagePath . '/src/Tools/Site/ConfirmSiteCapabilityTool.php');
-    $externalVerifier = File::get($packagePath . '/scripts/verify-mcp-v1-transports.php');
-
     expect($snapshot)->toBe($fixtureCapabilities)
         ->and(array_keys($fixtureTools))->toBe([
             'capell-site-list-capabilities',
@@ -66,21 +62,44 @@ it('matches the frozen external client v1 catalogue and schemas', function (): v
         ->and($fixtureServerVersion)->toBe('1.0.0')
         ->and($fixtureHttpRoute)->toBe(config('capell-agent-bridge.routes.site'))
         ->and($fixtureStdioHandle)->toBe(config('capell-agent-bridge.local.handle'))
-        ->and($server)->toContain("#[Version('{$fixtureServerVersion}')]", ListSiteCapabilitiesTool::class, RunSiteCapabilityTool::class, ConfirmSiteCapabilityTool::class)
-        ->and($localServer)->toContain('extends CapellSiteServer', 'AuthenticateLocalAgentBridgeClientAction::run()')
-        ->and($routes)->toContain('Mcp::local($localHandle, CapellLocalSiteServer::class)', 'Mcp::web($siteRoute, CapellSiteServer::class)', 'AuthenticateCapellAgentBridgeToken::class')
-        ->and($runTool)->toContain("'capability' => ['required'", "'payload' => ['required'")
-        ->and($confirmTool)->toContain("'confirmationToken' => ['required'", "'payload' => ['required'")
-        ->and($externalVerifier)->toContain(
-            'capabilityContract($capability)',
-            'hash(\'sha256\', json_encode($inputSchema, JSON_THROW_ON_ERROR))',
-            'hash(\'sha256\', json_encode($outputSchema, JSON_THROW_ON_ERROR))',
-        )
         ->and(array_column($snapshot, 'key'))->not->toContain(
             'capell.pages.publish_now',
             'capell.packages.install',
             'capell.cache.clear',
         );
+});
+
+it('serves the frozen catalogue and required schemas over the authenticated local transport', function (): void {
+    $fixture = agentBridgeV1Fixture(json_decode(
+        File::get(dirname(__DIR__) . '/Fixtures/mcp-v1-external-client.json'),
+        true,
+        flags: JSON_THROW_ON_ERROR,
+    ));
+    $user = User::query()->create(['name' => 'Local client', 'email' => 'local-client@example.test', 'password' => 'secret']);
+    $token = CreateAgentBridgeTokenAction::run($user, 'Local client', ['*']);
+    config()->set('capell-agent-bridge.local.token', $token['plainTextToken']);
+    expect(is_callable(Mcp::getLocalServer(agentBridgeV1String(config('capell-agent-bridge.local.handle'), 'Local transport handle'))))->toBeTrue();
+    $transport = new InMemoryMcpTransport;
+    (new CapellLocalSiteServer($transport))->start();
+    $initialized = $transport->request('initialize', [
+        'protocolVersion' => '2025-11-25', 'capabilities' => (object) [],
+        'clientInfo' => ['name' => 'Contract client', 'version' => '1.0.0'],
+    ]);
+    expect(data_get($initialized, 'result.serverInfo.version'))->toBe($fixture['serverVersion']);
+    $catalogue = $transport->request('tools/list');
+    $tools = agentBridgeV1ObjectList(data_get($catalogue, 'result.tools'), 'Published tools');
+    $required = [];
+    foreach ($tools as $tool) {
+        $name = agentBridgeV1String($tool['name'] ?? null, 'Tool name');
+        $required[$name] = ['required' => data_get($tool, 'inputSchema.required', [])];
+    }
+    expect($required)->toEqualCanonicalizing($fixture['tools']);
+});
+
+it('rejects local transport startup without a usable user token', function (): void {
+    config()->set('capell-agent-bridge.local.token', '');
+    expect(fn () => (new CapellLocalSiteServer(new InMemoryMcpTransport))->start())
+        ->toThrow(AuthorizationException::class);
 });
 
 it('rejects object-shaped values at frozen mcp v1 list boundaries', function (): void {

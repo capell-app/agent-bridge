@@ -16,6 +16,7 @@ use Capell\AgentBridge\Tests\Fixtures\User;
 use Capell\Core\Facades\CapellCore;
 use Capell\Core\Providers\CapellServiceProvider;
 use Capell\Core\Support\CapellCoreManager;
+use Capell\Tests\Support\Concerns\IsolatesTestbenchPaths;
 use Filament\Actions\ActionsServiceProvider;
 use Filament\FilamentServiceProvider;
 use Filament\Forms\FormsServiceProvider;
@@ -36,6 +37,7 @@ use Spatie\LaravelSettings\LaravelSettingsServiceProvider;
 
 abstract class TestCase extends OrchestraTestCase
 {
+    use IsolatesTestbenchPaths;
     use RefreshDatabase;
 
     protected function setUp(): void

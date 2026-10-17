@@ -16,6 +16,7 @@ use Capell\AgentBridge\Models\CapellAgentBridgeSavedPrompt;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Tests\Fixtures\User;
 use Capell\Core\Facades\CapellCore;
+use Capell\Tests\Support\InstalledRuntimeParity;
 use Carbon\CarbonImmutable;
 use Illuminate\Testing\PendingCommand;
 
@@ -132,18 +133,9 @@ it('registers agent bridge models with core discovery', function (): void {
     );
 });
 
-it('enrols installed runtime wiring with the lifecycle boundary', function (): void {
-    $source = file_get_contents(dirname(__DIR__, 2) . '/src/Providers/AgentBridgeServiceProvider.php');
-
-    throw_unless(is_string($source), RuntimeException::class, 'Unable to read the Agent Bridge service provider source.');
-
-    expect($source)
-        ->toContain('use RegistersInstalledRuntime;')
-        ->toContain('$this->registerInstalledRuntime(self::$packageName);')
-        ->toContain('protected function bootInstalledRuntime(): void')
-        ->not->toContain('$this->app->booted(function (): void');
+it('exposes installed package outcomes only after installation and keeps them on refresh', function (): void {
+    InstalledRuntimeParity::assertPackage('agent-bridge');
 });
-
 function createLifecycleAuditEntry(User $user, CapellAgentBridgeToken $token, string $event, CarbonImmutable $createdAt): CapellAgentBridgeAuditEntry
 {
     $entry = new CapellAgentBridgeAuditEntry([

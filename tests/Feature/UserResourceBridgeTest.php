@@ -22,9 +22,14 @@ use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Providers\AgentBridgeServiceProvider;
 use Capell\AgentBridge\Settings\AgentBridgeSettings;
+use Capell\AgentBridge\Tests\Fixtures\LegacyAgentBridgeAdminHost;
 use Capell\AgentBridge\Tests\Fixtures\User;
+use Capell\Core\Actions\RuntimeRefresh\RefreshInstalledPackageRuntimeAction;
+use Capell\Core\Facades\CapellCore;
 use Capell\Core\Support\Settings\SettingsSchemaRegistry;
-use Capell\Tests\Support\LegacyAdminBridgeFallbackHost;
+use Capell\Tests\Support\InstalledRuntimeParity;
+use Capell\Tests\Support\InstalledRuntimeState;
+use Capell\Tests\Support\InstalledRuntimeTestCase;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Component;
@@ -51,12 +56,6 @@ function seedAgentBridgeSettings(): void
 {
     $settingsMigration = require dirname(__DIR__, 2) . '/database/settings/2026_05_10_190841_01_add_agent_bridge_settings.php';
     $settingsMigration->up();
-}
-
-function invokeAgentBridgeProviderMethod(object $provider, string $method): void
-{
-    $reflection = new ReflectionMethod($provider, $method);
-    $reflection->invoke($provider);
 }
 
 function resetAgentBridgeAdminBridgeState(): void
@@ -195,21 +194,26 @@ it('registers the current agent bridge admin surface', function (): void {
 });
 
 it('keeps the legacy admin fallback when the bridge host is unavailable', function (): void {
-    $host = new LegacyAdminBridgeFallbackHost;
-    CapellAdmin::swap($host);
+    InstalledRuntimeState::run(function (): void {
+        $application = InstalledRuntimeTestCase::boot(
+            InstalledRuntimeParity::manifest('agent-bridge'),
+            false,
+            sourceRoot: dirname(__DIR__, 2),
+        );
+        $host = new LegacyAgentBridgeAdminHost(resolve(CapellAdminManager::class));
+        CapellAdmin::swap($host);
+        InstalledRuntimeTestCase::prepareLateInstallMigrations($application);
+        CapellCore::markPackageInstalled(AgentBridgeServiceProvider::$packageName);
+        RefreshInstalledPackageRuntimeAction::run(
+            CapellCore::getPackage(AgentBridgeServiceProvider::$packageName),
+        );
 
-    try {
-        invokeAgentBridgeProviderMethod(new AgentBridgeServiceProvider(app()), 'registerAdminIntegration');
-
-        $taggedBridges = iterator_to_array(app()->tagged(UserResourceBridge::TAG));
-
-        expect($host->extensionPages[AgentBridgeServiceProvider::$packageName] ?? [])
+        expect($host->legacy->extensionPages[AgentBridgeServiceProvider::$packageName] ?? [])
             ->toContain(CapellAgentBridgePromptBuilderPage::class)
-            ->and(collect($taggedBridges)->contains(fn (object $bridge): bool => $bridge instanceof AgentBridgeUserSchemaExtender))->toBeTrue();
-    } finally {
-        app()->forgetInstance(CapellAdminManager::class);
-        CapellAdmin::clearResolvedInstance(CapellAdminManager::class);
-    }
+            ->and(collect($application->tagged(UserResourceBridge::TAG))->contains(
+                fn (object $bridge): bool => $bridge instanceof AgentBridgeUserSchemaExtender,
+            ))->toBeTrue();
+    });
 });
 
 it('scopes tokens confirmations and audit entries to the edited user', function (): void {
