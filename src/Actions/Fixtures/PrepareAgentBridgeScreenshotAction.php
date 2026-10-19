@@ -7,6 +7,7 @@ namespace Capell\AgentBridge\Actions\Fixtures;
 use Capell\AgentBridge\Models\CapellAgentBridgeAuditEntry;
 use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\ScreenshotFixtures\FixtureState;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -23,10 +24,15 @@ final class PrepareAgentBridgeScreenshotAction
                 && getenv('CAPELL_SCREENSHOT_FIXTURE') === 'record-state'
                 && is_string($appPath)
                 && is_string($basePath)
-                && $appPath === $basePath,
+                && $appPath === $basePath
+                && (realpath(base_path()) === realpath(dirname(__DIR__, 5) . '/vendor/orchestra/testbench-core/laravel')
+                    || str_starts_with((string) realpath(base_path()), dirname(__DIR__, 5) . '/tmp/testbench-skeletons/')),
             RuntimeException::class,
             'Agent Bridge screenshot fixtures require the explicit disposable screenshot environment.',
         );
+
+        require_once dirname(__DIR__, 5) . '/scripts/screenshots/FixtureState.php';
+        FixtureState::boot();
 
         $captureEmail = getenv('CAPELL_SCREENSHOT_ADMIN_EMAIL') ?: (getenv('CAPELL_ADMIN_EMAIL') ?: 'admin@example.com');
         $authenticated = auth()->user();
@@ -48,16 +54,18 @@ final class PrepareAgentBridgeScreenshotAction
             $token = null;
 
             foreach ($tokenDefinitions as $tokenDefinition) {
-                $screenshotToken = CapellAgentBridgeToken::query()->lockForUpdate()->firstOrNew([
-                    'name' => $tokenDefinition['name'],
-                    'user_type' => $user->getMorphClass(),
-                    'user_id' => $user->getKey(),
-                ]);
+                $screenshotToken = CapellAgentBridgeToken::query()
+                    ->where('name', $tokenDefinition['name'])
+                    ->where('user_type', $user->getMorphClass())
+                    ->where('user_id', $user->getKey())
+                    ->lockForUpdate()
+                    ->first() ?? new CapellAgentBridgeToken;
                 if ($screenshotToken->exists) {
                     throw_unless(CapellAgentBridgeAuditEntry::query()->where('agent_bridge_token_id', $screenshotToken->getKey())->where('event', 'screenshot.fixture-owned')->where('result->screenshot_fixture', true)->exists(), RuntimeException::class, 'The Agent Bridge screenshot token name is already in use.');
                 }
 
                 $screenshotToken->forceFill([
+                    'name' => $tokenDefinition['name'],
                     'user_type' => $user->getMorphClass(),
                     'user_id' => $user->getKey(),
                     'token_hash' => CapellAgentBridgeToken::hashPlainTextToken(Str::random(64)),

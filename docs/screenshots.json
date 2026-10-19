@@ -60,19 +60,36 @@
             "targetType": "admin-surface",
             "target": "AgentBridgeConfirmationsRelationManager",
             "scenario": "admin-index",
-            "url": "/screenshot-fixtures/agent-bridge/user",
+            "url": "/users",
             "waitFor": ".fi-ta:has-text(\"Confirmations\") tbody tr:has-text(\"capell.pages.inspect\")",
             "required": false,
-            "notes": "Blocked from marketplace promotion until recaptured: legacy output duplicates the prompt builder or user form. The guarded route seeds a disabled token, confirmation and audit row for the authenticated user; open the matching relation tab. This image claims only the pending-confirmations table, not execution of an agent capability.",
+            "notes": "Blocked from marketplace promotion pending complete package acceptance: legacy output duplicates the prompt builder or user form. This recipe replaces those legacy frames. Prepare disposable records with the guarded workbench command, open the selected capture administrator from the native Users table, and inspect the confirmations relation. No capability is executed, confirmed or granted.",
             "useCase": "An administrator reviews recorded pending capability confirmations for a user.",
             "screenshotPath": "packages/agent-bridge/docs/screenshots/capability-preview-and-confirmation-flow.png",
             "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/capability-preview-and-confirmation-flow-dark.png",
             "beforeWait": [
                 {
                     "type": "click",
-                    "selector": "[role=\"tab\"]:has-text(\"Confirmations\")"
+                    "selector": "td.fi-ta-cell-name a[href$=\"/edit\"]:has-text(\"Admin\")"
+                },
+                {
+                    "type": "scrollIntoView",
+                    "selector": ".fi-tabs-item:has-text(\"Confirmations\")",
+                    "block": "start"
+                },
+                {
+                    "type": "click",
+                    "selector": ".fi-tabs-item:has-text(\"Confirmations\")"
+                },
+                {
+                    "type": "scrollIntoView",
+                    "selector": ".fi-ta:has-text(\"Confirmations\") tbody tr:has-text(\"capell.pages.inspect\")",
+                    "block": "start"
                 }
-            ]
+            ],
+            "evidenceKind": "installed-app-filament-capture",
+            "user": "admin",
+            "colorSchemes": ["light", "dark"]
         },
         {
             "id": "audit-entry-review",
@@ -82,19 +99,41 @@
             "targetType": "admin-surface",
             "target": "AgentBridgeAuditEntriesRelationManager",
             "scenario": "admin-form",
-            "url": "/screenshot-fixtures/agent-bridge/user",
-            "waitFor": ".fi-ta:has-text(\"Audit entries\") tbody tr:has-text(\"screenshot.previewed\")",
+            "url": "/users",
+            "waitFor": ".fi-ta:not(:has(tbody tr:has-text(\"screenshot.fixture-owned\"))) tbody tr:has-text(\"screenshot.previewed\")",
             "required": false,
-            "notes": "Blocked from marketplace promotion until recaptured: legacy output duplicates the prompt builder or user form. The guarded route seeds a disabled token, confirmation and audit row for the authenticated user; open the matching relation tab.",
+            "notes": "Blocked from marketplace promotion pending complete package acceptance: legacy output duplicates the prompt builder or user form. This recipe replaces those legacy frames. Prepare disposable records with the guarded workbench command, open the selected capture administrator from the native Users table, and inspect the audit entries relation. No capability is executed, confirmed or granted. Use the native table search for screenshot.previewed so fixture ownership bookkeeping is excluded from the review.",
             "useCase": "An administrator reviews what an Agent Bridge client previewed, confirmed, or ran for a user.",
             "screenshotPath": "packages/agent-bridge/docs/screenshots/audit-entry-review.png",
             "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/audit-entry-review-dark.png",
             "beforeWait": [
                 {
                     "type": "click",
-                    "selector": "[role=\"tab\"]:has-text(\"Audit entries\")"
+                    "selector": "td.fi-ta-cell-name a[href$=\"/edit\"]:has-text(\"Admin\")"
+                },
+                {
+                    "type": "scrollIntoView",
+                    "selector": ".fi-tabs-item:has-text(\"Audit entries\")",
+                    "block": "start"
+                },
+                {
+                    "type": "click",
+                    "selector": ".fi-tabs-item:has-text(\"Audit entries\")"
+                },
+                {
+                    "type": "fill",
+                    "selector": ".fi-ta:has-text(\"Audit entries\") input[type=\"search\"]",
+                    "value": "screenshot.previewed"
+                },
+                {
+                    "type": "scrollIntoView",
+                    "selector": ".fi-ta:not(:has(tbody tr:has-text(\"screenshot.fixture-owned\"))) tbody tr:has-text(\"screenshot.previewed\")",
+                    "block": "start"
                 }
-            ]
+            ],
+            "evidenceKind": "installed-app-filament-capture",
+            "user": "admin",
+            "colorSchemes": ["light", "dark"]
         },
         {
             "id": "agent-bridge-server-health-output",
@@ -119,5 +158,8 @@
             "surface": "admin",
             "reason": "Not captured: the real in-repo runner was blocked before navigation on 2026-08-16 when the all-package workbench install failed with missing Capell\\ThemeBistro\\ThemeBistroServiceProvider autoloading. This non-required light/dark pair was removed rather than fabricated."
         }
+    ],
+    "fixtureCommands": [
+        "capell:screenshot-admin-fixture --package=agent-bridge"
     ]
 }

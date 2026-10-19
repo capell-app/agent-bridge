@@ -110,6 +110,7 @@ Screenshot contract: `docs/screenshots.json`.
 - `CreateAgentBridgeTokenAction`
 - `DeleteAgentBridgePromptAction`
 - `FindSavedPromptForUserAction`
+- `PrepareAgentBridgeScreenshotAction`
 - `HashAgentBridgeIpAddressAction`
 - `InterpretAgentBridgeCommandAction`
 - `InvokeAgentBridgeCapabilityPreviewAction`
@@ -129,7 +130,6 @@ Screenshot contract: `docs/screenshots.json`.
 - `SearchPagesCapabilityAction`
 - `TransitionPagePublicationCapabilityAction`
 - `UpdateDraftPageCapabilityAction`
-- `PrepareAgentBridgeScreenshotAction`
 - `PreviewAgentBridgeAdminCapabilityAction`
 - `PruneAgentBridgeAuditEntriesAction`
 - `QueryAgentBridgeAuditEntriesAction`
