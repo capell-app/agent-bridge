@@ -50,12 +50,13 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
         $available = class_exists(Mcp::class);
 
         return new DoctorCheckResultData(
-            label: 'Laravel MCP package',
+            label: 'Agent Bridge: Laravel MCP installed',
             passed: $available,
             message: $available
                 ? 'The laravel/mcp package is installed and available.'
                 : 'The laravel/mcp package is not installed.',
             remediation: $available ? null : 'Run: composer require laravel/mcp',
+            id: 'legacy.laravel.mcp.package',
         );
     }
 
@@ -73,26 +74,29 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
                 ->reject(fn (string $table): bool => Schema::hasTable($table));
         } catch (Throwable $throwable) {
             return new DoctorCheckResultData(
-                label: 'Agent Bridge database tables',
+                label: 'Agent Bridge: database tables present',
                 passed: false,
                 message: 'Unable to check database tables.',
                 remediation: $throwable->getMessage(),
+                id: 'legacy.agent.bridge.database.tables',
             );
         }
 
         if ($missingTables->isNotEmpty()) {
             return new DoctorCheckResultData(
-                label: 'Agent Bridge database tables',
+                label: 'Agent Bridge: database tables present',
                 passed: false,
                 message: 'Missing tables: ' . $missingTables->implode(', ') . '.',
                 remediation: 'Install or migrate the Agent Bridge package so its token, confirmation, audit, and saved prompt tables exist.',
+                id: 'legacy.agent.bridge.database.tables',
             );
         }
 
         return new DoctorCheckResultData(
-            label: 'Agent Bridge database tables',
+            label: 'Agent Bridge: database tables present',
             passed: true,
             message: 'All required Agent Bridge tables are present.',
+            id: 'legacy.agent.bridge.database.tables',
         );
     }
 
@@ -103,26 +107,29 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
             $capabilityCount = $registry->all()->count();
         } catch (Throwable $throwable) {
             return new DoctorCheckResultData(
-                label: 'Agent Bridge capability registry',
+                label: 'Agent Bridge: agent capabilities registered',
                 passed: false,
                 message: 'Unable to resolve the capability registry.',
                 remediation: $throwable->getMessage(),
+                id: 'legacy.agent.bridge.capability.registry',
             );
         }
 
         if ($capabilityCount === 0) {
             return new DoctorCheckResultData(
-                label: 'Agent Bridge capability registry',
+                label: 'Agent Bridge: agent capabilities registered',
                 passed: false,
                 message: 'The capability registry is resolvable but contains no capabilities.',
                 remediation: 'Ensure AgentBridgeServiceProvider is booted and registers built-in capabilities.',
+                id: 'legacy.agent.bridge.capability.registry',
             );
         }
 
         return new DoctorCheckResultData(
-            label: 'Agent Bridge capability registry',
+            label: 'Agent Bridge: agent capabilities registered',
             passed: true,
             message: sprintf('Capability registry is resolvable with %d capability(ies) registered.', $capabilityCount),
+            id: 'legacy.agent.bridge.capability.registry',
         );
     }
 
@@ -132,10 +139,11 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
             $capabilities = resolve(CapellAgentBridgeCapabilityRegistry::class)->all();
         } catch (Throwable $throwable) {
             return new DoctorCheckResultData(
-                label: 'Agent Bridge server policy coverage',
+                label: 'Agent Bridge: server access policies configured',
                 passed: false,
                 message: 'Unable to inspect registered capability policies.',
                 remediation: $throwable->getMessage(),
+                id: 'legacy.agent.bridge.server.policy.coverage',
             );
         }
 
@@ -152,7 +160,7 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
 
         if ($missingScopes->isNotEmpty() || $mutatingWithoutConfirmation->isNotEmpty()) {
             return new DoctorCheckResultData(
-                label: 'Agent Bridge server policy coverage',
+                label: 'Agent Bridge: server access policies configured',
                 passed: false,
                 message: sprintf(
                     'Capability policy coverage is incomplete. Missing scopes: %s. Mutating without confirmation: %s.',
@@ -160,6 +168,7 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
                     $mutatingWithoutConfirmation->isEmpty() ? 'none' : $mutatingWithoutConfirmation->implode(', '),
                 ),
                 remediation: 'Ensure every site capability has a token scope and every mutating capability requires confirmation or a risk level that forces confirmation.',
+                id: 'legacy.agent.bridge.server.policy.coverage',
             );
         }
 
@@ -168,13 +177,14 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
             ->count();
 
         return new DoctorCheckResultData(
-            label: 'Agent Bridge server policy coverage',
+            label: 'Agent Bridge: server access policies configured',
             passed: true,
             message: sprintf(
                 'Site server policy coverage is valid for %d capability(ies): scopes and confirmation gates are present; %d declare host policy abilities.',
                 $siteCapabilities->count(),
                 $withPolicyAbility,
             ),
+            id: 'legacy.agent.bridge.server.policy.coverage',
         );
     }
 
@@ -185,20 +195,22 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
             $bridgeEnabled = $settings->enable_user_resource_bridge;
         } catch (Throwable $throwable) {
             return new DoctorCheckResultData(
-                label: 'Agent Bridge settings',
+                label: 'Agent Bridge: settings valid',
                 passed: false,
                 message: 'Unable to resolve Agent Bridge settings.',
                 remediation: $throwable->getMessage(),
+                id: 'legacy.agent.bridge.settings',
             );
         }
 
         return new DoctorCheckResultData(
-            label: 'Agent Bridge settings',
+            label: 'Agent Bridge: settings valid',
             passed: true,
             message: sprintf(
                 'Settings loaded. User resource bridge: %s.',
                 $bridgeEnabled ? 'enabled' : 'disabled',
             ),
+            id: 'legacy.agent.bridge.settings',
         );
     }
 
@@ -224,10 +236,11 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
 
         if ($enabledServers === []) {
             return new DoctorCheckResultData(
-                label: 'Agent Bridge MCP routes',
+                label: 'Agent Bridge: agent routes registered',
                 passed: false,
                 message: 'No MCP server routes are enabled. Both site and knowledge routes are disabled.',
                 remediation: 'Enable at least one route in config/capell-agent-bridge.php under routes.',
+                id: 'legacy.agent.bridge.mcp.routes',
             );
         }
 
@@ -238,9 +251,10 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
         }
 
         return new DoctorCheckResultData(
-            label: 'Agent Bridge MCP routes',
+            label: 'Agent Bridge: agent routes registered',
             passed: true,
             message: $message,
+            id: 'legacy.agent.bridge.mcp.routes',
         );
     }
 }

@@ -137,19 +137,21 @@
         },
         {
             "id": "agent-bridge-server-health-output",
-            "title": "Agent Bridge server health output.",
+            "title": "Agent Bridge user resource settings.",
             "package": "agent-bridge",
             "surface": "admin",
             "targetType": "admin-surface",
-            "target": "CapellAgentBridgePromptBuilderPage",
-            "scenario": "admin-index",
-            "url": "/settings",
-            "waitFor": "body",
+            "target": "AgentBridgeSettings",
+            "scenario": "admin-form",
+            "url": "/admin/extensions?manage=capell-app%2Fagent-bridge&surface=agent_bridge",
+            "waitFor": ".fi-modal-window:has(button[role=\"switch\"][id$=\"enable_user_resource_bridge\"])",
             "required": false,
-            "notes": "Blocked from marketplace promotion until the screenshot runner can expose a real route/config health panel or Diagnostics health surface for Agent Bridge. Existing committed output is runner evidence only and must not be promoted while it duplicates the prompt builder.",
-            "useCase": "An operator confirms which Agent Bridge endpoints are enabled and whether token-authenticated requests can reach them.",
+            "notes": "Approved existing native settings contract. Capture the native Agent Bridge management slide-over on Extensions, which shows the Show Agent Bridge details on users switch. Read only; do not toggle or save. This workflow does not expose endpoint health or token-request status, so the historical id does not describe the frame.",
+            "useCase": "An administrator controls whether Agent Bridge activity details and related records appear on supported user edit pages.",
             "screenshotPath": "packages/agent-bridge/docs/screenshots/agent-bridge-server-health-output.png",
-            "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/agent-bridge-server-health-output-dark.png"
+            "darkScreenshotPath": "packages/agent-bridge/docs/screenshots/agent-bridge-server-health-output-dark.png",
+            "user": "admin",
+            "colorSchemes": ["light", "dark"]
         }
     ],
     "notCaptured": [
@@ -161,5 +163,11 @@
     ],
     "fixtureCommands": [
         "capell:screenshot-admin-fixture --package=agent-bridge"
+    ],
+    "fixtureEntryIds": [
+        "agent-bridge-prompt-builder-page",
+        "token-management-or-setup-surface",
+        "capability-preview-and-confirmation-flow",
+        "audit-entry-review"
     ]
 }

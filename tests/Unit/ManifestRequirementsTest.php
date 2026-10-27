@@ -78,7 +78,6 @@ describe('agent-bridge capell.json manifest', function (): void {
         foreach ([
             'capability-preview-and-confirmation-flow',
             'audit-entry-review',
-            'agent-bridge-server-health-output',
         ] as $blockedEntryId) {
             $entry = $entries->get($blockedEntryId);
 
@@ -88,6 +87,20 @@ describe('agent-bridge capell.json manifest', function (): void {
                 ->and($entry['notes'] ?? '')->toContain('Blocked from marketplace promotion')
                 ->and($entry['notes'] ?? '')->toContain('duplicates the prompt builder');
         }
+    });
+
+    it('keeps the native settings capture optional, outside the marketplace catalogue and on the extension management surface', function () use ($screenshotsContract, $manifest): void {
+        $entries = collect(manifestEntries($screenshotsContract()))->keyBy('id');
+        $entry = $entries->get('agent-bridge-server-health-output');
+        throw_unless(is_array($entry), RuntimeException::class, 'Missing Agent Bridge settings capture.');
+
+        expect($entry['required'] ?? null)->toBeFalse()
+            ->and($entry['url'] ?? '')->toContain('/admin/extensions?manage=capell-app%2Fagent-bridge&surface=agent_bridge')
+            ->and($entry['colorSchemes'] ?? [])->toBe(['light', 'dark'])
+            ->and($entry['notes'] ?? '')->not->toContain('Blocked from marketplace promotion');
+
+        $marketplacePaths = collect(manifestScreenshots($manifest()))->pluck('path')->all();
+        expect($marketplacePaths)->not->toContain('docs/screenshots/agent-bridge-server-health-output.png', 'docs/screenshots/agent-bridge-server-health-output-dark.png');
     });
 
     it('keeps the accepted token capture optional and outside the marketplace catalogue', function () use ($screenshotsContract, $manifest, $packagePath): void {

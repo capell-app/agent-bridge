@@ -37,7 +37,7 @@ Screenshot contract: `docs/screenshots.json`.
 - Token management or setup surface (admin, supplementary evidence).
 - Pending capability confirmations (admin, supplementary evidence).
 - Audit entry review (admin, supplementary evidence).
-- Agent Bridge server health output (admin, supplementary evidence).
+- Agent Bridge user resource settings (admin, supplementary evidence).
 
 ## Technical Shape
 
@@ -248,6 +248,12 @@ Screenshot contract: `docs/screenshots.json`.
 
 1. Install the package: `composer require capell-app/agent-bridge`.
 2. Open the package admin surface at `/admin/agent-bridge/capell-agent-bridge/prompt-builder` and confirm Agent Bridge is available.
+
+## Upgrading
+
+No manual steps between minor versions.
+
+Read [CHANGELOG.md](CHANGELOG.md) before upgrading.
 
 ## Next Steps
 

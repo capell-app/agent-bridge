@@ -109,7 +109,8 @@ it('hydrates agent bridge settings and registers the settings schema', function 
     $registry = resolve(SettingsSchemaRegistry::class);
 
     expect($registry->getSettingsClass('agent_bridge'))->toBe(AgentBridgeSettings::class)
-        ->and($registry->getSchemas('agent_bridge'))->toContain(AgentBridgeSettingsSchema::class);
+        ->and($registry->getSchemas('agent_bridge'))->toContain(AgentBridgeSettingsSchema::class)
+        ->and($registry->getMetadata('agent_bridge')?->getLabel())->toBe('Agent Bridge');
 
     $surfaces = resolve(ExtensionManagementSurfaceRegistry::class)
         ->surfacesForPackage(AgentBridgeServiceProvider::$packageName);

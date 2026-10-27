@@ -25,7 +25,7 @@ it('runs diagnostics and returns a collection of check results', function (): vo
 it('checks that the laravel mcp package is available', function (): void {
     $results = AgentBridgeHealthCheck::runDiagnostics();
 
-    $mcpCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->label === 'Laravel MCP package');
+    $mcpCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->id === 'legacy.laravel.mcp.package');
 
     throw_unless($mcpCheck instanceof DoctorCheckResultData, RuntimeException::class, 'Laravel MCP package health check was not returned.');
 
@@ -37,7 +37,7 @@ it('checks that the laravel mcp package is available', function (): void {
 it('checks that agent bridge database tables exist', function (): void {
     $results = AgentBridgeHealthCheck::runDiagnostics();
 
-    $tableCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->label === 'Agent Bridge database tables');
+    $tableCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->id === 'legacy.agent.bridge.database.tables');
 
     throw_unless($tableCheck instanceof DoctorCheckResultData, RuntimeException::class, 'Agent Bridge database tables health check was not returned.');
 
@@ -51,7 +51,7 @@ it('uses package-safe remediation when database tables are missing', function ()
 
     $results = AgentBridgeHealthCheck::runDiagnostics();
 
-    $tableCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->label === 'Agent Bridge database tables');
+    $tableCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->id === 'legacy.agent.bridge.database.tables');
 
     throw_unless($tableCheck instanceof DoctorCheckResultData, RuntimeException::class, 'Agent Bridge database tables health check was not returned.');
 
@@ -63,7 +63,7 @@ it('uses package-safe remediation when database tables are missing', function ()
 it('checks that the capability registry is resolvable with capabilities', function (): void {
     $results = AgentBridgeHealthCheck::runDiagnostics();
 
-    $registryCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->label === 'Agent Bridge capability registry');
+    $registryCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->id === 'legacy.agent.bridge.capability.registry');
 
     throw_unless($registryCheck instanceof DoctorCheckResultData, RuntimeException::class, 'Agent Bridge capability registry health check was not returned.');
 
@@ -75,7 +75,7 @@ it('checks that the capability registry is resolvable with capabilities', functi
 it('checks route configuration status', function (): void {
     $results = AgentBridgeHealthCheck::runDiagnostics();
 
-    $routeCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->label === 'Agent Bridge MCP routes');
+    $routeCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->id === 'legacy.agent.bridge.mcp.routes');
 
     throw_unless($routeCheck instanceof DoctorCheckResultData, RuntimeException::class, 'Agent Bridge MCP routes health check was not returned.');
 
@@ -87,7 +87,7 @@ it('checks route configuration status', function (): void {
 it('reports server policy coverage for scoped site capabilities', function (): void {
     $results = AgentBridgeHealthCheck::runDiagnostics();
 
-    $policyCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->label === 'Agent Bridge server policy coverage');
+    $policyCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->id === 'legacy.agent.bridge.server.policy.coverage');
 
     throw_unless($policyCheck instanceof DoctorCheckResultData, RuntimeException::class, 'Agent Bridge server policy coverage health check was not returned.');
 
@@ -110,7 +110,7 @@ it('reports failed routes check when all routes are disabled', function (): void
         config()->set('capell-agent-bridge.routes.knowledge', $knowledgeRoute);
     }
 
-    $routeCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->label === 'Agent Bridge MCP routes');
+    $routeCheck = $results->first(fn (DoctorCheckResultData $check): bool => $check->id === 'legacy.agent.bridge.mcp.routes');
 
     throw_unless($routeCheck instanceof DoctorCheckResultData, RuntimeException::class, 'Agent Bridge MCP routes health check was not returned.');
 
