@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Capell\Core\Support\TableName;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -10,14 +11,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasTable('capell_agent_bridge_confirmations')) {
+        if (TableName::existsAndIsOwned('capell_agent_bridge_confirmations', basename(__FILE__, '.php'))) {
             return;
         }
 
-        Schema::create('capell_agent_bridge_confirmations', function (Blueprint $table): void {
+        Schema::create(TableName::resolve('capell_agent_bridge_confirmations'), function (Blueprint $table): void {
             $table->id();
             $table->string('token', 64)->unique();
-            $table->foreignId('agent_bridge_token_id')->constrained('capell_agent_bridge_tokens')->cascadeOnDelete();
+            $table->foreignId('agent_bridge_token_id')->constrained(TableName::resolve('capell_agent_bridge_tokens'))->cascadeOnDelete();
             $table->morphs('user');
             $table->string('capability_key');
             $table->string('scope');
@@ -32,6 +33,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('capell_agent_bridge_confirmations');
+        Schema::dropIfExists(TableName::resolve('capell_agent_bridge_confirmations'));
     }
 };

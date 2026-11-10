@@ -6,6 +6,7 @@ namespace Capell\AgentBridge\Models;
 
 use Capell\AgentBridge\Enums\AgentBridgeTokenLifecycleStatus;
 use Capell\AgentBridge\Support\AgentBridgeValue;
+use Capell\Core\Concerns\HasCapellTable;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,6 +35,8 @@ use Override;
  */
 final class CapellAgentBridgeToken extends Model
 {
+    use HasCapellTable;
+
     /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
@@ -70,8 +73,8 @@ final class CapellAgentBridgeToken extends Model
     public static function findForPlainTextToken(string $plainTextToken): ?self
     {
         $token = self::query()
-            ->where('token_hash', self::hashPlainTextToken($plainTextToken))
-            ->first();
+            ->where('token_hash', 'like', substr(self::hashPlainTextToken($plainTextToken), 0, 16) . '%')
+            ->get()->first(static fn (self $candidate): bool => hash_equals($candidate->token_hash, self::hashPlainTextToken($plainTextToken)));
 
         if ($token instanceof self) {
             return $token;
@@ -82,8 +85,8 @@ final class CapellAgentBridgeToken extends Model
         }
 
         $legacyToken = self::query()
-            ->where('token_hash', self::legacyHashPlainTextToken($plainTextToken))
-            ->first();
+            ->where('token_hash', 'like', substr(self::legacyHashPlainTextToken($plainTextToken), 0, 16) . '%')
+            ->get()->first(static fn (self $candidate): bool => hash_equals($candidate->token_hash, self::legacyHashPlainTextToken($plainTextToken)));
 
         return $legacyToken instanceof self ? $legacyToken : null;
     }
@@ -134,7 +137,13 @@ final class CapellAgentBridgeToken extends Model
         return AgentBridgeTokenLifecycleStatus::Active;
     }
 
-    public function getLifecycleStatusAttribute(): AgentBridgeTokenLifecycleStatus
+    /** @return MorphTo<Model, $this> */
+    public function user(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    protected function getLifecycleStatusAttribute(): AgentBridgeTokenLifecycleStatus
     {
         return $this->lifecycleStatus();
     }
@@ -143,7 +152,7 @@ final class CapellAgentBridgeToken extends Model
      * @param  Builder<self>  $query
      * @return Builder<self>
      */
-    public function scopeWithLifecycleStatus(Builder $query, AgentBridgeTokenLifecycleStatus $status): Builder
+    protected function scopeWithLifecycleStatus(Builder $query, AgentBridgeTokenLifecycleStatus $status): Builder
     {
         return match ($status) {
             AgentBridgeTokenLifecycleStatus::Active => $query
@@ -166,12 +175,6 @@ final class CapellAgentBridgeToken extends Model
                         ->orWhereNotNull('revoked_at');
                 }),
         };
-    }
-
-    /** @return MorphTo<Model, $this> */
-    public function user(): MorphTo
-    {
-        return $this->morphTo();
     }
 
     /** @return array<string, string> */

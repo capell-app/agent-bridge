@@ -20,7 +20,9 @@
         "conflicts": []
     },
     "providers": {
-        "metadata": [],
+        "metadata": [
+            "Capell\\AgentBridge\\Providers\\MigrationMetadataServiceProvider"
+        ],
         "install": [],
         "runtime": [
             "Capell\\AgentBridge\\Providers\\AgentBridgeServiceProvider"
@@ -168,13 +170,32 @@
     "security": {
         "riskTier": "critical",
         "publicSurface": {
-            "routeNames": ["agent-bridge/capell", "capell-agent-bridge.home"],
-            "auth": "mixed",
-            "csrfExemptRoutes": [],
+            "routeNames": [
+                "DELETE /agent-bridge/capell",
+                "DELETE /agent-bridge/knowledge",
+                "GET /agent-bridge (capell-agent-bridge.home)",
+                "GET /agent-bridge/capell",
+                "GET /agent-bridge/knowledge",
+                "POST /agent-bridge/capell",
+                "POST /agent-bridge/knowledge"
+            ],
+            "auth": "public",
+            "csrfExemptRoutes": [
+                "DELETE /agent-bridge/capell",
+                "DELETE /agent-bridge/knowledge",
+                "POST /agent-bridge/capell",
+                "POST /agent-bridge/knowledge"
+            ],
             "signedRoutes": [],
-            "tokenizedRoutes": ["agent-bridge/capell"],
+            "tokenizedRoutes": [
+                "POST /agent-bridge/capell",
+                "POST /agent-bridge/knowledge"
+            ],
             "webhookRoutes": [],
-            "throttledRoutes": ["agent-bridge/capell"]
+            "throttledRoutes": [
+                "POST /agent-bridge/capell",
+                "POST /agent-bridge/knowledge"
+            ]
         },
         "sensitiveData": {
             "encryptedFields": [],
@@ -237,6 +258,22 @@
     },
     "marketplace": {
         "summary": "Let AI agents safely read and operate your Capell site through scoped tokens, preview-then-confirm guardrails, and a full audit trail.",
+        "problem": "Our administrators need to control what connected AI clients can change.",
+        "outcome": "The site has scoped agent access with change previews and an audit trail.",
+        "faq": [
+            {
+                "question": "What may connected clients access?",
+                "answer": "Clients can call only the server routes and capabilities enabled for them."
+            },
+            {
+                "question": "Can an agent publish site changes?",
+                "answer": "The site capability contract is draft-only. Mutating runs pass through preview and confirmation."
+            },
+            {
+                "question": "Where can administrators review activity?",
+                "answer": "Administrators can manage confirmations and inspect redacted audit entries."
+            }
+        ],
         "screenshots": [
             {
                 "path": "docs/screenshots/agent-bridge-prompt-builder-page.png",

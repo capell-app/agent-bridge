@@ -16,6 +16,7 @@ use Capell\AgentBridge\Tests\Fixtures\User;
 use Capell\Core\Facades\CapellCore;
 use Capell\Core\Providers\CapellServiceProvider;
 use Capell\Core\Support\CapellCoreManager;
+use Capell\Tests\Support\Concerns\DeclaresMonorepoMigrationSources;
 use Capell\Tests\Support\Concerns\IsolatesTestbenchPaths;
 use Filament\Actions\ActionsServiceProvider;
 use Filament\FilamentServiceProvider;
@@ -37,6 +38,7 @@ use Spatie\LaravelSettings\LaravelSettingsServiceProvider;
 
 abstract class TestCase extends OrchestraTestCase
 {
+    use DeclaresMonorepoMigrationSources;
     use IsolatesTestbenchPaths;
     use RefreshDatabase;
 
@@ -111,6 +113,12 @@ abstract class TestCase extends OrchestraTestCase
         Config::set('app.key', 'base64:' . base64_encode(str_repeat('x', 32)));
         Config::set('permission', $permissionConfig);
 
+    }
+
+    #[Override]
+    protected function defineDatabaseMigrations(): void
+    {
+        $this->declareMonorepoMigrationSources();
     }
 
     /**

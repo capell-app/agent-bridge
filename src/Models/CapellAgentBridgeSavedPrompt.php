@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Models;
 
 use Capell\AgentBridge\Support\AgentBridgeValue;
+use Capell\Core\Concerns\HasCapellTable;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -25,6 +26,8 @@ use Override;
  */
 final class CapellAgentBridgeSavedPrompt extends Model
 {
+    use HasCapellTable;
+
     /** @use HasFactory<Factory<static>> */
     use HasFactory;
 

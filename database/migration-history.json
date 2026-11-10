@@ -1,0 +1,57 @@
+{
+    "create_capell_agent-bridge_audit_entries_table": {
+        "names": [
+            "2026_05_02_000003_create_capell_agent-bridge_audit_entries_table",
+            "2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table"
+        ],
+        "sha256": [
+            "52fb84a59cc955f1bb8b7676e5b5a5d7b18cf244ea0947cb48ce563fa7bb6465",
+            "5c71ae59203972cad5db244f8c487faeb0ac805af3d63984bea9b57547be76a6",
+            "7c749c394ee757ccb61c4837b5110da570fabfb5400834ba05df063a7e2152d6",
+            "9d3df3162b37c1cf9ed86caa21d349bce3a7c307bfed7f40a013cf7ee5043aac",
+            "db70bfa6c9a089daf4827f92dd7fc493d524cd059bbbd19a991e3950cbdcae0b"
+        ]
+    },
+    "create_capell_agent-bridge_confirmations_table": {
+        "names": [
+            "2026_05_02_000002_create_capell_agent-bridge_confirmations_table",
+            "2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table"
+        ],
+        "sha256": [
+            "048e4c1a527dcfb915790bd0fbfc24b56c92009e5b21b7b158621ad7cc062544",
+            "51cf60825ea7782b4c3acad13c9ba4589b599535869d05abedb105757e171983",
+            "6331ed6e7d624ca43a51135b7adfd08faa7779a563f2c815d58b8f09bd80c39e",
+            "88021c55d48a0ea05397f765d7820ecca61d92bd74427a04db4f08f466dbe7b4"
+        ]
+    },
+    "create_capell_agent-bridge_saved_prompts_table": {
+        "names": [
+            "2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table"
+        ],
+        "sha256": [
+            "122d9f21422c281f3b40734f6d7b071cdb4b17e4a1d427a8dffff0f726a6dfb2",
+            "206fd9d4814fcb280da66b02b6e777307f73388811e8388d94968655d99bdebc",
+            "81cf91521a061bb5daed54aa6ddf9eec76da8c5d9cda7994c3fe2be621a2febd"
+        ]
+    },
+    "create_capell_agent-bridge_tokens_table": {
+        "names": [
+            "2026_05_02_000001_create_capell_agent-bridge_tokens_table",
+            "2026_05_10_190840_01_create_capell_agent-bridge_tokens_table"
+        ],
+        "sha256": [
+            "06bc796b9683ea4e3938a9485a61b29a7985d800be7f7a2c74ffda9becba4ddd",
+            "9f3769ff94e45d6e566f43641a1a1bcde62ee63b495ac579008d8327ee329205",
+            "c929651ce151e823b2915c4ae4fb9a56c130f7456fb26e46cb482bd283cbfa50"
+        ]
+    },
+    "create_capell_agent_bridge_media_uploads_table": {
+        "names": [
+            "2026_07_20_000001_create_capell_agent_bridge_media_uploads_table"
+        ],
+        "sha256": [
+            "160ee1394e725334928e14d7c6e3c2dd3f14a10ac9313cb4d32a307360c626b3",
+            "854052fc458ac587e80c719972ab1aa5af46d113335b77e7e6c6f39c314fb681"
+        ]
+    }
+}

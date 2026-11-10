@@ -173,8 +173,8 @@ describe('agent-bridge capell.json manifest', function (): void {
             ->and(data_get($manifestData, 'commands.pruneAudit'))->toBe('capell:agent-bridge-prune-audit')
             ->and(data_get($manifestData, 'capabilities', []))->toContain('agent-bridge-mcp-v1-draft-only')
             ->and(data_get($manifestData, 'settings'))->toBe([AgentBridgeSettings::class])
-            ->and(data_get($manifestData, 'security.publicSurface.tokenizedRoutes', []))->toContain('agent-bridge/capell')
-            ->and(data_get($manifestData, 'security.publicSurface.throttledRoutes', []))->toContain('agent-bridge/capell')
+            ->and(data_get($manifestData, 'security.publicSurface.tokenizedRoutes', []))->toContain('POST /agent-bridge/capell')
+            ->and(data_get($manifestData, 'security.publicSurface.throttledRoutes', []))->toContain('POST /agent-bridge/capell')
             ->and(data_get($manifestData, 'security.sensitiveData.hashedTokenFields', []))->toContain('capell_agent_bridge_confirmations.token')
             ->and(data_get($manifestData, 'security.sensitiveData.plaintextJustifications', []))->toBe([])
             ->and(data_get($manifestData, 'healthChecks.0.class'))->toBe(AgentBridgeHealthCheck::class)
@@ -310,9 +310,15 @@ describe('agent-bridge capell.json manifest', function (): void {
         foreach ([$readme, $overview] as $document) {
             expect($document)
                 ->toContain('capell:agent-bridge-prune-audit')
-                ->toContain('Migration impact: run host migrations through the package install flow before opening package surfaces')
                 ->not->toContain('Deletion/retention behaviour: Docs gap');
         }
+
+        // The buyer-first README states the migration step in its own words; the exact operator sentence lives in the overview.
+        expect($readme)
+            ->toContain('Run migrations before opening package resources or public routes.')
+            ->toContain('Database changes: package migrations are declared.');
+        expect($overview)
+            ->toContain('Migration impact: run host migrations through the package install flow before opening package surfaces');
 
         expect($capabilities)
             ->toContain('capell-agent-bridge.audit_retention_days')

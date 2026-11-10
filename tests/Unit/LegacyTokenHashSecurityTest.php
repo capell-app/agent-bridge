@@ -72,3 +72,12 @@ it('rehashes a legacy token to the hmac scheme on successful use while the flag 
         ->and($resolvedToken)->toBeInstanceOf(CapellAgentBridgeToken::class)
         ->and($resolvedToken?->is($token))->toBeTrue();
 });
+
+it('rejects a digest that differs only in case even on case-insensitive storage', function (): void {
+    $user = User::query()->create(['name' => 'Case test', 'email' => 'digest-case@example.test', 'password' => 'secret']);
+    $token = new CapellAgentBridgeToken;
+    $token->forceFill(['name' => 'Case test', 'token_hash' => strtoupper(CapellAgentBridgeToken::hashPlainTextToken('case-token')), 'scopes' => []]);
+    $token->user()->associate($user);
+    $token->save();
+    expect(CapellAgentBridgeToken::findForPlainTextToken('case-token'))->toBeNull();
+});

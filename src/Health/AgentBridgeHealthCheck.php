@@ -11,6 +11,7 @@ use Capell\AgentBridge\Settings\AgentBridgeSettings;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\Core\Contracts\Extensions\ChecksExtensionHealth;
 use Capell\Core\Data\Diagnostics\DoctorCheckResultData;
+use Capell\Core\Support\TableName;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Mcp\Facades\Mcp;
@@ -63,10 +64,10 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
     private static function checkTables(): DoctorCheckResultData
     {
         $requiredTables = [
-            'capell_agent_bridge_tokens',
-            'capell_agent_bridge_confirmations',
-            'capell_agent_bridge_audit_entries',
-            'capell_agent_bridge_saved_prompts',
+            TableName::resolve('capell_agent_bridge_tokens'),
+            TableName::resolve('capell_agent_bridge_confirmations'),
+            TableName::resolve('capell_agent_bridge_audit_entries'),
+            TableName::resolve('capell_agent_bridge_saved_prompts'),
         ];
 
         try {

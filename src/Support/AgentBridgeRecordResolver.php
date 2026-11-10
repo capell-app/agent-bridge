@@ -11,6 +11,7 @@ use Capell\Core\Models\Page;
 use Capell\Core\Models\PageUrl;
 use Capell\Core\Models\Site;
 use Capell\Core\Models\Translation;
+use Capell\Core\Support\TableName;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Database\Eloquent\Builder as BuilderContract;
 use Illuminate\Database\Eloquent\Builder;
@@ -62,7 +63,7 @@ final class AgentBridgeRecordResolver
             ]);
         }
 
-        if (is_int($reference) || ctype_digit(trim((string) $reference))) {
+        if (is_int($reference) || ctype_digit(trim($reference))) {
             $site = $sites->firstWhere('id', (int) $reference);
 
             if ($site instanceof Site) {
@@ -101,7 +102,7 @@ final class AgentBridgeRecordResolver
         int|string|null $siteReference = null,
         array $with = [],
     ): Page {
-        if (is_int($reference) || ctype_digit(trim((string) $reference))) {
+        if (is_int($reference) || ctype_digit(trim($reference))) {
             $page = AgentBridgePageAccess::authorizedPage($user, (int) $reference, $with);
             resolve(AgentBridgePolicyAuthorizer::class)->authorize($user, 'view', $page);
 
@@ -121,13 +122,13 @@ final class AgentBridgeRecordResolver
 
         $matches = $this->searchPages(
             user: $user,
-            search: (string) $reference,
+            search: $reference,
             siteReference: $siteReference,
             limit: 11,
             with: $with,
         );
         $exact = $matches
-            ->filter(fn (Page $page): bool => $this->pageMatchesExactly($page, (string) $reference))
+            ->filter(fn (Page $page): bool => $this->pageMatchesExactly($page, $reference))
             ->values();
 
         if ($exact->count() === 1) {
@@ -142,7 +143,7 @@ final class AgentBridgeRecordResolver
 
         throw ValidationException::withMessages([
             'page' => $ambiguous->isEmpty()
-                ? __('capell-agent-bridge::admin.capability_page_not_found', ['page' => (string) $reference])
+                ? __('capell-agent-bridge::admin.capability_page_not_found', ['page' => $reference])
                 : __('capell-agent-bridge::admin.capability_page_ambiguous', [
                     'pages' => $this->pageChoices($ambiguous),
                 ]),
@@ -183,7 +184,7 @@ final class AgentBridgeRecordResolver
 
         $query->where(function (Builder $query) use ($like, $pathLike): void {
             $query
-                ->where('pages.name', 'like', $like)
+                ->where(TableName::resolve('pages') . '.name', 'like', $like)
                 ->orWhereHas('translations', function (BuilderContract $query) use ($like, $pathLike): void {
                     $query
                         ->where('title', 'like', $like)
@@ -237,7 +238,7 @@ final class AgentBridgeRecordResolver
             }
         } else {
             $needle = $this->normalize((string) $reference);
-            $matches = $languages->filter(fn (Language $language): bool => (is_int($reference) || ctype_digit(trim((string) $reference)))
+            $matches = $languages->filter(fn (Language $language): bool => (is_int($reference) || ctype_digit(trim($reference)))
                     ? AgentBridgeValue::integer($language->getKey(), 'Language key') === (int) $reference
                     : in_array($needle, [
                         $this->normalize((string) $language->name),
@@ -319,7 +320,7 @@ final class AgentBridgeRecordResolver
 
         $needle = $this->normalize((string) $reference);
         $exact = $records->filter(function (Blueprint|Layout $record) use ($reference, $needle): bool {
-            if (is_int($reference) || ctype_digit(trim((string) $reference))) {
+            if (is_int($reference) || ctype_digit(trim($reference))) {
                 return AgentBridgeValue::integer($record->getKey(), 'Named record key') === (int) $reference;
             }
 
@@ -334,7 +335,7 @@ final class AgentBridgeRecordResolver
         }
 
         $partial = $records->filter(fn (Blueprint|Layout $record): bool => str_contains(
-            $this->normalize((string) $record->name . ' ' . (string) $record->key),
+            $this->normalize($record->name . ' ' . $record->key),
             $needle,
         ))->values();
 

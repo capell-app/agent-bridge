@@ -12,8 +12,11 @@ use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
 use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
 use Capell\AgentBridge\Tests\Fixtures\User;
+use Capell\Core\Actions\Extensions\VerifyInstalledExtensionAction;
+use Capell\Core\Data\Extensions\ExtensionVerificationReportData;
 use Capell\Core\Enums\PackageTypeEnum;
 use Capell\Core\Support\CapellCoreManager;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
@@ -115,6 +118,16 @@ it('installs only a Composer-present discovered package after an impact preview'
         ])
         ->and($preview->warnings)->toHaveCount(1)
         ->and($manager->isPackageInstalled('vendor/agent-installable'))->toBeFalse();
+
+    // The fixture is a bare Composer package without a Capell manifest. Core owns
+    // extension integrity verification and its tests; this capability test only
+    // needs the install to be asked for, so the fixture verifies as installed.
+    $verifier = Mockery::mock(VerifyInstalledExtensionAction::class);
+    $verifier->shouldReceive('handle')
+        ->once()
+        ->withArgs(static fn (string $name): bool => $name === 'vendor/agent-installable')
+        ->andReturn(new ExtensionVerificationReportData('vendor/agent-installable', '1.0.0', null, null, true, [], [], CarbonImmutable::now()));
+    app()->instance(VerifyInstalledExtensionAction::class, $verifier);
 
     $result = $action->execute($invocation);
     $installedPackage = $result->data['package'];

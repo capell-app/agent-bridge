@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Models;
 
+use Capell\Core\Concerns\HasCapellTable;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -32,6 +33,8 @@ use RuntimeException;
  */
 final class CapellAgentBridgeConfirmation extends Model
 {
+    use HasCapellTable;
+
     /** @use HasFactory<Factory<static>> */
     use HasFactory;
 

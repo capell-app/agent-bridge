@@ -56,6 +56,7 @@ final class AgentBridgeServiceProvider extends ServiceProvider
     #[Override]
     public function register(): void
     {
+
         $this->mergeConfigFrom(__DIR__ . '/../../config/capell-agent-bridge.php', 'capell-agent-bridge');
         $this->loadTranslationsFrom(__DIR__ . '/../../resources/lang', 'capell-agent-bridge');
 

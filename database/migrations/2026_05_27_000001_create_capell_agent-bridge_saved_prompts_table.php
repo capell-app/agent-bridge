@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Capell\Core\Support\TableName;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -10,11 +11,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasTable('capell_agent_bridge_saved_prompts')) {
+        if (TableName::existsAndIsOwned('capell_agent_bridge_saved_prompts', basename(__FILE__, '.php'))) {
             return;
         }
 
-        Schema::create('capell_agent_bridge_saved_prompts', function (Blueprint $table): void {
+        Schema::create(TableName::resolve('capell_agent_bridge_saved_prompts'), function (Blueprint $table): void {
             $table->id();
             $table->string('name');
             $table->text('description')->nullable();
@@ -29,6 +30,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('capell_agent_bridge_saved_prompts');
+        Schema::dropIfExists(TableName::resolve('capell_agent_bridge_saved_prompts'));
     }
 };

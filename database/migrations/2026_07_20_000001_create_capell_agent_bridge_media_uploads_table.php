@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Capell\Core\Support\TableName;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -10,7 +11,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('capell_agent_bridge_media_uploads', function (Blueprint $table): void {
+        Schema::create(TableName::resolve('capell_agent_bridge_media_uploads'), function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('site_id');
             $table->uuid('idempotency_key');
@@ -18,12 +19,12 @@ return new class extends Migration
             $table->unsignedBigInteger('media_id')->nullable();
             $table->timestamps();
 
-            $table->unique(['site_id', 'idempotency_key'], 'agent_bridge_media_upload_site_key_unique');
+            $table->unique(['site_id', 'idempotency_key'], TableName::namedIndex('capell_agent_bridge_media_uploads', 'agent_bridge_media_upload_site_key_unique'));
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('capell_agent_bridge_media_uploads');
+        Schema::dropIfExists(TableName::resolve('capell_agent_bridge_media_uploads'));
     }
 };

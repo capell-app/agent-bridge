@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Models;
 
+use Capell\Core\Concerns\HasCapellTable;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -25,6 +26,8 @@ use Override;
  */
 final class CapellAgentBridgeAuditEntry extends Model
 {
+    use HasCapellTable;
+
     /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
