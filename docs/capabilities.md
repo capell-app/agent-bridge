@@ -6,7 +6,7 @@ Agent Bridge exposes small, auditable capabilities to the Laravel Boost server a
 
 The external-client catalogue contract is frozen in `tests/Fixtures/mcp-v1-external-client.json`. It snapshots transport identifiers, the three registered tool envelopes, the closed draft-only capability projection, schema digests, and safe result fields; runtime transport/security tests remain the authority for authentication and execution behaviour. Remote streamable HTTP uses `agent-bridge/capell` with a revocable, expiring per-user bearer token. Local Artisan stdio uses the `capell-site` handle and requires an explicitly selected local user token.
 
-Token scope is necessary but is not authority by itself: current user ownership, token lifecycle, record access, and policy are rechecked. Read calls are audited without confirmation. Draft mutations are preview-first and require a short-lived, single-use confirmation with the exact payload; replay is refused rather than silently rerun. Media upload additionally requires its UUID idempotency key, so a retry with the same content resolves to the claimed upload while key reuse with different content conflicts.
+Token scope is necessary but is not authority by itself: current user ownership, token lifecycle, record access, and policy are rechecked. A token can also be limited to chosen capabilities and sites: a capability outside its list is refused and left out of listings and suggestions, and a site limit narrows every site and page lookup made through the bridge's record access while the capability runs. A token runs only the capabilities in the MCP v1 contract, and every one of them resolves its site or page through that record access, so the site limit covers all of them. Built-in capabilities outside the contract, such as clearing the cache or searching packages, cannot be run with a token. A test fails if a capability joins the contract without proving it keeps to a token's sites. Read calls are audited without confirmation. Draft mutations are preview-first and require a short-lived, single-use confirmation with the exact payload; replay is refused rather than silently rerun. Because they are high risk, the bearer token cannot confirm them alone: the person the token acts as must first approve the preview in the admin, and until then confirming returns `approval_required` with nothing changed. The preview response says so in `approvalRequired` and `nextStep`. A confirmed page edit or new draft page records a revert point in its audit entry: the page and its versions either side of the change, never the content. A person in the admin can then undo it from the entry until the page changes again. Media upload additionally requires its UUID idempotency key, so a retry with the same content resolves to the claimed upload while key reuse with different content conflicts.
 
 MCP v1 uses a closed allowlist: every capability outside it is refused. This includes publishing and visibility transitions, package installation, cache operations, AI Creator build/apply/export, arbitrary registry contributions, shell/Composer execution, and editor or signed URL access. The broader admin capability catalogue does not expand this external-client allowlist. Audit records are sanitized and retention-bounded rather than immutable.
 
@@ -21,7 +21,11 @@ php vendor/capell-app/agent-bridge/scripts/verify-mcp-v1-transports.php
 
 The host must use a persistent database so the spawned Artisan stdio process can resolve the same token as HTTP. The verifier initializes both transports, compares tools and capabilities with the frozen fixture, and proves publication refusal. Draft creation/edit, media upload, cross-site policy, confirmation replay, and audit inspection still require seeded host records and remain separate release-gate scenarios.
 
-The read-only knowledge server also exposes `capell://agent-bridge/capabilities`, a capability catalog for operators and reviewers. It lists each registered capability with its scope, server visibility, risk, preview support, confirmation requirement, required package, and policy ability. Use it as the governance inventory when reviewing token scopes or deciding whether a capability should be available to an agent client.
+The knowledge server serves an allowlist of Markdown. Documents under `agent_knowledge.published_paths` (package READMEs and `docs` folders) are served whole; documents under `agent_knowledge.opt_in_paths` (the application `README.md` and `docs`) are served only when their front matter sets `agent_knowledge: true`. Front matter `agent_knowledge: false` withholds a document from any path, and hidden folders, files over 256 KiB and links leading outside the application are never served, and a link is judged by the file it points to. Paths a host published under the old `public_docs_paths` setting are treated as opt-in paths. A document is returned with its `provenance` (package or application documentation) and a `contentTrust` notice, and package metadata gives repository-relative paths.
+
+Capability results carry the same `contentTrust` block. Its `untrustedFields` names the part of the response that holds site content written by people (the `data`, `message` and `warnings` of a result or preview, which can repeat a name the request gave, and the payloads and results of audit entries), so a client can show or edit that text without following instructions hidden in it.
+
+The read-only knowledge server also exposes `capell://agent-bridge/capabilities`, a capability catalogue for operators and reviewers. It lists each registered capability with its scope, server visibility, risk, preview support, confirmation requirement, required package, and policy ability. Use it as the governance inventory when reviewing token scopes or deciding whether a capability should be available to an agent client.
 
 ## Register a Capability Provider
 
@@ -100,13 +104,15 @@ Keep side effects in `execute()`. `preview()` should not write.
 
 `CapabilityData::needsConfirmation()` returns true when either `requiresConfirmation` is true or the risk enum requires it. Use lower risk only for read-only actions.
 
+Previews at the risk levels in `capell-agent-bridge.human_approval_risks` (high and destructive by default) also need human approval. `ApproveAgentBridgeConfirmationAction` records it only for the person the confirmation belongs to, outside any Agent Bridge request, while their token is still usable and they pass the capability's `policyAbility`. `ConfirmAgentBridgeCapabilityAction` then refuses with `AgentBridgeConfirmationAwaitingApprovalException` until that approval exists. The requirement is stored on the confirmation when it is previewed, so lowering it later does not release open previews. `DeclineAgentBridgeConfirmationAction` closes a confirmation for good.
+
 | Field             | Meaning                                                                             |
 | ----------------- | ----------------------------------------------------------------------------------- |
 | `scope`           | Token scope required to see and invoke the capability.                              |
 | `server`          | Server visibility, such as Boost or authenticated Site bridge.                      |
 | `risk`            | Risk level used by confirmation rules.                                              |
 | `requiredPackage` | Optional package name checked through Capell Core before the capability is visible. |
-| `policyAbility`   | Optional authorization ability.                                                     |
+| `policyAbility`   | Optional authorisation ability.                                                     |
 | `auditEvent`      | Event name stored by the audit action.                                              |
 | `commandPatterns` | Optional direct-command grammar owned by this capability. See below.                |
 
@@ -153,17 +159,20 @@ Only capabilities visible to the current server and token scopes take part in in
 
 ## Config Keys
 
-| Key                                               | Use                                                                        |
-| ------------------------------------------------- | -------------------------------------------------------------------------- |
-| `capell-agent-bridge.routes.*`                    | Route registration switches. Set a route to `null` to stop registering it. |
-| `capell-agent-bridge.confirmation_ttl_minutes`    | Lifetime of confirmation tokens for mutating capabilities.                 |
-| `capell-agent-bridge.audit_retention_days`        | Audit retention window used by the pruning command. Defaults to 90 days.   |
-| `capell-agent-bridge.public_docs_paths`           | Documentation paths exposed to knowledge tools.                            |
-| `capell-agent-bridge.enable_user_resource_bridge` | Adds token and bridge controls to the user admin resource.                 |
-| `capell-agent-bridge.routes.home`                 | Optional discovery document route. Disabled by default.                    |
-| `capell-agent-bridge.routes.knowledge`            | Optional knowledge server route. Disabled by default.                      |
-| `capell-agent-bridge.routes.site`                 | Authenticated site MCP server route. Enabled by default.                   |
-| `capell-agent-bridge.interpretation.*`            | Ranking thresholds for direct-command interpretation. See below.           |
+| Key                                                   | Use                                                                        |
+| ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| `capell-agent-bridge.routes.*`                        | Route registration switches. Set a route to `null` to stop registering it. |
+| `capell-agent-bridge.confirmation_ttl_minutes`        | Lifetime of confirmation tokens for mutating capabilities.                 |
+| `capell-agent-bridge.human_approval_risks`            | Risk levels whose previews need the token owner's approval in the admin.   |
+| `capell-agent-bridge.approval_ttl_minutes`            | Lifetime of a preview that needs approval. Defaults to 60 minutes.         |
+| `capell-agent-bridge.audit_retention_days`            | Audit retention window used by the pruning command. Defaults to 90 days.   |
+| `capell-agent-bridge.agent_knowledge.published_paths` | Package documentation served whole to knowledge tools.                     |
+| `capell-agent-bridge.agent_knowledge.opt_in_paths`    | Application documentation served only when marked for agents.              |
+| `capell-agent-bridge.enable_user_resource_bridge`     | Adds token and bridge controls to the user admin resource.                 |
+| `capell-agent-bridge.routes.home`                     | Optional discovery document route. Disabled by default.                    |
+| `capell-agent-bridge.routes.knowledge`                | Optional knowledge server route. Disabled by default.                      |
+| `capell-agent-bridge.routes.site`                     | Authenticated site MCP server route. Enabled by default.                   |
+| `capell-agent-bridge.interpretation.*`                | Ranking thresholds for direct-command interpretation. See below.           |
 
 Interpretation thresholds are conservative by default. Changing them never changes scopes, policies, or execution authority.
 

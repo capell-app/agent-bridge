@@ -6,6 +6,7 @@ namespace Capell\AgentBridge\Tools\Site;
 
 use Capell\AgentBridge\Actions\QueryAgentBridgeAuditEntriesAction;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\AgentBridge\Support\AgentBridgeContentTrust;
 use Capell\AgentBridge\Support\AgentBridgeValue;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -49,6 +50,7 @@ final class QuerySiteAuditEntriesTool extends Tool
                 is_string($data['event'] ?? null) ? $data['event'] : null,
                 AgentBridgeValue::integer($data['limit'] ?? 25, 'Audit query limit'),
             )->all(),
+            'contentTrust' => AgentBridgeContentTrust::forAuditEntries(),
         ]);
     }
 }

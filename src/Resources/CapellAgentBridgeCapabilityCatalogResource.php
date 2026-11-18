@@ -27,21 +27,19 @@ final class CapellAgentBridgeCapabilityCatalogResource extends Resource
         $markdown = [
             '# Capell Agent Bridge Capability Catalog',
             '',
-            '| Capability | Scope | Server | Risk | Confirmation | Preview | Required package | Policy ability |',
-            '| --- | --- | --- | --- | --- | --- | --- | --- |',
+            '| Capability | Scope | Server | Risk | Confirmation | Preview |',
+            '| --- | --- | --- | --- | --- | --- |',
         ];
 
         foreach ($rows as $row) {
             $markdown[] = sprintf(
-                '| %s | `%s` | %s | %s | %s | %s | %s | %s |',
+                '| %s | `%s` | %s | %s | %s | %s |',
                 $this->cell($this->stringValue($row, 'name')),
                 $this->cell($this->stringValue($row, 'scope')),
                 $this->cell($this->stringValue($row, 'server')),
                 $this->cell($this->stringValue($row, 'risk')),
                 ($row['requires_confirmation'] ?? false) === true ? 'yes' : 'no',
                 ($row['supports_preview'] ?? false) === true ? 'yes' : 'no',
-                $this->cell($this->stringValue($row, 'required_package')),
-                $this->cell($this->stringValue($row, 'policy_ability')),
             );
         }
 

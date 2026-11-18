@@ -75,3 +75,44 @@ function registerCapellAgentBridgeCapabilityProviderAdapter(\Capell\AgentBridge\
     app()->tag([CapellAgentBridgeCapabilityProviderAdapter::class], \Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityProvider::class);
 }
 ```
+
+## Contract `Capell\AgentBridge\Contracts\ResolvesCapabilityPolicySite`
+
+<!-- example: contract Capell\AgentBridge\Contracts\ResolvesCapabilityPolicySite -->
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\CapellExamples\AgentBridge;
+
+final class ResolvesCapabilityPolicySiteAdapter implements \Capell\AgentBridge\Contracts\ResolvesCapabilityPolicySite
+{
+    /** @var class-string<\Capell\AgentBridge\Contracts\ResolvesCapabilityPolicySite> */
+    private static string $backendClass;
+
+    public function __construct(private readonly \Capell\AgentBridge\Contracts\ResolvesCapabilityPolicySite $backend) {}
+
+    public static function configureMetadata(\Capell\AgentBridge\Contracts\ResolvesCapabilityPolicySite $backend): void
+    {
+        $class = $backend::class;
+        if (isset(self::$backendClass) && self::$backendClass !== $class) {
+            throw new \LogicException('Use a separate adapter for each metadata implementation.');
+        }
+        self::$backendClass = $class;
+    }
+
+    #[\Override]
+    public static function policySiteId(array $payload): ?int
+    {
+        return self::$backendClass::policySiteId($payload);
+    }
+}
+
+function registerResolvesCapabilityPolicySiteAdapter(\Capell\AgentBridge\Contracts\ResolvesCapabilityPolicySite $backend): void
+{
+    ResolvesCapabilityPolicySiteAdapter::configureMetadata($backend);
+    app()->bind(ResolvesCapabilityPolicySiteAdapter::class, static fn (): ResolvesCapabilityPolicySiteAdapter => new ResolvesCapabilityPolicySiteAdapter($backend));
+    app()->bind(\Capell\AgentBridge\Contracts\ResolvesCapabilityPolicySite::class, ResolvesCapabilityPolicySiteAdapter::class);
+}
+```

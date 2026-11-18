@@ -10,6 +10,7 @@ use Capell\Admin\Facades\CapellAdmin;
 use Capell\Admin\Support\Bridges\AdminBridgeRegistrar;
 use Capell\AgentBridge\Bridges\AgentBridgeAdminBridge;
 use Capell\AgentBridge\Capabilities\BuiltInAgentBridgeCapabilityProvider;
+use Capell\AgentBridge\Console\Commands\AgentConnectCommand;
 use Capell\AgentBridge\Console\Commands\PruneAgentBridgeAuditEntriesCommand;
 use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityProvider;
 use Capell\AgentBridge\Extenders\AgentBridgeUserSchemaExtender;
@@ -25,6 +26,7 @@ use Capell\AgentBridge\Settings\AgentBridgeSettings;
 use Capell\AgentBridge\Support\AgentBridgePolicyAuthorizer;
 use Capell\AgentBridge\Support\AgentBridgeValue;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
+use Capell\AgentBridge\Support\Privacy\AgentBridgePrivacyContributor;
 use Capell\AgentBridge\Tools\Boost\ListBoostCapabilitiesTool;
 use Capell\AgentBridge\Tools\Boost\PreviewBoostCapabilityTool;
 use Capell\Core\Actions\Install\RegisterProviderCommandsInCurrentProcessAction;
@@ -32,6 +34,7 @@ use Capell\Core\Facades\CapellCore;
 use Capell\Core\Support\Packages\PackageSurfaceRegistrar;
 use Capell\Core\Support\Packages\RegistersInstalledRuntime;
 use Capell\Core\Support\Packages\RouteGroupIsolation;
+use Capell\Core\Support\Privacy\PrivacySubjectRegistry;
 use Capell\Core\Support\Settings\SettingsGroupMetadata;
 use Filament\Pages\Page;
 use Filament\Support\Facades\FilamentView;
@@ -89,6 +92,17 @@ final class AgentBridgeServiceProvider extends ServiceProvider
         $this->registerBuiltInCapabilities();
         $this->registerTaggedCapabilityProviders();
         $this->registerCommands();
+        $this->registerPrivacyContributors();
+    }
+
+    /**
+     * Staff tokens and their audit trail hold addresses and browser fingerprints, so
+     * they join Core's privacy exports and erasures.
+     */
+    private function registerPrivacyContributors(): void
+    {
+        $this->app->tag([AgentBridgePrivacyContributor::class], PrivacySubjectRegistry::EXPORTER_TAG);
+        $this->app->tag([AgentBridgePrivacyContributor::class], PrivacySubjectRegistry::ERASER_TAG);
     }
 
     private function registerBoostIntegration(): void
@@ -187,7 +201,7 @@ final class AgentBridgeServiceProvider extends ServiceProvider
             group: AgentBridgeSettings::group(),
             label: 'capell-agent-bridge::admin.settings_title',
             icon: Heroicon::OutlinedSparkles,
-            navigationGroup: 'capell-admin::navigation.group_system',
+            navigationGroup: 'settings',
             navigationSort: 94,
             packageName: self::$packageName,
         ));
@@ -233,7 +247,7 @@ final class AgentBridgeServiceProvider extends ServiceProvider
         }
 
         RegisterProviderCommandsInCurrentProcessAction::run(function (): void {
-            $this->commands([PruneAgentBridgeAuditEntriesCommand::class]);
+            $this->commands([PruneAgentBridgeAuditEntriesCommand::class, AgentConnectCommand::class]);
         });
     }
 

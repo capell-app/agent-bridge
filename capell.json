@@ -6,11 +6,11 @@
     "kind": "package",
     "capellApiVersion": "^1.0",
     "version": "1.0.0",
-    "description": "Connect AI agents and MCP clients to Capell with read-only package knowledge, scoped site capabilities, preview-then-confirm execution, and audited operations.",
+    "description": "Lets AI tools like Claude Code or Cursor search, inspect and draft pages through personal keys, and preview each change before you confirm it.",
     "product": {
-        "group": "Capell AI",
-        "tier": "premium",
-        "bundle": "ai"
+        "group": "Capell Essentials",
+        "tier": "free",
+        "bundle": "foundation"
     },
     "namespace": "Capell\\AgentBridge",
     "surfaces": ["admin", "frontend"],
@@ -89,15 +89,24 @@
                 "2026_07_09_000001_add_ip_address_hash_to_agent_bridge_audit_entries_table",
                 "2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table",
                 "2026_07_20_000001_create_capell_agent_bridge_media_uploads_table",
-                "2026_09_29_120000_remove_implicit_timestamp_updates_from_agent_bridge"
+                "2026_09_29_120000_remove_implicit_timestamp_updates_from_agent_bridge",
+                "2026_11_12_000001_hash_created_from_ip_on_agent_bridge_tokens_table",
+                "2026_11_12_000002_bound_agent_bridge_tokens_without_expiry",
+                "2026_11_13_000001_add_human_approval_to_agent_bridge_confirmations_table",
+                "2026_11_13_000002_add_limits_to_agent_bridge_tokens_table",
+                "2026_11_13_000003_add_revert_points_to_agent_bridge_audit_entries_table"
             ]
         },
         {
             "type": "console-command",
             "class": "Capell\\AgentBridge\\Manifest\\AgentBridgeConsoleCommandsContribution",
-            "commands": ["capell:agent-bridge-prune-audit"],
+            "commands": [
+                "capell:agent-bridge-prune-audit",
+                "capell:agent:connect"
+            ],
             "commandClasses": [
-                "Capell\\AgentBridge\\Console\\Commands\\PruneAgentBridgeAuditEntriesCommand"
+                "Capell\\AgentBridge\\Console\\Commands\\PruneAgentBridgeAuditEntriesCommand",
+                "Capell\\AgentBridge\\Console\\Commands\\AgentConnectCommand"
             ]
         },
         {
@@ -112,28 +121,25 @@
             "type": "agent-capability",
             "class": "Capell\\AgentBridge\\Manifest\\AgentBridgeBuiltInCapabilitiesContribution",
             "capabilities": [
-                "capell.cache.clear",
                 "capell.pages.search",
                 "capell.pages.inspect",
                 "capell.pages.open_editor",
                 "capell.pages.authoring_options",
                 "capell.pages.inspect_readiness",
                 "capell.pages.create_draft",
-                "capell.pages.clone",
                 "capell.pages.update_draft",
-                "capell.pages.disable",
-                "capell.pages.publish_now",
-                "capell.pages.schedule_publish",
-                "capell.pages.schedule_unpublish",
-                "capell.pages.unpublish",
-                "capell.pages.revert_to_draft",
                 "capell.packages.search",
                 "capell.packages.inspect",
-                "capell.packages.install",
                 "capell.sites.search",
                 "capell.sites.inspect",
                 "capell.sites.open_editor",
-                "capell.media.upload"
+                "capell.media.upload",
+                "capell.admin.page_properties.read",
+                "capell.admin.term_properties.read",
+                "capell.admin.page_agent_readiness.read",
+                "capell.admin.site_agent_readiness.read",
+                "capell.admin.blueprints.read",
+                "capell.admin.page_draft.save"
             ],
             "requiresPreviewConfirmation": true
         },
@@ -158,15 +164,12 @@
         "setup": null,
         "demo": null,
         "doctor": null,
-        "pruneAudit": "capell:agent-bridge-prune-audit"
+        "pruneAudit": "capell:agent-bridge-prune-audit",
+        "connect": "capell:agent:connect"
     },
     "settings": ["Capell\\AgentBridge\\Settings\\AgentBridgeSettings"],
     "permissions": ["agent-bridge.manage-tokens", "agent-bridge.view-audit"],
-    "capabilities": [
-        "agent-bridge",
-        "agent-bridge-admin",
-        "agent-bridge-mcp-v1-draft-only"
-    ],
+    "capabilities": ["agent-bridge", "agent-bridge-admin"],
     "security": {
         "riskTier": "critical",
         "publicSurface": {
@@ -206,6 +209,7 @@
                 "capell_agent_bridge_tokens.token_hash"
             ],
             "redactedOutputClasses": [
+                "Capell\\AgentBridge\\Actions\\InvokeAgentBridgeCapabilityPreviewAction",
                 "Capell\\AgentBridge\\Support\\AgentBridgeAuditSanitizer"
             ],
             "plaintextJustifications": []
@@ -251,44 +255,50 @@
         }
     ],
     "commercial": {
-        "proposedLicense": "paid",
+        "proposedLicense": "free",
         "requestedCertification": "first-party",
-        "supportPolicy": "priority",
-        "privateDocsRequested": true
+        "supportPolicy": "capell-first-party",
+        "privateDocsRequested": false
     },
     "marketplace": {
-        "summary": "Let AI agents safely read and operate your Capell site through scoped tokens, preview-then-confirm guardrails, and a full audit trail.",
-        "problem": "Our administrators need to control what connected AI clients can change.",
-        "outcome": "The site has scoped agent access with change previews and an audit trail.",
+        "summary": "Connect an AI assistant to Capell with personal keys, previewed drafts and a record of every action.",
+        "description": "Your team already uses an AI assistant, and this lets it work on your Capell site within limits you set. Developers create keys on a user record, choose what each key may do and set an expiry date, 90 days ahead by default. Rate limits apply to each key and each address. Requests are recorded for 90 days by default with secrets hidden, and the caller's address and the address each key was created from are kept only in scrambled form. Administrators can save their own reusable prompts. It adds no pages for visitors, only one key-protected address that connected tools use.",
+        "problem": "I want an AI assistant to draft pages, but not to publish or change anything unchecked.",
+        "outcome": "An assistant drafts pages as one person, each change is previewed before it goes ahead and every action is recorded.",
         "faq": [
             {
-                "question": "What may connected clients access?",
-                "answer": "Clients can call only the server routes and capabilities enabled for them."
+                "question": "Can an AI assistant publish changes to my site by itself?",
+                "answer": "No. Creating or updating a draft page and uploading an image each wait for you to approve the preview in Capell admin, and the assistant then confirms within an hour by default. Saving a scratch copy of a draft needs no approval and changes nothing visitors see."
             },
             {
-                "question": "Can an agent publish site changes?",
-                "answer": "The site capability contract is draft-only. Mutating runs pass through preview and confirmation."
+                "question": "Does Agent Bridge include its own AI?",
+                "answer": "No. It connects an assistant you already use, such as Claude or Cursor. The administrator screen recognises a fixed set of commands and uses no AI either."
             },
             {
-                "question": "Where can administrators review activity?",
-                "answer": "Administrators can manage confirmations and inspect redacted audit entries."
+                "question": "How long does a personal key last, and can I withdraw it?",
+                "answer": "A new key lasts 90 days by default and cannot be set beyond a year without changing the limits in config. You can replace or withdraw it sooner, and the assistant acts only as the person the key belongs to."
+            },
+            {
+                "question": "Can I see what an assistant has done?",
+                "answer": "Yes. Administrators can read a record of every action, with secrets hidden."
             }
         ],
         "screenshots": [
             {
                 "path": "docs/screenshots/agent-bridge-prompt-builder-page.png",
-                "alt": "Agent Bridge prompt builder page showing package context, scopes, and operator instructions.",
-                "caption": "Build scoped prompts for external AI agents using installed Capell package context."
+                "alt": "Capell AI Command Centre with a request box, suggested actions such as Create draft page and a Preview safe action button.",
+                "caption": "Administrators type a request here and see what it would do before anything is confirmed."
             },
             {
                 "path": "docs/screenshots/agent-bridge-prompt-builder-page-dark.png",
-                "alt": "Agent Bridge prompt builder page in dark mode with package context and scoped instructions.",
-                "caption": "Build scoped prompts in dark mode while keeping agent instructions tied to installed package context."
+                "alt": "Dark theme of the Command Centre page with the request box, a Smart suggestions list and a count of 37 capabilities.",
+                "caption": "The same screen in the dark admin theme."
             }
         ],
         "categories": ["admin", "operations"]
     },
     "contributionTraceability": {
         "deferredContributions": []
-    }
+    },
+    "roles": ["developer-tooling"]
 }

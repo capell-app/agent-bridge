@@ -9,6 +9,7 @@ use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityAction;
 use Capell\AgentBridge\Data\Capabilities\CreateDraftPageCapabilityInputData;
 use Capell\AgentBridge\Data\CapabilityInvocationData;
 use Capell\AgentBridge\Data\CapabilityResultData;
+use Capell\AgentBridge\Support\AgentBridgePageRevertPoints;
 use Capell\AgentBridge\Support\AgentBridgePolicyAuthorizer;
 use Capell\AgentBridge\Support\AgentBridgeRecordResolver;
 use Capell\AgentBridge\Support\AgentBridgeValue;
@@ -93,6 +94,7 @@ final class CreateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
                 'urls' => $page->pageUrls->pluck('url')->values()->all(),
             ],
             warnings: $this->visibilityWarnings($invocation->payload),
+            revertPoint: AgentBridgePageRevertPoints::afterCreate($page),
         );
     }
 

@@ -9,6 +9,8 @@ Start at the [package README](../README.md) when deciding whether to install thi
 | Doc                                                             | Use it for                                                                         |
 | --------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | [Boost Integration](boost-integration.md)                       | Focused package workflow, setup, troubleshooting, or implementation details.       |
+| [Connect Claude Code](connect-claude-code.md)                   | Create a draft-only key and connect Claude Code with one command.                  |
+| [Connect Cursor](connect-cursor.md)                             | Create a draft-only key and add it to Cursor's MCP configuration.                  |
 | [Capabilities](capabilities.md)                                 | Focused package workflow, setup, troubleshooting, or implementation details.       |
 | [Credits And Acknowledgements](credits-and-acknowledgements.md) | Upstream services, dependencies, and acknowledgements.                             |
 | [Overview](overview.md)                                         | Package boundary, runtime surfaces, install notes, and first troubleshooting path. |

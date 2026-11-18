@@ -44,8 +44,10 @@ final class AuditAgentBridgeCapabilityAction
             'scope' => $scope,
             'payload' => $payload === [] ? null : $sanitizer->sanitize($payload),
             'result' => $resultPayload === null ? null : $sanitizer->sanitize($resultPayload),
+            'revert_point' => $result?->revertPoint?->toArray(),
             'ip_address_hash' => HashAgentBridgeIpAddressAction::run($request->ip()),
-            'user_agent' => $request->userAgent(),
+            // The column holds 255 characters; a longer header must not fail the audited action.
+            'user_agent' => $this->boundedUserAgent($request->userAgent()),
         ]);
 
         if ($user instanceof Model) {
@@ -55,5 +57,14 @@ final class AuditAgentBridgeCapabilityAction
         $entry->save();
 
         return $entry;
+    }
+
+    private function boundedUserAgent(?string $userAgent): ?string
+    {
+        if ($userAgent === null || trim($userAgent) === '') {
+            return null;
+        }
+
+        return mb_substr($userAgent, 0, 255);
     }
 }

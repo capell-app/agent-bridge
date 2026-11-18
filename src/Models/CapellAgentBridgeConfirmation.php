@@ -28,6 +28,11 @@ use RuntimeException;
  * @property array<array-key, mixed> $preview
  * @property CarbonImmutable $expires_at
  * @property CarbonImmutable|null $used_at
+ * @property bool $requires_approval
+ * @property string|null $approved_by_type
+ * @property int|null $approved_by_id
+ * @property CarbonImmutable|null $approved_at
+ * @property CarbonImmutable|null $declined_at
  * @property Authenticatable $user
  * @property CapellAgentBridgeToken $agentBridgeToken
  */
@@ -48,6 +53,7 @@ final class CapellAgentBridgeConfirmation extends Model
         'preview',
         'expires_at',
         'used_at',
+        'requires_approval',
     ];
 
     protected $table = 'capell_agent_bridge_confirmations';
@@ -61,15 +67,51 @@ final class CapellAgentBridgeConfirmation extends Model
         return hash_hmac('sha256', $plainTextToken, $applicationKey);
     }
 
+    /**
+     * Morph keys come back from the database as integers or strings depending on the
+     * driver, so they are compared as strings, and a missing key never matches.
+     */
+    public static function sameKey(mixed $stored, mixed $expected): bool
+    {
+        return (is_int($stored) || is_string($stored))
+            && (is_int($expected) || is_string($expected))
+            && (string) $stored === (string) $expected;
+    }
+
     public function isUsable(): bool
     {
-        return $this->used_at === null && $this->expires_at->isFuture();
+        return $this->used_at === null && $this->declined_at === null && $this->expires_at->isFuture();
+    }
+
+    public function isAwaitingApproval(): bool
+    {
+        return $this->requires_approval && $this->approved_at === null && $this->isUsable();
+    }
+
+    public function isApprovedBy(Model $approver): bool
+    {
+        return $this->approved_at !== null
+            && $this->declined_at === null
+            && $this->approved_by_type === $approver->getMorphClass()
+            && self::sameKey($this->approved_by_id, $approver->getKey());
+    }
+
+    public function belongsToUser(Model $user): bool
+    {
+        return $this->user_type === $user->getMorphClass()
+            && self::sameKey($this->user_id, $user->getKey());
     }
 
     /** @return BelongsTo<CapellAgentBridgeToken, $this> */
     public function agentBridgeToken(): BelongsTo
     {
         return $this->belongsTo(CapellAgentBridgeToken::class, 'agent_bridge_token_id');
+    }
+
+    /** @return MorphTo<Model, $this> */
+    public function approvedBy(): MorphTo
+    {
+        return $this->morphTo('approved_by');
     }
 
     /** @return MorphTo<Model, $this> */
@@ -87,6 +129,9 @@ final class CapellAgentBridgeConfirmation extends Model
             'preview' => 'array',
             'expires_at' => 'immutable_datetime',
             'used_at' => 'immutable_datetime',
+            'requires_approval' => 'boolean',
+            'approved_at' => 'immutable_datetime',
+            'declined_at' => 'immutable_datetime',
         ];
     }
 }

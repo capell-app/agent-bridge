@@ -11,12 +11,14 @@ final class CapabilityResultData extends Data
     /**
      * @param  array<string, mixed>  $data
      * @param  array<int, string>  $warnings
+     * @param  AgentBridgeRevertPointData|null  $revertPoint  where the change can be undone from; kept in the audit log and never sent to the client
      */
     public function __construct(
         public readonly bool $ok,
         public readonly string $message,
         public readonly array $data = [],
         public readonly array $warnings = [],
+        public readonly ?AgentBridgeRevertPointData $revertPoint = null,
     ) {}
 
     /**

@@ -6,11 +6,11 @@ Developer reference for `capell-app/agent-bridge`. Start with the [README](../RE
 
 ## Package Details
 
-Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Capell AI** product group. It ships as `capell-app/agent-bridge` and extends these surfaces: admin, frontend.
+Agent Bridge is an **Available** Capell package in the **Capell Essentials** product group. It ships as `capell-app/agent-bridge` and extends these surfaces: admin, frontend.
 
 - Status: Available
-- Tier: premium
-- Bundle: ai
+- Tier: free
+- Bundle: foundation
 - Composer package: `capell-app/agent-bridge`
 - Namespace: `Capell\AgentBridge`
 - Theme key: not applicable
@@ -36,6 +36,11 @@ Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Cape
 - `packages/agent-bridge/database/migrations/2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table.php`
 - `packages/agent-bridge/database/migrations/2026_07_20_000001_create_capell_agent_bridge_media_uploads_table.php`
 - `packages/agent-bridge/database/migrations/2026_09_29_120000_remove_implicit_timestamp_updates_from_agent_bridge.php`
+- `packages/agent-bridge/database/migrations/2026_11_12_000001_hash_created_from_ip_on_agent_bridge_tokens_table.php`
+- `packages/agent-bridge/database/migrations/2026_11_12_000002_bound_agent_bridge_tokens_without_expiry.php`
+- `packages/agent-bridge/database/migrations/2026_11_13_000001_add_human_approval_to_agent_bridge_confirmations_table.php`
+- `packages/agent-bridge/database/migrations/2026_11_13_000002_add_limits_to_agent_bridge_tokens_table.php`
+- `packages/agent-bridge/database/migrations/2026_11_13_000003_add_revert_points_to_agent_bridge_audit_entries_table.php`
 
 ### Settings migrations
 
@@ -73,19 +78,27 @@ Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Cape
 
 - `CapellAgentBridgeCapabilityAction`
 - `CapellAgentBridgeCapabilityProvider`
+- `ResolvesCapabilityPolicySite`
 
 ### Actions
 
+- `InvokeAdminAgentToolCapabilityAction`
+- `ApproveAgentBridgeConfirmationAction`
 - `AuditAgentBridgeCapabilityAction`
 - `AuthenticateLocalAgentBridgeClientAction`
 - `BuildAgentBridgeCapabilityCatalogAction`
+- `BuildAgentBridgePrivacyExportAction`
 - `BuildAgentBridgePromptAction`
+- `BuildAgentConnectInstructionsAction`
 - `ClearCapellCacheCapabilityAction`
+- `CapellAgentBridgeAuditEntryQuery`
 - `ConfirmAgentBridgeAdminCapabilityAction`
 - `ConfirmAgentBridgeCapabilityAction`
 - `ConfirmAgentBridgeMcpV1CapabilityAction`
 - `CreateAgentBridgeTokenAction`
+- `DeclineAgentBridgeConfirmationAction`
 - `DeleteAgentBridgePromptAction`
+- `EraseAgentBridgePrivacyDataAction`
 - `FindSavedPromptForUserAction`
 - `PrepareAgentBridgeScreenshotAction`
 - `HashAgentBridgeIpAddressAction`
@@ -110,6 +123,8 @@ Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Cape
 - `PreviewAgentBridgeAdminCapabilityAction`
 - `PruneAgentBridgeAuditEntriesAction`
 - `QueryAgentBridgeAuditEntriesAction`
+- `RecordAgentBridgeTokenUseAction`
+- `RevertAgentBridgeAuditEntryAction`
 - `RevokeAgentBridgeTokenAction`
 - `RotateAgentBridgeTokenAction`
 - `SaveAgentBridgePromptAction`
@@ -122,6 +137,9 @@ Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Cape
 
 - `AgentBridgeCommandPlanData`
 - `AgentBridgePromptData`
+- `AgentBridgePruneResultData`
+- `AgentBridgeRevertPointData`
+- `AgentConnectInstructionsData`
 - `AuthenticatedAgentBridgeClientData`
 - `ClearCacheCapabilityInputData`
 - `ClonePageCapabilityInputData`
@@ -147,6 +165,7 @@ Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Cape
 ### Command signatures
 
 - `capell:agent-bridge-prune-audit`
+- `capell:agent:connect`
 
 ### Scheduled commands
 
@@ -154,6 +173,7 @@ Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Cape
 
 ### Console command classes
 
+- `AgentConnectCommand`
 - `PruneAgentBridgeAuditEntriesCommand`
 
 ### Manifest contributions
@@ -184,7 +204,7 @@ Agent Bridge is an **Available**, **Schema-owning** Capell package in the **Cape
 - Required tables: `capell_agent_bridge_tokens`, `capell_agent_bridge_confirmations`, `capell_agent_bridge_audit_entries`, `capell_agent_bridge_saved_prompts`, `capell_agent_bridge_media_uploads`.
 - Models: `CapellAgentBridgeAuditEntry`, `CapellAgentBridgeConfirmation`, `CapellAgentBridgeMediaUpload`, `CapellAgentBridgeSavedPrompt`, `CapellAgentBridgeToken`.
 - Core record references in migrations: `sites via site_id`, `users via user_id`, `media via media_id`.
-- Migration files: `2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php`, `2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php`, `2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php`, `2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table.php`, `2026_07_09_000001_add_ip_address_hash_to_agent_bridge_audit_entries_table.php`, `2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table.php`, `2026_07_20_000001_create_capell_agent_bridge_media_uploads_table.php`, `2026_09_29_120000_remove_implicit_timestamp_updates_from_agent_bridge.php`.
+- Migration files: `2026_05_10_190840_01_create_capell_agent-bridge_tokens_table.php`, `2026_05_10_190840_02_create_capell_agent-bridge_confirmations_table.php`, `2026_05_10_190840_03_create_capell_agent-bridge_audit_entries_table.php`, `2026_05_27_000001_create_capell_agent-bridge_saved_prompts_table.php`, `2026_07_09_000001_add_ip_address_hash_to_agent_bridge_audit_entries_table.php`, `2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table.php`, `2026_07_20_000001_create_capell_agent_bridge_media_uploads_table.php`, `2026_09_29_120000_remove_implicit_timestamp_updates_from_agent_bridge.php`, `2026_11_12_000001_hash_created_from_ip_on_agent_bridge_tokens_table.php`, `2026_11_12_000002_bound_agent_bridge_tokens_without_expiry.php`, `2026_11_13_000001_add_human_approval_to_agent_bridge_confirmations_table.php`, `2026_11_13_000002_add_limits_to_agent_bridge_tokens_table.php`, `2026_11_13_000003_add_revert_points_to_agent_bridge_audit_entries_table.php`.
 - Migration impact: run host migrations through the package install flow before opening package surfaces.
 - Deletion/retention behaviour: migrations declare cascade-on-delete relationships and null-on-delete relationships; retention is scheduled through `capell:agent-bridge-prune-audit` (daily; declared in the manifest).
 

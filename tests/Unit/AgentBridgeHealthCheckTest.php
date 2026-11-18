@@ -18,7 +18,7 @@ it('returns a compatible capell api version', function (): void {
 it('runs diagnostics and returns a collection of check results', function (): void {
     $results = AgentBridgeHealthCheck::runDiagnostics();
 
-    expect($results)->toHaveCount(6)
+    expect($results)->toHaveCount(7)
         ->and($results->every(fn (mixed $check): bool => $check instanceof DoctorCheckResultData))->toBeTrue();
 });
 
@@ -127,4 +127,46 @@ it('returns overall passed status based on all checks', function (): void {
 
     expect($failedChecks)->toBe([])
         ->and(AgentBridgeHealthCheck::passed())->toBeTrue();
+});
+
+it('passes the connectivity check when the site route, audit secret and rate limits are ready', function (): void {
+    config()->set('capell-agent-bridge.audit_hash_secret', 'audit-secret');
+
+    $check = AgentBridgeHealthCheck::checkConnectivity();
+
+    expect($check->passed)->toBeTrue()
+        ->and($check->id)->toBe('agent.bridge.connectivity')
+        ->and($check->message)->toContain('/agent-bridge/capell')
+        ->and($check->message)->toContain('0 active agent key(s)')
+        ->and(AgentBridgeHealthCheck::runDiagnostics()->pluck('id'))->toContain('agent.bridge.connectivity');
+});
+
+it('fails the connectivity check for each missing connection requirement', function (string $key, mixed $value, string $problem): void {
+    config()->set('capell-agent-bridge.audit_hash_secret', 'audit-secret');
+    config()->set($key, $value);
+
+    if ($key === 'app.key') {
+        config()->set('capell-agent-bridge.audit_hash_secret', null);
+    }
+
+    $check = AgentBridgeHealthCheck::checkConnectivity();
+
+    expect($check->passed)->toBeFalse()
+        ->and($check->message)->toContain($problem)
+        ->and($check->remediation)->toContain('capell:doctor');
+})->with([
+    'site route disabled' => ['capell-agent-bridge.routes.site', null, 'site MCP route is disabled'],
+    'site route not registered' => ['capell-agent-bridge.routes.site', 'agent-bridge/elsewhere', 'site MCP route is not registered'],
+    'no audit secret' => ['app.key', '', 'no audit hash secret'],
+    'rate limits off' => ['capell-agent-bridge.rate_limit_enabled', false, 'rate limits are off'],
+]);
+
+it('fails the connectivity check when agent keys cannot be read', function (): void {
+    config()->set('capell-agent-bridge.audit_hash_secret', 'audit-secret');
+    Schema::drop('capell_agent_bridge_tokens');
+
+    $check = AgentBridgeHealthCheck::checkConnectivity();
+
+    expect($check->passed)->toBeFalse()
+        ->and($check->message)->toContain('agent keys cannot be read');
 });

@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use Capell\AgentBridge\Actions\CreateAgentBridgeTokenAction;
+use Capell\AgentBridge\Actions\HashAgentBridgeIpAddressAction;
 use Capell\AgentBridge\Actions\PruneAgentBridgeAuditEntriesAction;
 use Capell\AgentBridge\Actions\QueryAgentBridgeAuditEntriesAction;
 use Capell\AgentBridge\Actions\RevokeAgentBridgeTokenAction;
 use Capell\AgentBridge\Actions\RotateAgentBridgeTokenAction;
+use Capell\AgentBridge\Capabilities\BuiltInAgentBridgeCapabilityProvider;
 use Capell\AgentBridge\Enums\AgentBridgeTokenLifecycleStatus;
 use Capell\AgentBridge\Filament\Resources\Users\RelationManagers\AgentBridgeAuditEntriesRelationManager;
 use Capell\AgentBridge\Filament\Resources\Users\RelationManagers\AgentBridgeTokensRelationManager;
@@ -14,10 +16,12 @@ use Capell\AgentBridge\Models\CapellAgentBridgeAuditEntry;
 use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
 use Capell\AgentBridge\Models\CapellAgentBridgeSavedPrompt;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\AgentBridge\Tests\Fixtures\User;
 use Capell\Core\Facades\CapellCore;
 use Capell\Tests\Support\InstalledRuntimeParity;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Testing\PendingCommand;
 
 it('creates rotates and revokes tokens through lifecycle actions', function (): void {
@@ -35,7 +39,8 @@ it('creates rotates and revokes tokens through lifecycle actions', function (): 
     $token->refresh();
 
     expect($created['plainTextToken'])->toStartWith('cagent-bridge_')
-        ->and($token->created_from_ip)->toBe('127.0.0.1')
+        ->and($token->created_from_ip)->toBe(HashAgentBridgeIpAddressAction::run('127.0.0.1'))
+        ->and($token->created_from_ip)->not->toContain('127.0.0.1')
         ->and($rotated['plainTextToken'])->toStartWith('cagent-bridge_')
         ->and($token->token_hash)->not->toBe($originalHash)
         ->and($token->rotated_at)->not->toBeNull()
@@ -111,7 +116,7 @@ it('queries and prunes audit entries with retention boundaries', function (): vo
     expect($entries->pluck('event')->all())->toContain('capell.old', 'capell.new')
         ->and(AgentBridgeAuditEntriesRelationManager::scopedQueryForUser(CapellAgentBridgeAuditEntry::query(), $user)->count())->toBe(2);
 
-    expect(PruneAgentBridgeAuditEntriesAction::run(90))->toBe(1)
+    expect(PruneAgentBridgeAuditEntriesAction::run(90)->auditEntries)->toBe(1)
         ->and(CapellAgentBridgeAuditEntry::query()->whereKey($oldEntry->getKey())->exists())->toBeFalse()
         ->and(CapellAgentBridgeAuditEntry::query()->whereKey($newEntry->getKey())->exists())->toBeTrue();
 });
@@ -179,3 +184,83 @@ function createLifecycleToken(
 
     return $token;
 }
+
+it('refuses to rotate a revoked token and leaves it revoked', function (): void {
+    $user = User::query()->create([
+        'name' => 'Revoked Rotation User',
+        'email' => 'revoked-rotation@example.test',
+        'password' => 'secret',
+    ]);
+
+    $token = CreateAgentBridgeTokenAction::run($user, 'Revoked client', ['capell.pages.read'])['token'];
+    RevokeAgentBridgeTokenAction::run($token);
+    $revokedHash = $token->fresh()?->token_hash;
+
+    expect(fn (): array => RotateAgentBridgeTokenAction::run($token))
+        ->toThrow(AuthorizationException::class);
+
+    $token->refresh();
+
+    expect($token->is_enabled)->toBeFalse()
+        ->and($token->revoked_at)->not->toBeNull()
+        ->and($token->token_hash)->toBe($revokedHash)
+        ->and($token->isUsable())->toBeFalse()
+        ->and(CapellAgentBridgeAuditEntry::query()->where('event', 'capell_agent-bridge.token.rotated')->count())->toBe(0);
+});
+
+it('refuses to rotate a stale copy of a token that was revoked elsewhere', function (): void {
+    $user = User::query()->create([
+        'name' => 'Stale Rotation User',
+        'email' => 'stale-rotation@example.test',
+        'password' => 'secret',
+    ]);
+
+    $token = CreateAgentBridgeTokenAction::run($user, 'Stale client', ['capell.pages.read'])['token'];
+    $staleCopy = $token->replicate()->setRawAttributes($token->getAttributes(), true);
+    RevokeAgentBridgeTokenAction::run($token);
+
+    expect(fn (): array => RotateAgentBridgeTokenAction::run($staleCopy))
+        ->toThrow(AuthorizationException::class);
+
+    expect($token->fresh()?->isUsable())->toBeFalse();
+});
+
+it('refuses to rotate an expired token', function (): void {
+    $user = User::query()->create([
+        'name' => 'Expired Rotation User',
+        'email' => 'expired-rotation@example.test',
+        'password' => 'secret',
+    ]);
+
+    $token = CreateAgentBridgeTokenAction::run($user, 'Expired client', ['capell.pages.read'])['token'];
+    $token->forceFill(['expires_at' => CarbonImmutable::now()->subMinute()])->save();
+
+    expect(fn (): array => RotateAgentBridgeTokenAction::run($token))
+        ->toThrow(AuthorizationException::class);
+});
+
+it('records every rotation in the audit trail without the new secret', function (): void {
+    $user = User::query()->create([
+        'name' => 'Audited Rotation User',
+        'email' => 'audited-rotation@example.test',
+        'password' => 'secret',
+    ]);
+
+    $token = CreateAgentBridgeTokenAction::run($user, 'Audited client', ['capell.pages.read'])['token'];
+    $rotated = RotateAgentBridgeTokenAction::run($token, $user);
+
+    $entry = CapellAgentBridgeAuditEntry::query()->where('event', 'capell_agent-bridge.token.rotated')->sole();
+
+    expect($entry->agent_bridge_token_id)->toBe($token->getKey())
+        ->and($entry->getAttribute('user_id'))->toEqual($user->getKey())
+        ->and(json_encode($entry->getAttributes(), JSON_THROW_ON_ERROR))->not->toContain($rotated['plainTextToken']);
+});
+
+it('offers a token scope for every built-in capability, so no capability needs an all-scopes token', function (): void {
+    $registry = new CapellAgentBridgeCapabilityRegistry;
+    (new BuiltInAgentBridgeCapabilityProvider)->registerCapabilities($registry);
+    $options = array_keys(AgentBridgeTokensRelationManager::scopeOptions());
+
+    expect($registry->all()->pluck('scope')->unique()->diff($options)->values()->all())->toBe([])
+        ->and($options)->toContain('capell.pages.publish', 'capell.sites.configure', 'capell.packages.install');
+});

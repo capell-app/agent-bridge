@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Health;
 
 use Capell\AgentBridge\Data\CapabilityData;
+use Capell\AgentBridge\Enums\AgentBridgeTokenLifecycleStatus;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
+use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Settings\AgentBridgeSettings;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\Core\Contracts\Extensions\ChecksExtensionHealth;
 use Capell\Core\Data\Diagnostics\DoctorCheckResultData;
 use Capell\Core\Support\TableName;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Mcp\Facades\Mcp;
 use Throwable;
@@ -36,6 +39,7 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
             self::checkServerPolicyCoverage(),
             self::checkSettings(),
             self::checkRoutes(),
+            self::checkConnectivity(),
         ]);
     }
 
@@ -43,6 +47,59 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
     {
         return self::runDiagnostics()->every(
             fn (DoctorCheckResultData $check): bool => $check->passed,
+        );
+    }
+
+    /**
+     * Whether a coding agent could connect over HTTP right now: the site server route is
+     * registered, audit hashing has a secret, rate limits are on and the token table is
+     * readable. capell:agent:connect refuses to issue a key until this passes.
+     */
+    public static function checkConnectivity(): DoctorCheckResultData
+    {
+        $label = 'Agent Bridge: agents can connect';
+        $id = 'agent.bridge.connectivity';
+        $problems = [];
+        $siteRoute = config('capell-agent-bridge.routes.site');
+
+        if (! is_string($siteRoute) || trim($siteRoute, '/') === '') {
+            $problems[] = 'the site MCP route is disabled (set capell-agent-bridge.routes.site)';
+        } elseif (! class_exists(Mcp::class) || ! self::routeRegistered(trim($siteRoute, '/'))) {
+            $problems[] = 'the site MCP route is not registered (install laravel/mcp and clear the route cache)';
+        }
+
+        if (! self::filled(config('capell-agent-bridge.audit_hash_secret')) && ! self::filled(config('app.key'))) {
+            $problems[] = 'no audit hash secret is set (set CAPELL_AGENT_BRIDGE_AUDIT_HASH_SECRET or APP_KEY)';
+        }
+
+        if (! (bool) config('capell-agent-bridge.rate_limit_enabled', true)) {
+            $problems[] = 'request rate limits are off (set CAPELL_AGENT_BRIDGE_RATE_LIMIT_ENABLED=true)';
+        }
+
+        try {
+            $activeTokens = CapellAgentBridgeToken::query()
+                ->withLifecycleStatus(AgentBridgeTokenLifecycleStatus::Active)
+                ->count();
+        } catch (Throwable) {
+            $activeTokens = null;
+            $problems[] = 'agent keys cannot be read (run the Agent Bridge migrations)';
+        }
+
+        if ($problems !== []) {
+            return new DoctorCheckResultData(
+                label: $label,
+                passed: false,
+                message: 'Coding agents cannot connect yet: ' . implode('; ', $problems) . '.',
+                remediation: 'Fix each item, then run capell:doctor again before issuing an agent key.',
+                id: $id,
+            );
+        }
+
+        return new DoctorCheckResultData(
+            label: $label,
+            passed: true,
+            message: sprintf('The site MCP route /%s is registered with rate limits on; %d active agent key(s).', trim(is_string($siteRoute) ? $siteRoute : '', '/'), $activeTokens),
+            id: $id,
         );
     }
 
@@ -257,5 +314,21 @@ final class AgentBridgeHealthCheck implements ChecksExtensionHealth
             message: $message,
             id: 'legacy.agent.bridge.mcp.routes',
         );
+    }
+
+    private static function routeRegistered(string $uri): bool
+    {
+        foreach (Route::getRoutes()->getRoutes() as $route) {
+            if ($route->uri() === $uri && in_array('POST', $route->methods(), true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function filled(mixed $value): bool
+    {
+        return is_string($value) && trim($value) !== '';
     }
 }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Capell\AgentBridge\Actions\ApproveAgentBridgeConfirmationAction;
 use Capell\AgentBridge\Actions\ConfirmAgentBridgeCapabilityAction;
 use Capell\AgentBridge\Actions\CreateAgentBridgeTokenAction;
 use Capell\AgentBridge\Actions\InvokeAgentBridgeCapabilityPreviewAction;
@@ -18,7 +19,7 @@ use Capell\AgentBridge\Tests\Fixtures\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Gate;
 
-function registerFakeCapability(string $scope = 'capell.fake.write', ?string $policyAbility = null): void
+function registerFakeCapability(string $scope = 'capell.fake.write', ?string $policyAbility = null, CapabilityRiskEnum $risk = CapabilityRiskEnum::High): void
 {
     resolve(CapellAgentBridgeCapabilityRegistry::class)->register(new CapabilityData(
         key: 'capell.fake.write',
@@ -26,7 +27,7 @@ function registerFakeCapability(string $scope = 'capell.fake.write', ?string $po
         description: 'Fake mutating capability.',
         scope: $scope,
         server: CapabilityServerEnum::Site,
-        risk: CapabilityRiskEnum::High,
+        risk: $risk,
         actionClass: FakeCapabilityAction::class,
         policyAbility: $policyAbility,
         auditEvent: 'capell_agent-bridge.fake.write',
@@ -55,6 +56,20 @@ function agentBridgeConfirmationToken(array $preview): string
     throw_unless(is_string($confirmationToken), RuntimeException::class, 'Expected agent bridge confirmation token.');
 
     return $confirmationToken;
+}
+
+/**
+ * The person the token acts as approves the preview in the admin.
+ *
+ * @param  array<string, mixed>  $preview
+ */
+function approveAgentBridgePreview(array $preview, User $approver): CapellAgentBridgeConfirmation
+{
+    $confirmation = CapellAgentBridgeConfirmation::query()
+        ->where('token', CapellAgentBridgeConfirmation::hashPlainTextToken(agentBridgeConfirmationToken($preview)))
+        ->firstOrFail();
+
+    return ApproveAgentBridgeConfirmationAction::run($confirmation, $approver);
 }
 
 function agentBridgeTokenId(CapellAgentBridgeToken $token): int
@@ -96,9 +111,12 @@ it('previews and confirms a mutating capability with the same payload', function
     $storedConfirmationToken = CapellAgentBridgeConfirmation::query()->value('token');
 
     expect($preview['mode'])->toBe('preview')
+        ->and($preview['approvalRequired'])->toBeTrue()
         ->and($confirmationToken)->toBeString()
         ->and($storedConfirmationToken)->toBeString()
         ->and($storedConfirmationToken)->not->toBe($confirmationToken);
+
+    approveAgentBridgePreview($preview, $user);
 
     $result = ConfirmAgentBridgeCapabilityAction::run(
         confirmationToken: $confirmationToken,
@@ -156,7 +174,8 @@ it('rejects confirmation when the payload changes after preview', function (): v
 })->throws(AuthorizationException::class, 'The Agent Bridge confirmation payload has changed.');
 
 it('redacts sensitive payload and result fragments before writing audit entries', function (): void {
-    registerFakeCapability();
+    // Medium risk is confirmed by the token alone, so the trail is exactly preview and run.
+    registerFakeCapability(risk: CapabilityRiskEnum::Medium);
 
     $user = User::query()->create([
         'name' => 'Audit User',
@@ -344,3 +363,217 @@ it('rejects policy protected capability previews when no authenticated user is a
         token: $token,
     );
 })->throws(AuthorizationException::class, 'Agent Bridge policy ability [preview fake capability] requires an authenticated user.');
+
+dataset('agent bridge token changes between preview and confirm', [
+    'revoked' => [fn (CapellAgentBridgeToken $token): mixed => CapellAgentBridgeToken::query()->whereKey($token->getKey())->update(['is_enabled' => false, 'revoked_at' => now()])],
+    'disabled' => [fn (CapellAgentBridgeToken $token): mixed => CapellAgentBridgeToken::query()->whereKey($token->getKey())->update(['is_enabled' => false])],
+    'expired' => [fn (CapellAgentBridgeToken $token): mixed => CapellAgentBridgeToken::query()->whereKey($token->getKey())->update(['expires_at' => now()->subMinute()])],
+    'de-scoped' => [fn (CapellAgentBridgeToken $token): mixed => CapellAgentBridgeToken::query()->whereKey($token->getKey())->update(['scopes' => json_encode(['capell.pages.read'], JSON_THROW_ON_ERROR)])],
+    'reassigned' => [function (CapellAgentBridgeToken $token): mixed {
+        $otherUser = User::query()->create(['name' => 'New owner', 'email' => 'reassigned-owner@example.com', 'password' => 'secret']);
+
+        return CapellAgentBridgeToken::query()->whereKey($token->getKey())->update(['user_id' => $otherUser->getKey()]);
+    }],
+]);
+
+it('refuses confirmation when the token changed after the preview was issued', function (Closure $change): void {
+    registerFakeCapability();
+
+    $user = User::query()->create([
+        'name' => 'Stale Credential User',
+        'email' => 'stale-credential@example.com',
+        'password' => 'secret',
+    ]);
+
+    $token = agentBridgeCreatedToken(CreateAgentBridgeTokenAction::run($user, 'Stale client', ['capell.fake.write']));
+    $client = new AuthenticatedAgentBridgeClientData(
+        tokenId: agentBridgeTokenId($token),
+        name: 'Stale client',
+        scopes: ['capell.fake.write'],
+    );
+
+    $preview = InvokeAgentBridgeCapabilityPreviewAction::run(
+        capabilityKey: 'capell.fake.write',
+        payload: ['name' => 'Stale'],
+        client: $client,
+        token: $token,
+        user: $user,
+    );
+
+    $change($token);
+
+    expect(fn (): array => ConfirmAgentBridgeCapabilityAction::run(
+        confirmationToken: agentBridgeConfirmationToken($preview),
+        payload: ['name' => 'Stale'],
+        client: $client,
+        token: $token,
+        user: $user,
+    ))->toThrow(AuthorizationException::class, 'The Agent Bridge token is no longer allowed to use this capability.');
+
+    expect(CapellAgentBridgeConfirmation::query()->whereNotNull('used_at')->count())->toBe(0)
+        ->and(CapellAgentBridgeAuditEntry::query()->where('event', 'capell_agent-bridge.fake.write')->count())->toBe(0);
+})->with('agent bridge token changes between preview and confirm');
+
+it('stops a long-lived client from running a capability without confirmation once its token is revoked', function (): void {
+    resolve(CapellAgentBridgeCapabilityRegistry::class)->register(new CapabilityData(
+        key: 'capell.fake.read_now',
+        name: 'Fake read',
+        description: 'Fake read capability that runs without confirmation.',
+        scope: 'capell.fake.write',
+        server: CapabilityServerEnum::Site,
+        risk: CapabilityRiskEnum::Read,
+        actionClass: FakeCapabilityAction::class,
+        requiresConfirmation: false,
+    ));
+
+    $user = User::query()->create(['name' => 'Stdio user', 'email' => 'stdio-user@example.com', 'password' => 'secret']);
+    $token = agentBridgeCreatedToken(CreateAgentBridgeTokenAction::run($user, 'Stdio client', ['capell.fake.write']));
+    $client = new AuthenticatedAgentBridgeClientData(tokenId: agentBridgeTokenId($token), name: 'Stdio client', scopes: ['capell.fake.write']);
+    $invoke = fn (): array => InvokeAgentBridgeCapabilityPreviewAction::run(
+        capabilityKey: 'capell.fake.read_now',
+        payload: ['name' => 'Low'],
+        client: $client,
+        token: $token,
+        user: $user,
+    );
+
+    expect($invoke()['mode'])->toBe('executed');
+
+    CapellAgentBridgeToken::query()->whereKey($token->getKey())->update(['is_enabled' => false, 'revoked_at' => now()]);
+
+    expect($invoke)->toThrow(AuthorizationException::class, 'The Agent Bridge token is no longer allowed to use this capability.');
+    expect(CapellAgentBridgeAuditEntry::query()->where('event', 'capell_agent-bridge.capability.executed')->count())->toBe(1);
+});
+
+function registerFakeImmediateCapability(?string $policyAbility = null): void
+{
+    resolve(CapellAgentBridgeCapabilityRegistry::class)->register(new CapabilityData(
+        key: 'capell.fake.read_now',
+        name: 'Fake read',
+        description: 'Fake read capability that runs without confirmation.',
+        scope: 'capell.fake.write',
+        server: CapabilityServerEnum::Site,
+        risk: CapabilityRiskEnum::Read,
+        actionClass: FakeCapabilityAction::class,
+        policyAbility: $policyAbility,
+        requiresConfirmation: false,
+    ));
+}
+
+it('runs an internal client inside a token request without borrowing that request token', function (): void {
+    registerFakeImmediateCapability();
+    registerFakeCapability();
+    $requestOwner = User::query()->create(['name' => 'Request owner', 'email' => 'request-owner@example.com', 'password' => 'secret']);
+    $requestToken = agentBridgeCreatedToken(CreateAgentBridgeTokenAction::run($requestOwner, 'Request client', ['capell.pages.read']));
+    // The surrounding bridge request authenticated with its own token.
+    app()->instance(CapellAgentBridgeToken::class, $requestToken);
+    $internalClient = new AuthenticatedAgentBridgeClientData(tokenId: 0, name: 'Automation Studio', scopes: ['capell.fake.write']);
+
+    $executed = InvokeAgentBridgeCapabilityPreviewAction::run(
+        capabilityKey: 'capell.fake.read_now',
+        payload: ['name' => 'Internal'],
+        client: $internalClient,
+        token: null,
+        user: $requestOwner,
+    );
+
+    expect($executed['mode'])->toBe('executed')
+        ->and(fn (): array => InvokeAgentBridgeCapabilityPreviewAction::run(
+            capabilityKey: 'capell.fake.write',
+            payload: ['name' => 'Internal'],
+            client: $internalClient,
+            token: null,
+            user: $requestOwner,
+        ))->toThrow(AuthorizationException::class, 'Agent Bridge capability [capell.fake.write] needs confirmation, which requires a token client.');
+
+    expect(CapellAgentBridgeConfirmation::query()->count())->toBe(0);
+});
+
+it('refuses a token client whose token is missing rather than skipping the freshness check', function (): void {
+    registerFakeImmediateCapability();
+    $user = User::query()->create(['name' => 'Tokenless user', 'email' => 'tokenless@example.com', 'password' => 'secret']);
+    $token = agentBridgeCreatedToken(CreateAgentBridgeTokenAction::run($user, 'Tokenless client', ['capell.fake.write']));
+    $client = new AuthenticatedAgentBridgeClientData(tokenId: agentBridgeTokenId($token), name: 'Tokenless client', scopes: ['capell.fake.write']);
+
+    expect(fn (): array => InvokeAgentBridgeCapabilityPreviewAction::run(
+        capabilityKey: 'capell.fake.read_now',
+        payload: ['name' => 'Tokenless'],
+        client: $client,
+        token: null,
+        user: $user,
+    ))->toThrow(AuthorizationException::class, 'Agent Bridge token context is required.');
+
+    expect(CapellAgentBridgeAuditEntry::query()->where('event', 'capell_agent-bridge.capability.executed')->count())->toBe(0);
+});
+
+it('judges a long-lived client by its token owner as currently stored', function (): void {
+    registerFakeImmediateCapability(policyAbility: 'use fake capability');
+    // Stands in for a role check: it reads the owner's stored state.
+    Gate::define('use fake capability', static fn (User $user): bool => $user->name === 'Allowed owner');
+    $user = User::query()->create(['name' => 'Allowed owner', 'email' => 'stdio-owner@example.com', 'password' => 'secret']);
+    $token = agentBridgeCreatedToken(CreateAgentBridgeTokenAction::run($user, 'Stdio client', ['capell.fake.write']));
+    $client = new AuthenticatedAgentBridgeClientData(tokenId: agentBridgeTokenId($token), name: 'Stdio client', scopes: ['capell.fake.write']);
+    // The stdio process keeps the owner it loaded when it started.
+    $invoke = fn (): array => InvokeAgentBridgeCapabilityPreviewAction::run(
+        capabilityKey: 'capell.fake.read_now',
+        payload: ['name' => 'Owner'],
+        client: $client,
+        token: $token,
+        user: $user,
+    );
+
+    expect($invoke()['mode'])->toBe('executed');
+
+    User::query()->whereKey($user->getKey())->update(['name' => 'Demoted owner']);
+
+    expect($invoke)->toThrow(AuthorizationException::class, 'This action is unauthorized.');
+
+    User::query()->whereKey($user->getKey())->delete();
+
+    expect($invoke)->toThrow(AuthorizationException::class, 'The Agent Bridge token owner no longer exists.')
+        ->and(CapellAgentBridgeAuditEntry::query()->where('event', 'capell_agent-bridge.capability.executed')->count())->toBe(1);
+});
+
+it('confirms as the token owner currently stored', function (): void {
+    registerFakeCapability(policyAbility: 'confirm fake capability');
+    Gate::define('confirm fake capability', static fn (User $user): bool => $user->name === 'Allowed owner');
+    $user = User::query()->create(['name' => 'Allowed owner', 'email' => 'confirm-owner@example.com', 'password' => 'secret']);
+    $token = agentBridgeCreatedToken(CreateAgentBridgeTokenAction::run($user, 'Confirm client', ['capell.fake.write']));
+    $client = new AuthenticatedAgentBridgeClientData(tokenId: agentBridgeTokenId($token), name: 'Confirm client', scopes: ['capell.fake.write']);
+    $preview = InvokeAgentBridgeCapabilityPreviewAction::run(
+        capabilityKey: 'capell.fake.write',
+        payload: ['name' => 'Owner'],
+        client: $client,
+        token: $token,
+        user: $user,
+    );
+
+    User::query()->whereKey($user->getKey())->update(['name' => 'Demoted owner']);
+
+    expect(fn (): array => ConfirmAgentBridgeCapabilityAction::run(
+        confirmationToken: agentBridgeConfirmationToken($preview),
+        payload: ['name' => 'Owner'],
+        client: $client,
+        token: $token,
+        user: $user,
+    ))->toThrow(AuthorizationException::class, 'This action is unauthorized.');
+
+    expect(CapellAgentBridgeConfirmation::query()->whereNotNull('used_at')->count())->toBe(0);
+});
+
+it('checks a token handed to an internal client instead of recording a confirmation for it', function (): void {
+    registerFakeCapability();
+    $user = User::query()->create(['name' => 'Handed token owner', 'email' => 'handed-token@example.com', 'password' => 'secret']);
+    $token = agentBridgeCreatedToken(CreateAgentBridgeTokenAction::run($user, 'Handed client', ['capell.fake.write']));
+    $internalClient = new AuthenticatedAgentBridgeClientData(tokenId: 0, name: 'Automation Studio', scopes: ['capell.fake.write']);
+
+    expect(fn (): array => InvokeAgentBridgeCapabilityPreviewAction::run(
+        capabilityKey: 'capell.fake.write',
+        payload: ['name' => 'Handed'],
+        client: $internalClient,
+        token: $token,
+        user: $user,
+    ))->toThrow(AuthorizationException::class, 'The Agent Bridge token is no longer allowed to use this capability.');
+
+    expect(CapellAgentBridgeConfirmation::query()->count())->toBe(0);
+});

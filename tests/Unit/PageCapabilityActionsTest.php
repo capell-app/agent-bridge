@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+use BezhanSalleh\FilamentShield\FilamentShield;
+use Capell\Admin\Enums\CapellPermission;
+use Capell\Admin\Filament\Resources\Users\Pages\EditUser;
+use Capell\AgentBridge\Actions\AdminTools\InvokeAdminAgentToolCapabilityAction;
+use Capell\AgentBridge\Actions\AuditAgentBridgeCapabilityAction;
+use Capell\AgentBridge\Actions\CreateAgentBridgeTokenAction;
 use Capell\AgentBridge\Actions\Media\UploadMediaCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\ClonePageCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\CreateDraftPageCapabilityAction;
@@ -13,6 +19,7 @@ use Capell\AgentBridge\Actions\Pages\OpenPageEditorCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\SearchPagesCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\TransitionPagePublicationCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\UpdateDraftPageCapabilityAction;
+use Capell\AgentBridge\Actions\RevertAgentBridgeAuditEntryAction;
 use Capell\AgentBridge\Actions\Sites\InspectSiteCapabilityAction;
 use Capell\AgentBridge\Actions\Sites\OpenSiteEditorCapabilityAction;
 use Capell\AgentBridge\Actions\Sites\SearchSitesCapabilityAction;
@@ -23,9 +30,19 @@ use Capell\AgentBridge\Data\CapabilityResultData;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
 use Capell\AgentBridge\Exceptions\AgentBridgeMcpV1ConflictException;
+use Capell\AgentBridge\Exceptions\AgentBridgeRevertRefusedException;
+use Capell\AgentBridge\Filament\Resources\Users\RelationManagers\AgentBridgeAuditEntriesRelationManager;
+use Capell\AgentBridge\Models\CapellAgentBridgeAuditEntry;
+use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\AgentBridge\Support\AdminTools\AdminAgentToolCapabilities;
 use Capell\AgentBridge\Support\AgentBridgeMcpV1Policy;
+use Capell\AgentBridge\Support\AgentBridgePageRevertPoints;
+use Capell\AgentBridge\Support\AgentBridgeTokenSiteRestriction;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
+use Capell\AgentBridge\Tests\Fixtures\SiteAssignedUser;
+use Capell\AgentBridge\Tests\Fixtures\User;
+use Capell\AgentBridge\Tools\Site\InspectSiteStateTool;
 use Capell\Core\EventSourcing\Aggregates\PageAggregate;
 use Capell\Core\EventSourcing\Enums\PageWorkflowStatus;
 use Capell\Core\EventSourcing\Serializers\PageStateSerializer;
@@ -34,7 +51,14 @@ use Capell\Core\Models\Page;
 use Capell\Core\Models\PageWorkflowState;
 use Capell\Core\Models\Translation;
 use Capell\Core\Support\Publishing\PublishSentinel;
+use Filament\Actions\Testing\TestAction;
+use Filament\Facades\Filament;
+use Filament\Panel;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\Access\Gate as AccessGate;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +67,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
+use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
 beforeEach(function (): void {
     Gate::before(static fn (): bool => true);
@@ -116,7 +142,7 @@ it('claims media upload idempotency atomically and rejects key reuse with differ
 
     expect(fn (): CapabilityResultData => $action->execute(pageInvocation(array_replace($payload, [
         'file_name' => 'different.png',
-        'content_base64' => base64_encode((string) base64_decode($payload['content_base64'], true) . 'different'),
+        'content_base64' => base64_encode(base64_decode($payload['content_base64'], true) . 'different'),
     ]), pageCapabilityUser(collect([1])))))
         ->toThrow(AgentBridgeMcpV1ConflictException::class);
 });
@@ -282,13 +308,13 @@ it('executes page capability lifecycle changes against persisted draft pages', f
         'expected_revision' => agentBridgeDraftRevision($page),
         'name' => 'Agent-updated landing page',
         'meta' => ['source' => 'agent', 'updated' => true],
-    ], pageCapabilityUser(collect([(int) $siteId])))));
+    ], pageCapabilityUser(collect([$siteId])))));
     $disabled = Page::withoutEvents(fn (): CapabilityResultData => (new DisablePageCapabilityAction)->execute(pageInvocation([
         'page_id' => $page->getKey(),
-    ], pageCapabilityUser(collect([(int) $siteId])))));
+    ], pageCapabilityUser(collect([$siteId])))));
     $readiness = (new InspectPagePublishingReadinessCapabilityAction)->execute(pageInvocation([
         'page_id' => $page->getKey(),
-    ], pageCapabilityUser(collect([(int) $siteId]))));
+    ], pageCapabilityUser(collect([$siteId]))));
 
     expect($created->ok)->toBeTrue()
         ->and($created->data['name'])->toBe('Agent-created landing page')
@@ -420,7 +446,7 @@ it('creates a translated page draft from human-readable authoring references', f
         'title' => 'The summer campaign',
         'slug' => 'summer',
         'content' => 'Campaign draft copy',
-    ], pageCapabilityUser(collect([(int) $siteId])))));
+    ], pageCapabilityUser(collect([$siteId])))));
 
     $page = findAgentBridgeCapabilityPage($result->data['page_id'], ['translations', 'pageUrls']);
     $translation = $page->translations->first();
@@ -540,14 +566,14 @@ it('lists human-readable page authoring choices for an allowed site', function (
 
     $result = (new ListPageAuthoringOptionsCapabilityAction)->execute(pageInvocation([
         'site' => 'Authoring site',
-    ], pageCapabilityUser(collect([(int) $siteId]))));
+    ], pageCapabilityUser(collect([$siteId]))));
     $site = agentBridgeCapabilityArray($result->data['site']);
     $pageTypes = agentBridgeCapabilityList($result->data['page_types']);
     $layouts = agentBridgeCapabilityList($result->data['layouts']);
     $languages = agentBridgeCapabilityList($result->data['languages']);
 
     expect($site)
-        ->toMatchArray(['id' => (int) $siteId, 'name' => 'Authoring site'])
+        ->toMatchArray(['id' => $siteId, 'name' => 'Authoring site'])
         ->and(array_column($pageTypes, 'key'))->toContain('standard-page')
         ->and(array_column($layouts, 'key'))->toContain('standard-layout')
         ->and(array_column($languages, 'code'))->toContain('en');
@@ -585,7 +611,7 @@ it('finds inspects and opens an allowed site by domain or human name', function 
         'created_at' => now(),
         'updated_at' => now(),
     ]);
-    $user = pageCapabilityUser(collect([(int) $siteId]));
+    $user = pageCapabilityUser(collect([$siteId]));
 
     $search = (new SearchSitesCapabilityAction)->execute(pageInvocation([
         'query' => 'example.test',
@@ -604,7 +630,7 @@ it('finds inspects and opens an allowed site by domain or human name', function 
 
     expect($sites)->toHaveCount(1)
         ->and($site)->toMatchArray([
-            'id' => (int) $siteId,
+            'id' => $siteId,
             'name' => 'Main website',
         ])
         ->and($domain)->toMatchArray([
@@ -614,7 +640,7 @@ it('finds inspects and opens an allowed site by domain or human name', function 
         ->and($inspectedSite['name'] ?? null)->toBe('Main website')
         ->and($open->data)->toMatchArray([
             'action' => 'open_url',
-            'site_id' => (int) $siteId,
+            'site_id' => $siteId,
             'name' => 'Main website',
         ])
         ->and(agentBridgeCapabilityString($open->data['url']))->not->toBeEmpty();
@@ -981,9 +1007,7 @@ function pageInvocation(
     AuthenticatableContract|false|null $user = null,
     string $capabilityKey = 'capell.pages.test',
 ): CapabilityInvocationData {
-    if ($user === null) {
-        $user = pageCapabilityUser(collect([agentBridgeInteger($payload['site_id'] ?? 1)]));
-    }
+    $user ??= pageCapabilityUser(collect([agentBridgeInteger($payload['site_id'] ?? 1)]));
 
     return new CapabilityInvocationData(
         capability: new CapabilityData(
@@ -1064,3 +1088,383 @@ function pageCapabilityUser(Collection $assignedSiteIds, bool $isGlobalAdmin = f
         }
     };
 }
+
+/**
+ * A page with event-sourced history, as the editor leaves it, named $name at its latest version.
+ */
+function agentBridgeRevertablePage(string $name, int $siteId = 1): Page
+{
+    config()->set('activitylog', require dirname(__DIR__, 4) . '/vendor/spatie/laravel-activitylog/config/activitylog.php');
+    resolve(EventSourcedRegistry::class)->register(Page::class, PageAggregate::class, PageStateSerializer::class);
+    $page = createAgentBridgeCapabilityPage(siteId: $siteId);
+    $page->forceFill(['name' => $name])->save();
+    ensureAgentBridgeDraftRevision($page, revision: AgentBridgePageRevertPoints::currentVersion($page));
+
+    return $page->refresh();
+}
+
+function agentBridgeAuditedUpdate(Page $page, string $name, Authenticatable $actor): CapellAgentBridgeAuditEntry
+{
+    $invocation = pageInvocation([
+        'page_id' => $page->getKey(),
+        'expected_revision' => agentBridgeDraftRevision($page),
+        'name' => $name,
+    ], $actor, 'capell.pages.update_draft');
+    $result = (new UpdateDraftPageCapabilityAction)->execute($invocation);
+
+    return AuditAgentBridgeCapabilityAction::run(
+        event: 'capell_agent-bridge.pages.update_draft',
+        capabilityKey: 'capell.pages.update_draft',
+        scope: 'capell.pages.write',
+        payload: $invocation->payload,
+        result: $result,
+        user: $actor,
+    );
+}
+
+it('undoes an assistant page edit from its audit entry, once, and records who undid it', function (): void {
+    $page = agentBridgeRevertablePage('Original name');
+    $owner = SiteAssignedUser::query()->create(['name' => 'Editor', 'email' => 'revert-editor@example.test', 'password' => 'secret']);
+
+    $entry = agentBridgeAuditedUpdate($page, 'Assistant name', $owner);
+
+    expect($page->refresh()->name)->toBe('Assistant name')
+        ->and($entry->revert_point)->toMatchArray(['kind' => 'page_rollback', 'page_id' => $page->getKey()])
+        ->and($entry->result)->not->toHaveKey('revertPoint')
+        ->and(json_encode($entry->result, JSON_THROW_ON_ERROR))->not->toContain('version_before')
+        ->and(RevertAgentBridgeAuditEntryAction::allows($entry, $owner))->toBeTrue();
+
+    RevertAgentBridgeAuditEntryAction::run($entry, $owner);
+
+    expect($page->refresh()->name)->toBe('Original name')
+        ->and($entry->refresh()->reverted_at)->not->toBeNull()
+        ->and($entry->reverted_by_id)->toBe($owner->getKey())
+        ->and(CapellAgentBridgeAuditEntry::query()->where('event', 'capell_agent-bridge.capability.reverted')->value('payload'))->toBe(['audit_entry_id' => $entry->getKey()])
+        ->and(RevertAgentBridgeAuditEntryAction::allows($entry, $owner))->toBeFalse()
+        ->and(fn (): CapellAgentBridgeAuditEntry => RevertAgentBridgeAuditEntryAction::run($entry, $owner))
+        ->toThrow(AgentBridgeRevertRefusedException::class, __('capell-agent-bridge::admin.revert_unavailable'));
+});
+
+it('refuses to undo an assistant edit once someone has changed the page since', function (): void {
+    $page = agentBridgeRevertablePage('Original name');
+    $owner = SiteAssignedUser::query()->create(['name' => 'Editor', 'email' => 'revert-later@example.test', 'password' => 'secret']);
+    $entry = agentBridgeAuditedUpdate($page, 'Assistant name', $owner);
+
+    $page->refresh()->forceFill(['name' => 'Later human edit'])->save();
+
+    expect(fn (): CapellAgentBridgeAuditEntry => RevertAgentBridgeAuditEntryAction::run($entry, $owner))
+        ->toThrow(AgentBridgeRevertRefusedException::class, __('capell-agent-bridge::admin.revert_page_changed_since'))
+        ->and($page->refresh()->name)->toBe('Later human edit')
+        ->and($entry->refresh()->reverted_at)->toBeNull();
+});
+
+it('refuses to undo an assistant edit for someone who cannot reach the page site or roll it back', function (): void {
+    $page = agentBridgeRevertablePage('Original name', siteId: 5);
+    $editor = pageCapabilityUser(collect([5]));
+    $entry = agentBridgeAuditedUpdate($page, 'Assistant name', $editor);
+    $outsider = SiteAssignedUser::query()->create(['name' => 'Outsider', 'email' => 'revert-outsider@example.test', 'password' => 'secret']);
+
+    expect(RevertAgentBridgeAuditEntryAction::allows($entry, $outsider))->toBeFalse()
+        ->and(fn (): CapellAgentBridgeAuditEntry => RevertAgentBridgeAuditEntryAction::run($entry, $outsider))
+        ->toThrow(AgentBridgeRevertRefusedException::class, __('capell-agent-bridge::admin.revert_forbidden'))
+        ->and($page->refresh()->name)->toBe('Assistant name');
+
+    // Site access alone is not enough: undoing an edit needs the page rollback permission.
+    $page2 = agentBridgeRevertablePage('Second original');
+    $owner = SiteAssignedUser::query()->create(['name' => 'No rollback', 'email' => 'revert-norollback@example.test', 'password' => 'secret']);
+    $entry2 = agentBridgeAuditedUpdate($page2, 'Assistant second', $owner);
+    $gate = new AccessGate(app(), static fn (): mixed => null);
+    $gate->before(static fn (mixed $user, string $ability): bool => $ability !== CapellPermission::RollbackPage->name());
+    Gate::swap($gate);
+
+    expect(fn (): CapellAgentBridgeAuditEntry => RevertAgentBridgeAuditEntryAction::run($entry2, $owner))
+        ->toThrow(AgentBridgeRevertRefusedException::class, __('capell-agent-bridge::admin.revert_forbidden'))
+        ->and($page2->refresh()->name)->toBe('Assistant second');
+});
+
+it('undoes an assistant page creation by deleting the untouched draft, and refuses once it has changed', function (): void {
+    config()->set('activitylog', require dirname(__DIR__, 4) . '/vendor/spatie/laravel-activitylog/config/activitylog.php');
+    resolve(EventSourcedRegistry::class)->register(Page::class, PageAggregate::class, PageStateSerializer::class);
+    createAgentBridgePageCapabilityTables();
+    $siteId = createAgentBridgeCapabilitySite('Agent Site', 1);
+    $blueprintId = createAgentBridgeCapabilityBlueprint('Page', 'page', 'page');
+    $layoutId = DB::table('layouts')->insertGetId(['name' => 'Agent Layout', 'key' => 'agent-layout', 'created_at' => now(), 'updated_at' => now()]);
+    $owner = SiteAssignedUser::query()->create(['name' => 'Editor', 'email' => 'revert-create@example.test', 'password' => 'secret']);
+    $create = function (string $name) use ($siteId, $blueprintId, $layoutId, $owner): CapellAgentBridgeAuditEntry {
+        $invocation = pageInvocation(['name' => $name, 'site_id' => $siteId, 'blueprint_id' => $blueprintId, 'layout_id' => $layoutId], $owner, 'capell.pages.create_draft');
+
+        return AuditAgentBridgeCapabilityAction::run(
+            event: 'capell_agent-bridge.pages.create_draft',
+            capabilityKey: 'capell.pages.create_draft',
+            scope: 'capell.pages.write',
+            payload: $invocation->payload,
+            result: (new CreateDraftPageCapabilityAction)->execute($invocation),
+            user: $owner,
+        );
+    };
+
+    $untouched = $create('Assistant draft');
+    $untouchedId = agentBridgeCapabilityInteger(data_get($untouched->revert_point, 'page_id'));
+
+    RevertAgentBridgeAuditEntryAction::run($untouched, $owner);
+
+    $edited = $create('Assistant draft edited later');
+    $editedPage = findAgentBridgeCapabilityPage(data_get($edited->revert_point, 'page_id'));
+    $editedPage->forceFill(['name' => 'Kept by a person'])->save();
+
+    expect($untouched->revert_point)->toMatchArray(['kind' => 'page_delete'])
+        ->and(Page::query()->whereKey($untouchedId)->exists())->toBeFalse()
+        ->and($untouched->refresh()->reverted_at)->not->toBeNull()
+        ->and(fn (): CapellAgentBridgeAuditEntry => RevertAgentBridgeAuditEntryAction::run($edited, $owner))
+        ->toThrow(AgentBridgeRevertRefusedException::class, __('capell-agent-bridge::admin.revert_page_changed_since'))
+        ->and(Page::query()->whereKey($editedPage->getKey())->exists())->toBeTrue();
+});
+
+it('refuses to undo an assistant page creation once a page has been added under the draft', function (): void {
+    config()->set('activitylog', require dirname(__DIR__, 4) . '/vendor/spatie/laravel-activitylog/config/activitylog.php');
+    resolve(EventSourcedRegistry::class)->register(Page::class, PageAggregate::class, PageStateSerializer::class);
+    createAgentBridgePageCapabilityTables();
+    $siteId = createAgentBridgeCapabilitySite('Agent Site', 1);
+    $blueprintId = createAgentBridgeCapabilityBlueprint('Page', 'page', 'page');
+    $layoutId = DB::table('layouts')->insertGetId(['name' => 'Agent Layout', 'key' => 'agent-layout', 'created_at' => now(), 'updated_at' => now()]);
+    $owner = SiteAssignedUser::query()->create(['name' => 'Editor', 'email' => 'revert-child@example.test', 'password' => 'secret']);
+    $invocation = pageInvocation(['name' => 'Assistant parent', 'site_id' => $siteId, 'blueprint_id' => $blueprintId, 'layout_id' => $layoutId], $owner, 'capell.pages.create_draft');
+    $entry = AuditAgentBridgeCapabilityAction::run(
+        event: 'capell_agent-bridge.pages.create_draft',
+        capabilityKey: 'capell.pages.create_draft',
+        scope: 'capell.pages.write',
+        payload: $invocation->payload,
+        result: (new CreateDraftPageCapabilityAction)->execute($invocation),
+        user: $owner,
+    );
+    $draftId = agentBridgeCapabilityInteger(data_get($entry->revert_point, 'page_id'));
+
+    // An editor adds a page under the draft. That changes the child, not the draft's version.
+    $childId = DB::table('pages')->insertGetId([
+        'uuid' => (string) Str::uuid(),
+        'name' => 'Editor child',
+        'site_id' => $siteId,
+        'blueprint_id' => $blueprintId,
+        'layout_id' => $layoutId,
+        'parent_id' => $draftId,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    expect(fn (): CapellAgentBridgeAuditEntry => RevertAgentBridgeAuditEntryAction::run($entry, $owner))
+        ->toThrow(AgentBridgeRevertRefusedException::class, __('capell-agent-bridge::admin.revert_page_changed_since'))
+        ->and(Page::query()->whereKey($draftId)->exists())->toBeTrue()
+        ->and(Page::query()->whereKey($childId)->exists())->toBeTrue()
+        ->and($entry->refresh()->reverted_at)->toBeNull();
+});
+
+it('refuses to undo an assistant edit whose earlier version is no longer stored, instead of failing', function (): void {
+    $page = agentBridgeRevertablePage('Original name');
+    $owner = SiteAssignedUser::query()->create(['name' => 'Editor', 'email' => 'revert-missing@example.test', 'password' => 'secret']);
+    $entry = agentBridgeAuditedUpdate($page, 'Assistant name', $owner);
+    $versionBefore = agentBridgeCapabilityInteger(data_get($entry->revert_point, 'version_before'));
+
+    // The history up to the earlier version has been pruned from the event store.
+    /** @var class-string<EloquentStoredEvent> $storedEventModel */
+    $storedEventModel = config('event-sourcing.stored_event_model', EloquentStoredEvent::class);
+    $storedEventModel::query()->where('aggregate_uuid', $page->uuid)->where('aggregate_version', '<=', $versionBefore)->delete();
+
+    expect(fn (): CapellAgentBridgeAuditEntry => RevertAgentBridgeAuditEntryAction::run($entry, $owner))
+        ->toThrow(AgentBridgeRevertRefusedException::class, __('capell-agent-bridge::admin.revert_unavailable'))
+        ->and($page->refresh()->name)->toBe('Assistant name')
+        ->and($entry->refresh()->reverted_at)->toBeNull();
+});
+
+it('records no revert point for a change it could not tell apart from later work', function (): void {
+    $page = createAgentBridgeCapabilityPage();
+    ensureAgentBridgeDraftRevision($page, revision: 0);
+
+    // Without event-sourced history there is no earlier version to return to.
+    $result = Page::withoutEvents(fn (): CapabilityResultData => (new UpdateDraftPageCapabilityAction)->execute(pageInvocation([
+        'page_id' => $page->getKey(),
+        'expected_revision' => 0,
+        'name' => 'No history',
+    ], pageCapabilityUser(collect([1])))));
+
+    expect($result->revertPoint)->toBeNull();
+});
+
+it('offers Undo change on the user page audit entries only while the change can be undone', function (): void {
+    $page = agentBridgeRevertablePage('Original name');
+    $owner = SiteAssignedUser::query()->create(['name' => 'Editor', 'email' => 'revert-admin@example.test', 'password' => 'secret']);
+    $entry = agentBridgeAuditedUpdate($page, 'Assistant name', $owner);
+    $readOnly = AuditAgentBridgeCapabilityAction::run(event: 'capell_agent-bridge.pages.search', capabilityKey: 'capell.pages.search', scope: 'capell.pages.read', user: $owner);
+    $panel = Panel::make()->id('admin')->path('admin')->default();
+    Filament::registerPanel($panel);
+    Filament::setCurrentPanel($panel);
+    Filament::bootCurrentPanel();
+    Filament::setServingStatus();
+    $this->actingAs($owner);
+
+    $pageLookups = 0;
+    DB::listen(function (QueryExecuted $query) use (&$pageLookups): void {
+        if (preg_match('/from [`"]?pages[`"]?\\s+where/i', $query->sql) === 1) {
+            $pageLookups++;
+        }
+    });
+
+    $table = Livewire::test(AgentBridgeAuditEntriesRelationManager::class, ['ownerRecord' => $owner, 'pageClass' => EditUser::class])
+        ->assertActionVisible(TestAction::make('revert')->table($entry))
+        ->assertActionVisible(TestAction::make('revert')->table($entry));
+
+    // The row's actions are asked about again and again; the page is looked up once.
+    expect($pageLookups)->toBe(1);
+
+    $table
+        ->assertActionHidden(TestAction::make('revert')->table($readOnly))
+        ->assertActionVisible(TestAction::make('revert')->table($entry))
+        ->callAction(TestAction::make('revert')->table($entry))
+        ->assertNotified(__('capell-agent-bridge::admin.revert_done'))
+        ->assertActionHidden(TestAction::make('revert')->table($entry->refresh()));
+
+    expect($page->refresh()->name)->toBe('Original name');
+});
+
+it('keeps every MCP v1 capability inside a token site limit, so a capability without one cannot join the list unnoticed', function (): void {
+    $page = createAgentBridgeCapabilityPage(siteId: 1);
+    createAgentBridgeCapabilityPage(siteId: 2);
+    $blueprintId = agentBridgeInteger($page->blueprint_id);
+    $layoutId = agentBridgeInteger($page->layout_id);
+    $owner = User::query()->create(['name' => 'Limited owner', 'email' => 'limited-owner@example.test', 'password' => 'secret']);
+    $owner->globalAdmin = true;
+
+    $token = CreateAgentBridgeTokenAction::run($owner, 'Site two only', ['*'], null, null, [2])['token'];
+    $actor = pageCapabilityUser(collect([1, 2]));
+
+    // Each case reaches site 1, which the actor may use but the token may not. A
+    // capability that is refused must throw; a search must leave site 1 out.
+    $cases = [
+        'capell.sites.search' => [SearchSitesCapabilityAction::class, 'execute', ['query' => 'Agent Site 1'], ['sites', 'Agent Site 1']],
+        'capell.sites.inspect' => [InspectSiteCapabilityAction::class, 'execute', ['site_id' => 1], null],
+        'capell.pages.search' => [SearchPagesCapabilityAction::class, 'execute', ['query' => 'Agent Page 1'], ['matches', 'Agent Page 1']],
+        'capell.pages.inspect' => [InspectPageCapabilityAction::class, 'execute', ['page_id' => $page->getKey()], null],
+        'capell.pages.authoring_options' => [ListPageAuthoringOptionsCapabilityAction::class, 'execute', ['site_id' => 1], null],
+        'capell.pages.create_draft' => [CreateDraftPageCapabilityAction::class, 'preview', ['name' => 'Limited draft', 'site_id' => 1, 'blueprint_id' => $blueprintId, 'layout_id' => $layoutId], null],
+        'capell.pages.update_draft' => [UpdateDraftPageCapabilityAction::class, 'preview', ['page_id' => $page->getKey(), 'expected_revision' => agentBridgeDraftRevision($page), 'name' => 'Limited update'], null],
+        'capell.media.upload' => [UploadMediaCapabilityAction::class, 'preview', ['site_id' => 1, 'idempotency_key' => (string) Str::uuid(), 'file_name' => 'pixel.png', 'content_base64' => 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='], null],
+    ];
+
+    $registry = new CapellAgentBridgeCapabilityRegistry;
+    (new BuiltInAgentBridgeCapabilityProvider)->registerCapabilities($registry);
+    $mcpV1Keys = (new AgentBridgeMcpV1Policy)->allowedCapabilities($registry->all())->pluck('key')->sort()->values()->all();
+    $caseKeys = array_keys($cases);
+    sort($caseKeys);
+
+    // A new MCP v1 capability needs a case here proving it keeps to the token's sites.
+    expect($caseKeys)->toBe($mcpV1Keys);
+
+    foreach ($cases as $key => [$actionClass, $method, $payload, $hidden]) {
+        $run = fn (): CapabilityResultData => (new $actionClass)->{$method}(pageInvocation($payload, $actor, $key));
+
+        // Without a token limit the actor reaches site 1.
+        $unrestricted = $run();
+
+        if ($hidden === null) {
+            expect(fn (): mixed => AgentBridgeTokenSiteRestriction::within($token, $run))
+                ->toThrow(ValidationException::class);
+
+            continue;
+        }
+
+        [$resultsKey, $hiddenName] = $hidden;
+        $restricted = AgentBridgeTokenSiteRestriction::within($token, $run);
+
+        expect(json_encode($unrestricted->data[$resultsKey], JSON_THROW_ON_ERROR))->toContain($hiddenName)
+            ->and(json_encode($restricted->data[$resultsKey], JSON_THROW_ON_ERROR))->not->toContain($hiddenName);
+    }
+});
+
+it('keeps the site state counts to the sites a site-limited token may reach', function (): void {
+    createAgentBridgeCapabilityPage(siteId: 1);
+    createAgentBridgeCapabilityPage(siteId: 2);
+    $owner = SiteAssignedUser::query()->create(['name' => 'State owner', 'email' => 'state-owner@example.test', 'password' => 'secret']);
+    $token = CreateAgentBridgeTokenAction::run($owner, 'Site two only', ['*'], null, null, [2])['token'];
+    $counts = static function (): array {
+        $content = (new InspectSiteStateTool)->handle()->getStructuredContent();
+
+        throw_unless(is_array($content) && is_array($content['counts'] ?? null), RuntimeException::class, 'Expected site state counts.');
+
+        return $content['counts'];
+    };
+
+    $installation = $counts();
+
+    app()->instance(CapellAgentBridgeToken::class, $token);
+    $limited = $counts();
+
+    $token->forceFill(['revoked_at' => now()])->save();
+    $revoked = $counts();
+
+    expect($installation['sites'])->toBe(2)
+        ->and($installation['pages'])->toBe(2)
+        ->and($limited)->toMatchArray(['sites' => 1, 'pages' => 1, 'languages' => null, 'blueprints' => null])
+        ->and($revoked)->toMatchArray(['sites' => 0, 'pages' => 0, 'languages' => null, 'blueprints' => null]);
+});
+
+it('registers the Core Admin read tools and the draft save on the free Agent Bridge, and no live write tool', function (): void {
+    $registry = new CapellAgentBridgeCapabilityRegistry;
+    (new BuiltInAgentBridgeCapabilityProvider)->registerCapabilities($registry);
+    $keys = $registry->all()->pluck('key')->all();
+
+    expect($keys)->toContain(...AdminAgentToolCapabilities::freeKeys());
+
+    foreach (AdminAgentToolCapabilities::proKeys() as $proKey) {
+        expect($keys)->not->toContain($proKey);
+    }
+
+    $draft = $registry->get('capell.admin.page_draft.save');
+    $read = $registry->get('capell.admin.blueprints.read');
+
+    expect($draft->needsConfirmation())->toBeTrue()
+        ->and($draft->risk)->toBe(CapabilityRiskEnum::Low)
+        ->and($draft->scope)->toBe('capell.pages.write')
+        ->and($read->risk)->toBe(CapabilityRiskEnum::Read)
+        ->and($read->needsConfirmation())->toBeFalse()
+        ->and($read->inputSchema['properties'] ?? [])->toHaveKey('site')
+        ->and((new AgentBridgeMcpV1Policy)->allowedCapabilities($registry->all())->pluck('key')->intersect(AdminAgentToolCapabilities::freeKeys())->all())->toBe([]);
+});
+
+it('reads Core Admin blueprints through the capability for a site the user can reach', function (): void {
+    config()->set('filament-shield.permissions.separator', ':');
+    config()->set('filament-shield.permissions.case', 'pascal');
+    app()->singleton('filament-shield', static fn (): FilamentShield => new FilamentShield);
+    createAgentBridgePageCapabilityTables();
+    $siteId = createAgentBridgeCapabilitySite('Admin tool site', 1);
+    createAgentBridgeCapabilityBlueprint('Admin tool page', 'admin-tool-page', 'page');
+    $action = resolve(InvokeAdminAgentToolCapabilityAction::class);
+    $invocation = pageInvocation(['site_id' => $siteId, 'type' => 'page'], capabilityKey: 'capell.admin.blueprints.read');
+
+    expect($action->preview($invocation)->data)->toBe(['tool' => 'admin.blueprint.read', 'site_id' => $siteId]);
+
+    $result = $action->execute($invocation);
+
+    expect($result->ok)->toBeTrue()
+        ->and(json_encode($result->data, JSON_THROW_ON_ERROR))->toContain('admin-tool-page');
+});
+
+it('refuses a Core Admin tool without a user, outside the user sites, or installation-wide under a site-limited token', function (): void {
+    createAgentBridgePageCapabilityTables();
+    createAgentBridgeCapabilitySite('Reachable site', 1);
+    createAgentBridgeCapabilitySite('Other site', 2);
+    $action = resolve(InvokeAdminAgentToolCapabilityAction::class);
+
+    expect(fn (): CapabilityResultData => $action->preview(pageInvocation(['site_id' => 1], false, 'capell.admin.blueprints.read')))
+        ->toThrow(AuthorizationException::class)
+        ->and(fn (): CapabilityResultData => $action->execute(pageInvocation(['site_id' => 2], pageCapabilityUser(collect([1])), 'capell.admin.blueprints.read')))
+        ->toThrow(ValidationException::class)
+        ->and(fn (): CapabilityResultData => $action->preview(pageInvocation(['site_id' => 1], capabilityKey: 'capell.admin.not_a_tool')))
+        ->toThrow(AuthorizationException::class);
+
+    $owner = User::query()->create(['name' => 'Admin tool owner', 'email' => 'admin-tool-owner@example.test', 'password' => 'secret']);
+    $owner->globalAdmin = true;
+    $token = CreateAgentBridgeTokenAction::run($owner, 'Site one only', ['*'], null, null, [1])['token'];
+    $settings = pageInvocation(['site_id' => 1, 'group' => 'general', 'values' => []], capabilityKey: 'capell.admin.settings.write');
+
+    expect(fn (): CapabilityResultData => AgentBridgeTokenSiteRestriction::within($token, fn (): CapabilityResultData => $action->preview($settings)))
+        ->toThrow(AuthorizationException::class, (string) __('capell-agent-bridge::admin.admin_tool_site_limited_token'));
+});

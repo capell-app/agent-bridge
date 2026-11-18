@@ -103,7 +103,7 @@ it('lists knowledge packages as structured content', function (): void {
 
 it('reads allowed knowledge documents by repository path', function (): void {
     app()->setBasePath(getcwd() ?: dirname(__DIR__, 4));
-    config()->set('capell-agent-bridge.public_docs_paths', [
+    config()->set('capell-agent-bridge.agent_knowledge.published_paths', [
         base_path('packages/agent-bridge/docs'),
     ]);
 
@@ -112,7 +112,13 @@ it('reads allowed knowledge documents by repository path', function (): void {
         new KnowledgeRepository,
     );
 
-    expect((string) $response->content())->toContain('Agent Bridge');
+    throw_unless($response instanceof ResponseFactory, RuntimeException::class, 'Expected a structured knowledge document.');
+    $document = agentBridgeStructuredContent($response);
+
+    expect($document['content'] ?? null)->toContain('Agent Bridge')
+        ->and($document['provenance'] ?? null)->toBe(['source' => 'package-documentation', 'package' => 'agent-bridge'])
+        ->and(data_get($document, 'contentTrust.untrustedFields'))->toBe(['content'])
+        ->and(data_get($document, 'contentTrust.notice'))->toBeString()->not->toBeEmpty();
 });
 
 it('returns site state without leaking content bodies', function (): void {
@@ -248,11 +254,13 @@ it('queries audit entries for the authenticated token', function (): void {
         $token,
     );
 
-    $entries = agentBridgeStructuredContent($response)['entries'];
+    $structured = agentBridgeStructuredContent($response);
+    $entries = $structured['entries'];
 
     expect($entries)->toHaveCount(1)
         ->and($entries[0]['event'])->toBe('capell_agent-bridge.test')
-        ->and($entries[0]['payload'])->toBe(['name' => 'Audit me']);
+        ->and($entries[0]['payload'])->toBe(['name' => 'Audit me'])
+        ->and(data_get($structured, 'contentTrust.untrustedFields'))->toBe(['entries.*.payload', 'entries.*.result']);
 });
 
 it('denies non-v1 capabilities before previewing them for authenticated clients', function (): void {
@@ -545,13 +553,12 @@ it('builds and renders a capability governance catalog', function (): void {
             'server' => CapabilityServerEnum::Site->value,
             'risk' => CapabilityRiskEnum::High->value,
             'requires_confirmation' => true,
-            'required_package' => 'capell-app/fake',
-            'policy_ability' => 'updateFake',
         ])
+        ->and($catalog[0])->not->toHaveKeys(['required_package', 'policy_ability', 'audit_event', 'input_data_class', 'output_data_class'])
         ->and($markdown)->toContain('Capell Agent Bridge Capability Catalog')
         ->and($markdown)->toContain('`capell.fake.write`')
-        ->and($markdown)->toContain('capell-app/fake')
-        ->and($markdown)->toContain('updateFake');
+        ->and($markdown)->not->toContain('capell-app/fake')
+        ->and($markdown)->not->toContain('updateFake');
 });
 
 it('exports a machine-readable MCP capability schema catalog', function (): void {
@@ -589,10 +596,8 @@ it('exports a machine-readable MCP capability schema catalog', function (): void
             'risk' => CapabilityRiskEnum::High->value,
             'requires_confirmation' => true,
             'supports_preview' => true,
-            'policy_ability' => 'createPage',
-            'input_data_class' => CreateDraftPageCapabilityInputData::class,
-            'output_data_class' => CapabilityResultData::class,
         ])
+        ->and($capabilities[0])->not->toHaveKeys(['policy_ability', 'input_data_class', 'output_data_class', 'audit_event', 'required_package'])
         ->and(requiredSchemaFields($capabilities[0]['input_schema'] ?? null))
         ->toBe(['name'])
         ->and(schemaProperties($capabilities[0]['input_schema'] ?? null))

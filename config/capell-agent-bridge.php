@@ -19,7 +19,22 @@ return [
 
     'token_prefix' => env('CAPELL_AGENT_BRIDGE_TOKEN_PREFIX', 'cagent-bridge_'),
 
+    // New tokens expire after the default lifetime unless an earlier date is chosen,
+    // and never later than the maximum.
+    'token_default_lifetime_days' => env('CAPELL_AGENT_BRIDGE_TOKEN_DEFAULT_LIFETIME_DAYS', 90),
+
+    'token_maximum_lifetime_days' => env('CAPELL_AGENT_BRIDGE_TOKEN_MAXIMUM_LIFETIME_DAYS', 365),
+
     'confirmation_ttl_minutes' => env('CAPELL_AGENT_BRIDGE_CONFIRMATION_TTL_MINUTES', 10),
+
+    // Previewed capabilities at these risk levels cannot be confirmed by the agent's token
+    // alone: the person the token acts as must first approve the exact preview from their
+    // Agent Bridge confirmations in the admin. Values: low, medium, high, destructive.
+    'human_approval_risks' => ['high', 'destructive'],
+
+    // How long a preview that needs approval stays open for the person to approve and the
+    // agent to confirm.
+    'approval_ttl_minutes' => env('CAPELL_AGENT_BRIDGE_APPROVAL_TTL_MINUTES', 60),
 
     'rate_limit_per_minute' => env('CAPELL_AGENT_BRIDGE_RATE_LIMIT_PER_MINUTE', 60),
 
@@ -60,10 +75,24 @@ return [
         'suggestion_limit' => env('CAPELL_AGENT_BRIDGE_SUGGESTION_LIMIT', 5),
     ],
 
-    'public_docs_paths' => [
-        base_path('README.md'),
-        base_path('docs'),
-        base_path('packages/*/README.md'),
-        base_path('packages/*/docs'),
+    // Markdown the knowledge server may serve to agents. Everything an agent reads can
+    // steer it, so internal notes must never be reachable.
+    'agent_knowledge' => [
+        // Published package documentation, served whole: packages in this repository and
+        // Capell packages installed through Composer. A document can still withhold itself
+        // with `agent_knowledge: false` front matter.
+        'published_paths' => [
+            base_path('packages/*/README.md'),
+            base_path('packages/*/docs'),
+            base_path('vendor/capell-app/*/README.md'),
+            base_path('vendor/capell-app/*/docs'),
+        ],
+
+        // Application documentation, served only when a document opts in with
+        // `agent_knowledge: true` front matter.
+        'opt_in_paths' => [
+            base_path('README.md'),
+            base_path('docs'),
+        ],
     ],
 ];

@@ -1,21 +1,4 @@
 {
-    "whatThisPluginAdds": {
-        "text": "Agent Bridge connects MCP clients to read-only Capell knowledge and a frozen, draft-only site capability contract over per-user HTTP and explicit-user local stdio, with preview confirmation and redacted audit records.",
-        "evidence": [
-            "capell.json",
-            "routes/agent-bridge.php",
-            "src/Providers/AgentBridgeServiceProvider.php"
-        ]
-    },
-    "surfaceOutcome": {
-        "text": "Admins can build scoped prompts and manage a user's client tokens, confirmations, and audit entries. Connected clients can call only the server routes and capabilities enabled for them.",
-        "evidence": [
-            "docs/screenshots.json",
-            "src/Filament/Pages/CapellAgentBridgePromptBuilderPage.php",
-            "tests/Feature/UserResourceBridgeTest.php",
-            "tests/Feature/HomeRouteTest.php"
-        ]
-    },
     "whyItMatters": {
         "developers": {
             "text": "Capability providers register typed operations through CapellAgentBridgeCapabilityProvider, contribute their own deterministic direct-command patterns alongside them, and mutating runs pass through preview, confirmation, policy, and audit Actions.",
@@ -24,14 +7,6 @@
                 "src/Support/CapellAgentBridgeCapabilityRegistry.php",
                 "src/Actions/InterpretAgentBridgeCommandAction.php",
                 "src/Actions/InvokeAgentBridgeCapabilityPreviewAction.php",
-                "tests/Feature/PreviewConfirmWorkflowTest.php"
-            ]
-        },
-        "teams": {
-            "text": "Agent Bridge is the governed AI connection for Capell: the connected AI client supplies the reasoning, while Agent Bridge limits an agent to approved capabilities, shows a proposed change before execution, and records what each client ran.",
-            "evidence": [
-                "docs/overview.admin.md",
-                "docs/screenshots.json",
                 "tests/Feature/PreviewConfirmWorkflowTest.php"
             ]
         }

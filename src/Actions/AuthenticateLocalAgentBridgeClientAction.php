@@ -35,14 +35,12 @@ final class AuthenticateLocalAgentBridgeClientAction
             ),
         );
 
+        RecordAgentBridgeTokenUseAction::run($token, $plainTextToken);
+
         $guard = AgentBridgeValue::string(config('capell-agent-bridge.site_auth_guard', 'web'), 'Site auth guard');
         Auth::guard($guard)->setUser($user);
         Auth::shouldUse($guard);
         app()->instance(CapellAgentBridgeToken::class, $token);
-        app()->instance(AuthenticatedAgentBridgeClientData::class, new AuthenticatedAgentBridgeClientData(
-            tokenId: AgentBridgeValue::integer($token->getKey(), 'Agent Bridge token key'),
-            name: $token->name,
-            scopes: $token->scopes,
-        ));
+        app()->instance(AuthenticatedAgentBridgeClientData::class, AuthenticatedAgentBridgeClientData::fromToken($token));
     }
 }

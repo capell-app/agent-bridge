@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Support;
 
+use Capell\AgentBridge\Exceptions\AgentBridgeConfirmationAwaitingApprovalException;
 use Capell\AgentBridge\Exceptions\AgentBridgeMcpV1ConfirmationException;
 use Capell\AgentBridge\Exceptions\AgentBridgeMcpV1ConflictException;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -19,6 +20,7 @@ final class AgentBridgeMcpV1ErrorMapper
     public function map(Throwable $exception): array
     {
         [$code, $messageKey] = match (true) {
+            $exception instanceof AgentBridgeConfirmationAwaitingApprovalException => ['approval_required', 'approval_required'],
             $exception instanceof AgentBridgeMcpV1ConfirmationException => ['confirmation_invalid', 'confirmation_invalid'],
             $exception instanceof AgentBridgeMcpV1ConflictException => ['conflict', 'conflict'],
             $exception instanceof AuthorizationException => ['forbidden', 'forbidden'],

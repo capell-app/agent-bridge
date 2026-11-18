@@ -29,7 +29,8 @@ final class ListSiteCapabilitiesTool extends Tool
     ): ResponseFactory {
         $policy ??= resolve(AgentBridgeMcpV1Policy::class);
         $capabilities = $policy->allowedCapabilities(
-            $registry->visibleFor(CapabilityServerEnum::Site, $client->scopes),
+            $registry->visibleFor(CapabilityServerEnum::Site, $client->scopes)
+                ->filter(fn ($capability): bool => $client->canUseCapability($capability->key)),
         );
 
         return Response::structured([

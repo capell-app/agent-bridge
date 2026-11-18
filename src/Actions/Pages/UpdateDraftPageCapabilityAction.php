@@ -10,6 +10,7 @@ use Capell\AgentBridge\Data\Capabilities\UpdateDraftPageCapabilityInputData;
 use Capell\AgentBridge\Data\CapabilityInvocationData;
 use Capell\AgentBridge\Data\CapabilityResultData;
 use Capell\AgentBridge\Exceptions\AgentBridgeMcpV1ConflictException;
+use Capell\AgentBridge\Support\AgentBridgePageRevertPoints;
 use Capell\AgentBridge\Support\AgentBridgePolicyAuthorizer;
 use Capell\AgentBridge\Support\AgentBridgeRecordResolver;
 use Capell\AgentBridge\Support\AgentBridgeValue;
@@ -72,9 +73,12 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
             operation: 'agent-bridge-update',
         );
 
-        $updated = DB::transaction(function () use ($page, $payload, $input, $updates, $translationFields, $invocation): array {
+        $versionBefore = 0;
+        $updated = DB::transaction(function () use ($page, $payload, $input, $updates, $translationFields, $invocation, &$versionBefore): array {
             $page = Page::query()->whereKey($page->getKey())->lockForUpdate()->firstOrFail();
             $this->assertDraftRevision($page, $input->expected_revision, lock: true);
+            // Read under the lock, so the revert point is the version this change replaced.
+            $versionBefore = AgentBridgePageRevertPoints::currentVersion($page);
             resolve(AgentBridgePolicyAuthorizer::class)->authorize($invocation->user, 'update', $page);
             $updated = array_keys($updates);
 
@@ -129,6 +133,7 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
                 'revision' => $this->currentRevision($page),
                 'updated' => $updated,
             ],
+            revertPoint: AgentBridgePageRevertPoints::afterUpdate($page, $versionBefore),
         );
     }
 

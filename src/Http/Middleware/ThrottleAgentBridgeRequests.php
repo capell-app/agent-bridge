@@ -16,6 +16,33 @@ final class ThrottleAgentBridgeRequests
     private const int DEFAULT_MAX_ATTEMPTS_PER_MINUTE = 60;
 
     /**
+     * The token's own quota and the site-wide limit both apply, so the stricter wins. A
+     * token quota still applies when the site-wide limit is switched off. Null means the
+     * token is not limited.
+     */
+    public static function maxAttemptsFor(CapellAgentBridgeToken $token): ?int
+    {
+        $limits = [];
+
+        if (AgentBridgeValue::boolean(config('capell-agent-bridge.rate_limit_enabled', true), 'Rate limit enabled')) {
+            $siteLimit = AgentBridgeValue::integer(
+                config('capell-agent-bridge.rate_limit_per_minute', self::DEFAULT_MAX_ATTEMPTS_PER_MINUTE),
+                'Rate limit per minute',
+            );
+
+            if ($siteLimit > 0) {
+                $limits[] = $siteLimit;
+            }
+        }
+
+        if ($token->requests_per_minute !== null && $token->requests_per_minute > 0) {
+            $limits[] = $token->requests_per_minute;
+        }
+
+        return $limits === [] ? null : min($limits);
+    }
+
+    /**
      * @param  Closure(Request): Response  $next
      */
     public function handle(Request $request, Closure $next): Response
@@ -28,21 +55,18 @@ final class ThrottleAgentBridgeRequests
             return $next($request);
         }
 
-        if (! AgentBridgeValue::boolean(config('capell-agent-bridge.rate_limit_enabled', true), 'Rate limit enabled')) {
+        $maxAttempts = self::maxAttemptsFor($token);
+
+        if ($maxAttempts === null) {
             return $next($request);
         }
 
         $rateLimitKey = 'capell-agent-bridge:token:' . AgentBridgeValue::identifier($token->getKey(), 'Agent Bridge token key');
-        $maxAttempts = AgentBridgeValue::integer(
-            config('capell-agent-bridge.rate_limit_per_minute', self::DEFAULT_MAX_ATTEMPTS_PER_MINUTE),
-            'Rate limit per minute',
-        );
 
-        if ($maxAttempts <= 0) {
-            return $next($request);
-        }
-
-        if (RateLimiter::tooManyAttempts($rateLimitKey, $maxAttempts)) {
+        // Count the request first and decide on the count the increment returns. Checking
+        // and then counting lets concurrent requests all pass the check before any of
+        // them is counted, so a burst could exceed the quota.
+        if (RateLimiter::hit($rateLimitKey, 60) > $maxAttempts) {
             $retryAfter = RateLimiter::availableIn($rateLimitKey);
 
             return response(
@@ -50,8 +74,6 @@ final class ThrottleAgentBridgeRequests
                 429,
             )->header('Retry-After', (string) $retryAfter);
         }
-
-        RateLimiter::hit($rateLimitKey, 60);
 
         return $next($request);
     }

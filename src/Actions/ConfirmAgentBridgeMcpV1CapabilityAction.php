@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Actions;
 
 use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
+use Capell\AgentBridge\Exceptions\AgentBridgeConfirmationAwaitingApprovalException;
 use Capell\AgentBridge\Exceptions\AgentBridgeMcpV1ConfirmationException;
 use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
@@ -60,8 +61,10 @@ final class ConfirmAgentBridgeMcpV1CapabilityAction
                 token: $token,
                 user: $user,
             );
+        } catch (AgentBridgeConfirmationAwaitingApprovalException $exception) {
+            throw $exception;
         } catch (AuthorizationException $exception) {
-            throw new AgentBridgeMcpV1ConfirmationException(previous: $exception);
+            throw new AgentBridgeMcpV1ConfirmationException(message: $exception->getMessage(), code: $exception->getCode(), previous: $exception);
         }
 
         return $policy->projectOutput($capability, $result);

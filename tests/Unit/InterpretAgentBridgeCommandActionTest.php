@@ -34,11 +34,6 @@ it('turns common voice and text requests into exact capability plans', function 
         'capell.pages.create_draft',
         ['name' => 'Summer Campaign', 'title' => 'Summer Campaign'],
     ],
-    'clone an internal page' => [
-        'Clone the Services page as Consulting',
-        'capell.pages.clone',
-        ['page' => 'Services', 'name' => 'Consulting', 'title' => 'Consulting'],
-    ],
     'rename a page' => [
         'Update the About page title to About Capell',
         'capell.pages.update_draft',
@@ -48,26 +43,6 @@ it('turns common voice and text requests into exact capability plans', function 
         'Change the About page slug to about-capell',
         'capell.pages.update_draft',
         ['page' => 'About', 'slug' => 'about-capell'],
-    ],
-    'publish a page' => [
-        'Publish the Launch page now',
-        'capell.pages.publish_now',
-        ['page' => 'Launch'],
-    ],
-    'schedule publication' => [
-        'Schedule the Launch page to publish at 2026-08-01 09:00',
-        'capell.pages.schedule_publish',
-        ['page' => 'Launch', 'publish_at' => '2026-08-01 09:00'],
-    ],
-    'schedule unpublication' => [
-        'Schedule the Launch page to unpublish at 2026-09-01 09:00',
-        'capell.pages.schedule_unpublish',
-        ['page' => 'Launch', 'unpublish_at' => '2026-09-01 09:00'],
-    ],
-    'revert a page to draft' => [
-        'Revert the Launch page back to draft',
-        'capell.pages.revert_to_draft',
-        ['page' => 'Launch'],
     ],
     'check publishing readiness' => [
         'Check the Launch page publishing readiness',
@@ -99,26 +74,34 @@ it('turns common voice and text requests into exact capability plans', function 
         'capell.sites.search',
         ['query' => 'marketing'],
     ],
-    'install a package' => [
-        'Install the package SEO Suite',
-        'capell.packages.install',
-        ['package' => 'SEO Suite'],
-    ],
     'inspect a package' => [
-        'Inspect the package SEO Suite',
+        'Inspect the package SEO Checks',
         'capell.packages.inspect',
-        ['package' => 'SEO Suite'],
+        ['package' => 'SEO Checks'],
     ],
     'search packages' => [
         'Find analytics packages',
         'capell.packages.search',
         ['query' => 'analytics'],
     ],
-    'clear caches' => [
-        'Refresh the Capell cache',
+]);
+
+it('never plans a Pro capability on the free Agent Bridge', function (string $command): void {
+    $plan = InterpretAgentBridgeCommandAction::run($command);
+
+    expect($plan->capabilityKey)->not->toBeIn([
+        'capell.pages.clone',
+        'capell.pages.publish_now',
+        'capell.pages.schedule_publish',
+        'capell.pages.revert_to_draft',
+        'capell.packages.install',
         'capell.cache.clear',
-        [],
-    ],
+    ]);
+})->with([
+    'publish' => ['Publish the Launch page now'],
+    'clone' => ['Clone the Services page as Consulting'],
+    'install' => ['Install the package SEO Checks'],
+    'clear caches' => ['Refresh the Capell cache'],
 ]);
 
 it('reports an unmatched outcome with no suggestions for a blank command', function (): void {

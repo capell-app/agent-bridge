@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Actions\Fixtures;
 
+use Capell\AgentBridge\Actions\CreateAgentBridgeTokenAction;
+use Capell\AgentBridge\Actions\HashAgentBridgeIpAddressAction;
 use Capell\AgentBridge\Models\CapellAgentBridgeAuditEntry;
 use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
@@ -25,13 +27,11 @@ final class PrepareAgentBridgeScreenshotAction
                 && is_string($appPath)
                 && is_string($basePath)
                 && $appPath === $basePath
-                && (realpath(base_path()) === realpath((str_contains(__DIR__, '/vendor/capell-app/') ? dirname(__DIR__, 6) : dirname(__DIR__, 5)) . '/vendor/orchestra/testbench-core/laravel')
-                    || str_starts_with((string) realpath(base_path()), (str_contains(__DIR__, '/vendor/capell-app/') ? dirname(__DIR__, 6) : dirname(__DIR__, 5)) . '/tmp/testbench-skeletons/')),
+                && (class_exists(FixtureState::class) && FixtureState::isDisposableApplication(realpath(base_path()))),
             RuntimeException::class,
             'Agent Bridge screenshot fixtures require the explicit disposable screenshot environment.',
         );
 
-        require_once (str_contains(__DIR__, '/vendor/capell-app/') ? dirname(__DIR__, 6) : dirname(__DIR__, 5)) . '/scripts/screenshots/FixtureState.php';
         FixtureState::boot();
 
         $captureEmail = getenv('CAPELL_SCREENSHOT_ADMIN_EMAIL') ?: (getenv('CAPELL_ADMIN_EMAIL') ?: 'admin@example.com');
@@ -72,8 +72,8 @@ final class PrepareAgentBridgeScreenshotAction
                     'scopes' => $tokenDefinition['scopes'],
                     'is_enabled' => true,
                     'revoked_at' => $tokenDefinition['revoked_at'],
-                    'created_from_ip' => '127.0.0.1',
-                    'expires_at' => null,
+                    'created_from_ip' => HashAgentBridgeIpAddressAction::run('127.0.0.1'),
+                    'expires_at' => now()->addDays(CreateAgentBridgeTokenAction::defaultLifetimeDays()),
                     'rotated_at' => null,
                 ])->save();
 

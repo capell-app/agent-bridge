@@ -47,6 +47,7 @@ final class SuggestSiteCapabilitiesTool extends Tool
             query: trim(AgentBridgeValue::nullableString($data['query'] ?? null, 'Suggestion query') ?? ''),
             server: CapabilityServerEnum::Site,
             scopes: array_values($client->scopes),
+            capabilityKeys: $client->capabilityKeys,
             limit: AgentBridgeValue::integer($data['limit'] ?? 5, 'Suggestion limit'),
         ));
     }

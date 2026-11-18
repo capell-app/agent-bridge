@@ -12,6 +12,7 @@ use Capell\Admin\Providers\AdminServiceProvider;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Providers\AgentBridgeServiceProvider;
 use Capell\AgentBridge\Tests\Fixtures\InstalledAgentBridgePackageServiceProvider;
+use Capell\AgentBridge\Tests\Fixtures\SiteAssignedUser;
 use Capell\AgentBridge\Tests\Fixtures\User;
 use Capell\Core\Facades\CapellCore;
 use Capell\Core\Providers\CapellServiceProvider;
@@ -64,6 +65,7 @@ abstract class TestCase extends OrchestraTestCase
 
         Relation::morphMap([
             'agent-bridge_user' => User::class,
+            'agent-bridge_site_assigned_user' => SiteAssignedUser::class,
         ]);
     }
 

@@ -74,8 +74,9 @@ For authenticated site operations:
 2. Connect an Agent Bridge client to the configured `agent-bridge/capell` route.
 3. Call the site capability preview tool.
 4. Review the preview and confirmation token.
-5. Confirm through the site Agent Bridge confirmation tool.
-6. Review audit entries if needed.
+5. For a high-risk change (`approvalRequired` is true), the person the token acts as approves the preview under **Confirmations** on their user page in the admin.
+6. Confirm through the site Agent Bridge confirmation tool with the same payload.
+7. Review audit entries if needed.
 
 ## Verifying In A Host App
 

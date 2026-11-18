@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Tools\Site;
 
+use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\AgentBridge\Support\AgentBridgePageAccess;
+use Capell\AgentBridge\Support\AgentBridgeTokenSiteRestriction;
 use Capell\Core\Enums\UrlTypeEnum;
 use Capell\Core\Models\Blueprint;
 use Capell\Core\Models\Language;
@@ -12,6 +15,7 @@ use Capell\Core\Models\PageUrl;
 use Capell\Core\Models\Site;
 use Capell\Navigation\Models\Navigation;
 use Composer\InstalledVersions;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
@@ -42,8 +46,38 @@ final class InspectSiteStateTool extends Tool
         return Response::structured([
             'app' => $app,
             'packages' => $this->installedCapellPackages(),
-            'counts' => $this->modelCounts(),
+            'counts' => $this->modelCounts($this->reachableSiteIds()),
         ]);
+    }
+
+    /**
+     * Null when the caller may see the whole installation: a client without a token, or
+     * a token whose owner reaches every site and which is not limited to some. Otherwise
+     * the sites the counts are kept to, which is empty when the token can no longer be
+     * used or its owner reaches no site.
+     *
+     * @return list<int>|null
+     */
+    private function reachableSiteIds(): ?array
+    {
+        $token = app()->bound(CapellAgentBridgeToken::class) ? resolve(CapellAgentBridgeToken::class) : null;
+
+        if (! $token instanceof CapellAgentBridgeToken) {
+            return null;
+        }
+
+        $stored = $token->fresh(['user']);
+        $owner = $stored?->user;
+
+        if (! $stored instanceof CapellAgentBridgeToken || ! $stored->isUsable() || ! $owner instanceof Authenticatable) {
+            return [];
+        }
+
+        try {
+            return AgentBridgeTokenSiteRestriction::within($stored, static fn (): ?array => AgentBridgePageAccess::authorizedSiteIds($owner));
+        } catch (Throwable) {
+            return [];
+        }
     }
 
     /** @return array<string, string|null> */
@@ -64,18 +98,46 @@ final class InspectSiteStateTool extends Tool
         return $packages;
     }
 
-    /** @return array<string, int|null> */
-    private function modelCounts(): array
+    /**
+     * Counts for the whole installation, or, for a caller kept to some sites, counts of
+     * those sites' records only. Records that belong to no site are left out then.
+     *
+     * @param  list<int>|null  $siteIds
+     * @return array<string, int|null>
+     */
+    private function modelCounts(?array $siteIds): array
     {
+        if ($siteIds !== null) {
+            return [
+                'sites' => $this->count(static fn (): int => Site::query()->whereKey($siteIds)->count()),
+                'languages' => null,
+                'pages' => $this->countSiteRecords(Page::class, $siteIds),
+                'pageUrls' => $this->countSiteRecords(PageUrl::class, $siteIds),
+                'blueprints' => null,
+                'redirects' => $this->count(static fn (): int => PageUrl::query()->whereIn('site_id', $siteIds)->where('type', UrlTypeEnum::Redirect)->count()),
+                'navigations' => $this->countSiteRecords(Navigation::class, $siteIds),
+            ];
+        }
+
         return [
             'sites' => $this->countOptionalModel(Site::class),
             'languages' => $this->countOptionalModel(Language::class),
             'pages' => $this->countOptionalModel(Page::class),
             'pageUrls' => $this->countOptionalModel(PageUrl::class),
             'blueprints' => $this->countOptionalModel(Blueprint::class),
-            'redirects' => $this->countRedirects(),
+            'redirects' => $this->count(static fn (): int => PageUrl::query()->where('type', UrlTypeEnum::Redirect)->count()),
             'navigations' => $this->countOptionalModel(Navigation::class),
         ];
+    }
+
+    /** @param  list<int>  $siteIds */
+    private function countSiteRecords(string $modelClass, array $siteIds): ?int
+    {
+        if (! is_subclass_of($modelClass, Model::class)) {
+            return null;
+        }
+
+        return $this->count(static fn (): int => $modelClass::query()->whereIn('site_id', $siteIds)->count());
     }
 
     private function countOptionalModel(string $modelClass): ?int
@@ -84,25 +146,14 @@ final class InspectSiteStateTool extends Tool
             return null;
         }
 
-        return $this->countModel($modelClass);
+        return $this->count(static fn (): int => $modelClass::query()->count());
     }
 
-    private function countRedirects(): ?int
+    /** @param  callable(): int  $count */
+    private function count(callable $count): ?int
     {
         try {
-            return PageUrl::query()->where('type', UrlTypeEnum::Redirect)->count();
-        } catch (Throwable) {
-            return null;
-        }
-    }
-
-    /**
-     * @param  class-string<Model>  $modelClass
-     */
-    private function countModel(string $modelClass): ?int
-    {
-        try {
-            return $modelClass::query()->count();
+            return $count();
         } catch (Throwable) {
             return null;
         }

@@ -63,7 +63,8 @@ it('renders distinct seeded token confirmation and audit relation tables', funct
             ->assertSee('screenshot.previewed')->assertDontSee('Screenshot review token');
         expect(CapellAgentBridgeToken::query()->where('user_id', $user->getKey())->count())->toBe(4)
             ->and(CapellAgentBridgeToken::query()->where('user_id', $user->getKey())->where('is_enabled', true)->whereNull('revoked_at')->count())->toBe(3)
-            ->and(CapellAgentBridgeToken::query()->where('user_id', $user->getKey())->whereNotNull('revoked_at')->count())->toBe(1);
+            ->and(CapellAgentBridgeToken::query()->where('user_id', $user->getKey())->whereNotNull('revoked_at')->count())->toBe(1)
+            ->and(CapellAgentBridgeToken::query()->where('user_id', $user->getKey())->whereNull('expires_at')->count())->toBe(0);
         $entry = ScreenshotManifest::entry(__DIR__ . '/../../docs/screenshots.json', 'token-management-or-setup-surface');
         expect($entry['beforeWait'] ?? [])->toContain(
             ['type' => 'click', 'selector' => '.fi-tabs-item:has-text("Tokens")'],

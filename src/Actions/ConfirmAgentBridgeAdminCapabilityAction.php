@@ -22,7 +22,7 @@ final class ConfirmAgentBridgeAdminCapabilityAction
     public function handle(string $confirmationToken, Authenticatable $user): array
     {
         $record = resolve(AgentBridgeAdminConfirmationStore::class)->pull($user, $confirmationToken);
-        $capability = resolve(AgentBridgeAdminCapabilityResolver::class)->resolve($record['capability_key'], $user);
+        $capability = resolve(AgentBridgeAdminCapabilityResolver::class)->resolve($record['capability_key'], $user, $record['payload']);
 
         $action = resolve($capability->actionClass);
         $invocation = new CapabilityInvocationData($capability, $record['payload'], user: $user);

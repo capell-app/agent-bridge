@@ -15,15 +15,13 @@ final class AgentBridgePageAccess
 {
     public static function authorizeSite(?Authenticatable $user, int $siteId, string $field = 'site_id'): void
     {
-        $user = self::requireUser($user, $field);
+        $assignedSiteIds = self::authorizedSiteIds($user, $field);
 
-        if (self::isGlobalAdmin($user)) {
+        if ($assignedSiteIds === null) {
             return;
         }
 
-        $assignedSiteIds = self::authorizedSiteIds($user);
-
-        foreach ($assignedSiteIds ?? [] as $assignedSiteId) {
+        foreach ($assignedSiteIds as $assignedSiteId) {
             if ((int) $assignedSiteId === $siteId) {
                 return;
             }
@@ -67,36 +65,15 @@ final class AgentBridgePageAccess
     }
 
     /**
-     * Return null for a global administrator, otherwise the exact site IDs the
-     * authenticated actor may address through Agent Bridge.
+     * Return null when every site is reachable, otherwise the exact site IDs the
+     * authenticated actor may address through Agent Bridge, narrowed to the sites the
+     * running token is limited to.
      *
      * @return list<int>|null
      */
     public static function authorizedSiteIds(?Authenticatable $user, string $field = 'site'): ?array
     {
-        $user = self::requireUser($user, $field);
-
-        if (self::isGlobalAdmin($user)) {
-            return null;
-        }
-
-        if (! is_callable([$user, 'getAssignedSiteIds'])) {
-            throw ValidationException::withMessages([
-                $field => __('capell-agent-bridge::admin.capability_site_forbidden'),
-            ]);
-        }
-
-        $assignedSiteIds = $user->getAssignedSiteIds();
-
-        $siteIds = [];
-
-        foreach ($assignedSiteIds as $siteId) {
-            if (is_int($siteId) || is_string($siteId) && ctype_digit($siteId)) {
-                $siteIds[] = (int) $siteId;
-            }
-        }
-
-        return array_values(array_unique($siteIds));
+        return AgentBridgeTokenSiteRestriction::narrow(self::ownerSiteIds(self::requireUser($user, $field), $field));
     }
 
     /** @param Builder<Page> $query */
@@ -121,20 +98,50 @@ final class AgentBridgePageAccess
 
     public static function isGlobalAdmin(Authenticatable $user): bool
     {
-        if (is_callable([$user, 'isGlobalAdmin']) && $user->isGlobalAdmin() === true) {
+        if (method_exists($user, 'isGlobalAdmin') && $user->isGlobalAdmin() === true) {
             return true;
         }
 
         $superAdminRole = config('capell.roles.super_admin', 'super_admin');
 
-        return is_callable([$user, 'hasRole'])
+        return method_exists($user, 'hasRole')
             && is_string($superAdminRole)
             && SiteScope::isGlobalActor($user);
     }
 
+    /** @return list<int>|null */
+    private static function ownerSiteIds(Authenticatable $user, string $field): ?array
+    {
+        if (self::isGlobalAdmin($user)) {
+            return null;
+        }
+
+        // is_callable() is true for every Eloquent model because of __call, so it would
+        // turn a user without site assignments into a crash instead of a refusal.
+        if (! method_exists($user, 'getAssignedSiteIds')) {
+            throw ValidationException::withMessages([
+                $field => __('capell-agent-bridge::admin.capability_site_forbidden'),
+            ]);
+        }
+
+        $assignedSiteIds = $user->getAssignedSiteIds();
+
+        $siteIds = [];
+
+        foreach ($assignedSiteIds as $siteId) {
+            if (is_int($siteId) || is_string($siteId) && ctype_digit($siteId)) {
+                $siteIds[] = (int) $siteId;
+            }
+        }
+
+        return array_values(array_unique($siteIds));
+    }
+
     private static function authorizeGlobalPage(?Authenticatable $user): void
     {
-        if ($user instanceof Authenticatable && self::isGlobalAdmin($user)) {
+        // A page outside every site is reachable only by a global administrator, and never
+        // by a token limited to particular sites.
+        if ($user instanceof Authenticatable && self::isGlobalAdmin($user) && AgentBridgeTokenSiteRestriction::current() === null) {
             return;
         }
 

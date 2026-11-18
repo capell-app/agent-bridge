@@ -5,9 +5,9 @@
         "default": {
             "source": {
                 "ref": "HEAD",
-                "commit": "c6c8db237d49b482b3f8a93dbf0c72ea5c1dda62",
+                "commit": "083d1c3c453225ddc1a873915dbf8ced5f6de237",
                 "providers": {
-                    "Providers/AgentBridgeServiceProvider.php": "c724259232e1924f804dbb4c1686cafb962cd0a18c9acfd20425d1716e868b4c",
+                    "Providers/AgentBridgeServiceProvider.php": "1c79153687d15325358381d806fc35bebcf12f80e43cefe51a2109e099ebd448",
                     "Providers/MigrationMetadataServiceProvider.php": "cb8b48ff8d8633c2882108fb68fa2dfde3de69421f0c84bed0cd4f4fbf3e0f38"
                 },
                 "configure": null
@@ -55,15 +55,20 @@
                     }
                 },
                 "commands": {
-                    "capell:agent-bridge-prune-audit": "Capell\\AgentBridge\\Console\\Commands\\PruneAgentBridgeAuditEntriesCommand"
+                    "capell:agent-bridge-prune-audit": "Capell\\AgentBridge\\Console\\Commands\\PruneAgentBridgeAuditEntriesCommand",
+                    "capell:agent:connect": "Capell\\AgentBridge\\Console\\Commands\\AgentConnectCommand"
                 },
                 "config-defaults": {
                     "capell-agent-bridge.php": {
                         "accept_legacy_token_hashes": "<secret>",
+                        "agent_knowledge.opt_in_paths": "<path>",
+                        "agent_knowledge.published_paths": "<path>",
+                        "approval_ttl_minutes": 60,
                         "audit_hash_secret": "<secret>",
                         "audit_retention_days": 90,
                         "confirmation_ttl_minutes": 10,
                         "enable_user_resource_bridge": true,
+                        "human_approval_risks": ["high", "destructive"],
                         "inspect_app_runtime": false,
                         "interpretation.minimum_evidence_score": 12,
                         "interpretation.minimum_term_coverage": 0.5,
@@ -72,7 +77,6 @@
                         "last_used_throttle_minutes": 5,
                         "local.handle": "capell-site",
                         "local.token": "<secret>",
-                        "public_docs_paths": "<path>",
                         "rate_limit_enabled": true,
                         "rate_limit_per_ip_per_minute": 120,
                         "rate_limit_per_minute": 60,
@@ -80,16 +84,31 @@
                         "routes.knowledge": null,
                         "routes.site": "agent-bridge/capell",
                         "site_auth_guard": "web",
+                        "token_default_lifetime_days": "<secret>",
+                        "token_maximum_lifetime_days": "<secret>",
                         "token_prefix": "<secret>"
                     }
                 },
                 "config-keys": [
                     "capell-agent-bridge",
                     "capell-agent-bridge.accept_legacy_token_hashes",
+                    "capell-agent-bridge.agent_knowledge",
+                    "capell-agent-bridge.agent_knowledge.opt_in_paths",
+                    "capell-agent-bridge.agent_knowledge.opt_in_paths.0",
+                    "capell-agent-bridge.agent_knowledge.opt_in_paths.1",
+                    "capell-agent-bridge.agent_knowledge.published_paths",
+                    "capell-agent-bridge.agent_knowledge.published_paths.0",
+                    "capell-agent-bridge.agent_knowledge.published_paths.1",
+                    "capell-agent-bridge.agent_knowledge.published_paths.2",
+                    "capell-agent-bridge.agent_knowledge.published_paths.3",
+                    "capell-agent-bridge.approval_ttl_minutes",
                     "capell-agent-bridge.audit_hash_secret",
                     "capell-agent-bridge.audit_retention_days",
                     "capell-agent-bridge.confirmation_ttl_minutes",
                     "capell-agent-bridge.enable_user_resource_bridge",
+                    "capell-agent-bridge.human_approval_risks",
+                    "capell-agent-bridge.human_approval_risks.0",
+                    "capell-agent-bridge.human_approval_risks.1",
                     "capell-agent-bridge.inspect_app_runtime",
                     "capell-agent-bridge.interpretation",
                     "capell-agent-bridge.interpretation.minimum_evidence_score",
@@ -100,11 +119,6 @@
                     "capell-agent-bridge.local",
                     "capell-agent-bridge.local.handle",
                     "capell-agent-bridge.local.token",
-                    "capell-agent-bridge.public_docs_paths",
-                    "capell-agent-bridge.public_docs_paths.0",
-                    "capell-agent-bridge.public_docs_paths.1",
-                    "capell-agent-bridge.public_docs_paths.2",
-                    "capell-agent-bridge.public_docs_paths.3",
                     "capell-agent-bridge.rate_limit_enabled",
                     "capell-agent-bridge.rate_limit_per_ip_per_minute",
                     "capell-agent-bridge.rate_limit_per_minute",
@@ -113,6 +127,8 @@
                     "capell-agent-bridge.routes.knowledge",
                     "capell-agent-bridge.routes.site",
                     "capell-agent-bridge.site_auth_guard",
+                    "capell-agent-bridge.token_default_lifetime_days",
+                    "capell-agent-bridge.token_maximum_lifetime_days",
                     "capell-agent-bridge.token_prefix"
                 ],
                 "config-values": {
@@ -377,41 +393,38 @@
                     },
                     "Capell\\AgentBridge\\Support\\CapellAgentBridgeCapabilityRegistry": {
                         "capabilities": {
-                            "capell.cache.clear": [
+                            "capell.admin.blueprints.read": [
                                 "Capell\\AgentBridge\\Data\\CapabilityData",
                                 {
-                                    "actionClass": "Capell\\AgentBridge\\Actions\\Cache\\ClearCapellCacheCapabilityAction",
-                                    "auditEvent": "capell_agent-bridge.cache.clear",
-                                    "category": "system",
-                                    "commandPatterns": [
-                                        [
-                                            "Capell\\AgentBridge\\Data\\CapabilityCommandPatternData",
-                                            {
-                                                "expression": "/^(?:clear|flush|refresh)\\s+(?:the\\s+)?(?:capell\\s+)?caches?$/i",
-                                                "fields": [],
-                                                "phrase": "Clear the Capell cache",
-                                                "required": []
-                                            }
-                                        ]
-                                    ],
-                                    "description": "Clear Capell admin, frontend, schema, component, and application caches where commands are available.",
-                                    "discoveryPriority": 20,
-                                    "examples": [
-                                        "Clear Capell caches after the About page update is confirmed."
-                                    ],
-                                    "inputDataClass": "Capell\\AgentBridge\\Data\\Capabilities\\ClearCacheCapabilityInputData",
+                                    "actionClass": "Capell\\AgentBridge\\Actions\\AdminTools\\InvokeAdminAgentToolCapabilityAction",
+                                    "auditEvent": "capell_agent-bridge.admin.blueprints_read",
+                                    "category": "admin",
+                                    "commandPatterns": [],
+                                    "description": "Read supported blueprint records available to the authenticated administrator.",
+                                    "discoveryPriority": 40,
+                                    "examples": [],
+                                    "inputDataClass": null,
                                     "inputSchema": {
                                         "additionalProperties": false,
-                                        "properties": [],
+                                        "properties": {
+                                            "id": {
+                                                "minimum": 1,
+                                                "type": ["integer", "null"]
+                                            },
+                                            "site": {
+                                                "description": "The site to act on, by ID or name. Leave it out when your account reaches only one site.",
+                                                "type": ["integer", "string"]
+                                            },
+                                            "type": {
+                                                "maxLength": 64,
+                                                "type": ["string", "null"]
+                                            }
+                                        },
                                         "type": "object"
                                     },
-                                    "intents": [
-                                        "clear cache",
-                                        "flush caches",
-                                        "refresh cached site output"
-                                    ],
-                                    "key": "capell.cache.clear",
-                                    "name": "Clear Capell caches",
+                                    "intents": [],
+                                    "key": "capell.admin.blueprints.read",
+                                    "name": "Read blueprints",
                                     "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
                                     "outputSchema": {
                                         "properties": {
@@ -439,12 +452,406 @@
                                         ],
                                         "type": "object"
                                     },
-                                    "policyAbility": "capell-agent-bridge.clear-cache",
+                                    "policyAbility": null,
                                     "public": false,
-                                    "requiredPackage": "capell-app/core",
+                                    "requiredPackage": "capell-app/admin",
+                                    "requiresConfirmation": false,
+                                    "risk": "read",
+                                    "scope": "capell.pages.read",
+                                    "server": "site",
+                                    "supportsPreview": true
+                                }
+                            ],
+                            "capell.admin.page_agent_readiness.read": [
+                                "Capell\\AgentBridge\\Data\\CapabilityData",
+                                {
+                                    "actionClass": "Capell\\AgentBridge\\Actions\\AdminTools\\InvokeAdminAgentToolCapabilityAction",
+                                    "auditEvent": "capell_agent-bridge.admin.page_agent_readiness_read",
+                                    "category": "admin",
+                                    "commandPatterns": [],
+                                    "description": "Read the structured-data readiness of a page in the authenticated admin session.",
+                                    "discoveryPriority": 40,
+                                    "examples": [],
+                                    "inputDataClass": null,
+                                    "inputSchema": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "page_id": {
+                                                "minimum": 1,
+                                                "type": "integer"
+                                            },
+                                            "site": {
+                                                "description": "The site to act on, by ID or name. Leave it out when your account reaches only one site.",
+                                                "type": ["integer", "string"]
+                                            }
+                                        },
+                                        "required": ["page_id"],
+                                        "type": "object"
+                                    },
+                                    "intents": [],
+                                    "key": "capell.admin.page_agent_readiness.read",
+                                    "name": "Check page readiness for agents",
+                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
+                                    "outputSchema": {
+                                        "properties": {
+                                            "data": {
+                                                "type": "object"
+                                            },
+                                            "message": {
+                                                "type": "string"
+                                            },
+                                            "ok": {
+                                                "type": "boolean"
+                                            },
+                                            "warnings": {
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "required": [
+                                            "ok",
+                                            "message",
+                                            "data",
+                                            "warnings"
+                                        ],
+                                        "type": "object"
+                                    },
+                                    "policyAbility": null,
+                                    "public": false,
+                                    "requiredPackage": "capell-app/admin",
+                                    "requiresConfirmation": false,
+                                    "risk": "read",
+                                    "scope": "capell.pages.read",
+                                    "server": "site",
+                                    "supportsPreview": true
+                                }
+                            ],
+                            "capell.admin.page_draft.save": [
+                                "Capell\\AgentBridge\\Data\\CapabilityData",
+                                {
+                                    "actionClass": "Capell\\AgentBridge\\Actions\\AdminTools\\InvokeAdminAgentToolCapabilityAction",
+                                    "auditEvent": "capell_agent-bridge.admin.page_draft_save",
+                                    "category": "admin",
+                                    "commandPatterns": [],
+                                    "description": "Save page fields and existing translations to the authenticated admin draft workflow.",
+                                    "discoveryPriority": 30,
+                                    "examples": [],
+                                    "inputDataClass": null,
+                                    "inputSchema": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "fields": {
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "admin": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "content_structure_override": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "meta": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "name": {
+                                                        "maxLength": 255,
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "locale": {
+                                                "maxLength": 12,
+                                                "minLength": 2,
+                                                "type": "string"
+                                            },
+                                            "page_id": {
+                                                "minimum": 1,
+                                                "type": "integer"
+                                            },
+                                            "site": {
+                                                "description": "The site to act on, by ID or name. Leave it out when your account reaches only one site.",
+                                                "type": ["integer", "string"]
+                                            },
+                                            "translations": {
+                                                "items": {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "content": {
+                                                            "type": [
+                                                                "string",
+                                                                "object",
+                                                                "array",
+                                                                "number",
+                                                                "boolean",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "id": {
+                                                            "minimum": 1,
+                                                            "type": "integer"
+                                                        },
+                                                        "meta": {
+                                                            "type": [
+                                                                "object",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "title": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": ["id"],
+                                                    "type": "object"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "required": ["page_id"],
+                                        "type": "object"
+                                    },
+                                    "intents": [],
+                                    "key": "capell.admin.page_draft.save",
+                                    "name": "Save a page editor draft",
+                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
+                                    "outputSchema": {
+                                        "properties": {
+                                            "data": {
+                                                "type": "object"
+                                            },
+                                            "message": {
+                                                "type": "string"
+                                            },
+                                            "ok": {
+                                                "type": "boolean"
+                                            },
+                                            "warnings": {
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "required": [
+                                            "ok",
+                                            "message",
+                                            "data",
+                                            "warnings"
+                                        ],
+                                        "type": "object"
+                                    },
+                                    "policyAbility": null,
+                                    "public": false,
+                                    "requiredPackage": "capell-app/admin",
                                     "requiresConfirmation": true,
-                                    "risk": "medium",
-                                    "scope": "capell.cache.run",
+                                    "risk": "low",
+                                    "scope": "capell.pages.write",
+                                    "server": "site",
+                                    "supportsPreview": true
+                                }
+                            ],
+                            "capell.admin.page_properties.read": [
+                                "Capell\\AgentBridge\\Data\\CapabilityData",
+                                {
+                                    "actionClass": "Capell\\AgentBridge\\Actions\\AdminTools\\InvokeAdminAgentToolCapabilityAction",
+                                    "auditEvent": "capell_agent-bridge.admin.page_properties_read",
+                                    "category": "admin",
+                                    "commandPatterns": [],
+                                    "description": "Read the properties currently available for a page in the authenticated admin session.",
+                                    "discoveryPriority": 40,
+                                    "examples": [],
+                                    "inputDataClass": null,
+                                    "inputSchema": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "page_id": {
+                                                "minimum": 1,
+                                                "type": "integer"
+                                            },
+                                            "site": {
+                                                "description": "The site to act on, by ID or name. Leave it out when your account reaches only one site.",
+                                                "type": ["integer", "string"]
+                                            }
+                                        },
+                                        "required": ["page_id"],
+                                        "type": "object"
+                                    },
+                                    "intents": [],
+                                    "key": "capell.admin.page_properties.read",
+                                    "name": "Read page properties",
+                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
+                                    "outputSchema": {
+                                        "properties": {
+                                            "data": {
+                                                "type": "object"
+                                            },
+                                            "message": {
+                                                "type": "string"
+                                            },
+                                            "ok": {
+                                                "type": "boolean"
+                                            },
+                                            "warnings": {
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "required": [
+                                            "ok",
+                                            "message",
+                                            "data",
+                                            "warnings"
+                                        ],
+                                        "type": "object"
+                                    },
+                                    "policyAbility": null,
+                                    "public": false,
+                                    "requiredPackage": "capell-app/admin",
+                                    "requiresConfirmation": false,
+                                    "risk": "read",
+                                    "scope": "capell.pages.read",
+                                    "server": "site",
+                                    "supportsPreview": true
+                                }
+                            ],
+                            "capell.admin.site_agent_readiness.read": [
+                                "Capell\\AgentBridge\\Data\\CapabilityData",
+                                {
+                                    "actionClass": "Capell\\AgentBridge\\Actions\\AdminTools\\InvokeAdminAgentToolCapabilityAction",
+                                    "auditEvent": "capell_agent-bridge.admin.site_agent_readiness_read",
+                                    "category": "admin",
+                                    "commandPatterns": [],
+                                    "description": "Read the structured-data readiness counts for the active site in the authenticated admin session.",
+                                    "discoveryPriority": 40,
+                                    "examples": [],
+                                    "inputDataClass": null,
+                                    "inputSchema": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "site": {
+                                                "description": "The site to act on, by ID or name. Leave it out when your account reaches only one site.",
+                                                "type": ["integer", "string"]
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "intents": [],
+                                    "key": "capell.admin.site_agent_readiness.read",
+                                    "name": "Check site readiness for agents",
+                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
+                                    "outputSchema": {
+                                        "properties": {
+                                            "data": {
+                                                "type": "object"
+                                            },
+                                            "message": {
+                                                "type": "string"
+                                            },
+                                            "ok": {
+                                                "type": "boolean"
+                                            },
+                                            "warnings": {
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "required": [
+                                            "ok",
+                                            "message",
+                                            "data",
+                                            "warnings"
+                                        ],
+                                        "type": "object"
+                                    },
+                                    "policyAbility": null,
+                                    "public": false,
+                                    "requiredPackage": "capell-app/admin",
+                                    "requiresConfirmation": false,
+                                    "risk": "read",
+                                    "scope": "capell.sites.read",
+                                    "server": "site",
+                                    "supportsPreview": true
+                                }
+                            ],
+                            "capell.admin.term_properties.read": [
+                                "Capell\\AgentBridge\\Data\\CapabilityData",
+                                {
+                                    "actionClass": "Capell\\AgentBridge\\Actions\\AdminTools\\InvokeAdminAgentToolCapabilityAction",
+                                    "auditEvent": "capell_agent-bridge.admin.term_properties_read",
+                                    "category": "admin",
+                                    "commandPatterns": [],
+                                    "description": "Read the properties currently available for a taxonomy term in the authenticated admin session.",
+                                    "discoveryPriority": 40,
+                                    "examples": [],
+                                    "inputDataClass": null,
+                                    "inputSchema": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "site": {
+                                                "description": "The site to act on, by ID or name. Leave it out when your account reaches only one site.",
+                                                "type": ["integer", "string"]
+                                            },
+                                            "term_id": {
+                                                "minimum": 1,
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "required": ["term_id"],
+                                        "type": "object"
+                                    },
+                                    "intents": [],
+                                    "key": "capell.admin.term_properties.read",
+                                    "name": "Read term properties",
+                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
+                                    "outputSchema": {
+                                        "properties": {
+                                            "data": {
+                                                "type": "object"
+                                            },
+                                            "message": {
+                                                "type": "string"
+                                            },
+                                            "ok": {
+                                                "type": "boolean"
+                                            },
+                                            "warnings": {
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "required": [
+                                            "ok",
+                                            "message",
+                                            "data",
+                                            "warnings"
+                                        ],
+                                        "type": "object"
+                                    },
+                                    "policyAbility": null,
+                                    "public": false,
+                                    "requiredPackage": "capell-app/admin",
+                                    "requiresConfirmation": false,
+                                    "risk": "read",
+                                    "scope": "capell.pages.read",
                                     "server": "site",
                                     "supportsPreview": true
                                 }
@@ -555,7 +962,7 @@
                                     "description": "Inspect a discovered package\u2019s dependencies, conflicts, migrations, permissions, scopes, contributions, and installability.",
                                     "discoveryPriority": 65,
                                     "examples": [
-                                        "Show the migration, permission, dependency, and frontend impact of SEO Suite."
+                                        "Show the migration, permission, dependency, and frontend impact of SEO Checks."
                                     ],
                                     "inputDataClass": "Capell\\AgentBridge\\Data\\Capabilities\\PackageReferenceCapabilityInputData",
                                     "inputSchema": {
@@ -611,103 +1018,6 @@
                                     "requiresConfirmation": false,
                                     "risk": "read",
                                     "scope": "capell.packages.read",
-                                    "server": "site",
-                                    "supportsPreview": true
-                                }
-                            ],
-                            "capell.packages.install": [
-                                "Capell\\AgentBridge\\Data\\CapabilityData",
-                                {
-                                    "actionClass": "Capell\\AgentBridge\\Actions\\Packages\\InstallPackageCapabilityAction",
-                                    "auditEvent": "capell_agent-bridge.packages.install",
-                                    "category": "packages",
-                                    "commandPatterns": [
-                                        [
-                                            "Capell\\AgentBridge\\Data\\CapabilityCommandPatternData",
-                                            {
-                                                "expression": "/^(?:install|activate|enable)\\s+(?:the\\s+)?(?:package|extension)\\s+(?<package>.+)$/i",
-                                                "fields": {
-                                                    "package": ["package"]
-                                                },
-                                                "phrase": "Install the package {package}",
-                                                "required": ["package"]
-                                            }
-                                        ],
-                                        [
-                                            "Capell\\AgentBridge\\Data\\CapabilityCommandPatternData",
-                                            {
-                                                "expression": "/^install\\s+(?<package>.+?)(?:\\s+package)?$/i",
-                                                "fields": {
-                                                    "package": ["package"]
-                                                },
-                                                "phrase": "Install {package}",
-                                                "required": ["package"]
-                                            }
-                                        ]
-                                    ],
-                                    "description": "Install a package already present in Composer and registered with Capell. Remote code download is never performed by this capability.",
-                                    "discoveryPriority": 80,
-                                    "examples": [
-                                        "Install SEO Suite from the packages already present in this deployment after I approve the impact preview."
-                                    ],
-                                    "inputDataClass": "Capell\\AgentBridge\\Data\\Capabilities\\InstallPackageCapabilityInputData",
-                                    "inputSchema": {
-                                        "additionalProperties": false,
-                                        "properties": {
-                                            "arguments": {
-                                                "description": "Optional declared package install arguments. Undeclared keys are rejected.",
-                                                "type": "object"
-                                            },
-                                            "package": {
-                                                "description": "Composer package name, display name, key, or unambiguous partial name.",
-                                                "maxLength": 255,
-                                                "type": "string"
-                                            }
-                                        },
-                                        "required": ["package"],
-                                        "type": "object"
-                                    },
-                                    "intents": [
-                                        "install package",
-                                        "enable extension",
-                                        "activate package",
-                                        "add Capell package"
-                                    ],
-                                    "key": "capell.packages.install",
-                                    "name": "Install discovered package",
-                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
-                                    "outputSchema": {
-                                        "properties": {
-                                            "data": {
-                                                "type": "object"
-                                            },
-                                            "message": {
-                                                "type": "string"
-                                            },
-                                            "ok": {
-                                                "type": "boolean"
-                                            },
-                                            "warnings": {
-                                                "items": {
-                                                    "type": "string"
-                                                },
-                                                "type": "array"
-                                            }
-                                        },
-                                        "required": [
-                                            "ok",
-                                            "message",
-                                            "data",
-                                            "warnings"
-                                        ],
-                                        "type": "object"
-                                    },
-                                    "policyAbility": "Manage:ExtensionsPage",
-                                    "public": false,
-                                    "requiredPackage": "capell-app/core",
-                                    "requiresConfirmation": true,
-                                    "risk": "high",
-                                    "scope": "capell.packages.install",
                                     "server": "site",
                                     "supportsPreview": true
                                 }
@@ -892,136 +1202,6 @@
                                     "supportsPreview": true
                                 }
                             ],
-                            "capell.pages.clone": [
-                                "Capell\\AgentBridge\\Data\\CapabilityData",
-                                {
-                                    "actionClass": "Capell\\AgentBridge\\Actions\\Pages\\ClonePageCapabilityAction",
-                                    "auditEvent": "capell_agent-bridge.pages.clone",
-                                    "category": "pages",
-                                    "commandPatterns": [
-                                        [
-                                            "Capell\\AgentBridge\\Data\\CapabilityCommandPatternData",
-                                            {
-                                                "expression": "/^(?:clone|duplicate|copy)\\s+(?:the\\s+)?(?<page>.+?)\\s+page(?:\\s+(?:as|to)\\s+(?<name>.+))?$/i",
-                                                "fields": {
-                                                    "name": ["name", "title"],
-                                                    "page": ["page"]
-                                                },
-                                                "phrase": "Clone the {page} page as {name}",
-                                                "required": ["page"]
-                                            }
-                                        ]
-                                    ],
-                                    "description": "Clone content already managed by this Capell installation into a distinct disabled draft for review.",
-                                    "discoveryPriority": 90,
-                                    "examples": [
-                                        "Clone the Services page as Consulting, keep it disabled, and use /consulting."
-                                    ],
-                                    "inputDataClass": "Capell\\AgentBridge\\Data\\Capabilities\\ClonePageCapabilityInputData",
-                                    "inputSchema": {
-                                        "additionalProperties": false,
-                                        "anyOf": [
-                                            {
-                                                "required": ["page"]
-                                            },
-                                            {
-                                                "required": ["page_id"]
-                                            }
-                                        ],
-                                        "properties": {
-                                            "language": {
-                                                "description": "Language whose title and slug overrides should target.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "language_id": {
-                                                "type": ["integer", "null"]
-                                            },
-                                            "name": {
-                                                "maxLength": 255,
-                                                "type": ["string", "null"]
-                                            },
-                                            "page": {
-                                                "description": "Page name, translated title, slug, URL, or ID.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "page_id": {
-                                                "type": ["integer", "null"]
-                                            },
-                                            "site": {
-                                                "description": "Optional site name, domain, or ID used to disambiguate the page.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "site_id": {
-                                                "type": ["integer", "null"]
-                                            },
-                                            "slug": {
-                                                "maxLength": 191,
-                                                "type": ["string", "null"]
-                                            },
-                                            "title": {
-                                                "maxLength": 255,
-                                                "type": ["string", "null"]
-                                            }
-                                        },
-                                        "type": "object"
-                                    },
-                                    "intents": [
-                                        "clone a page",
-                                        "copy an existing page",
-                                        "duplicate page content",
-                                        "make a safe page copy"
-                                    ],
-                                    "key": "capell.pages.clone",
-                                    "name": "Clone page as draft",
-                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
-                                    "outputSchema": {
-                                        "properties": {
-                                            "data": {
-                                                "type": "object"
-                                            },
-                                            "message": {
-                                                "type": "string"
-                                            },
-                                            "ok": {
-                                                "type": "boolean"
-                                            },
-                                            "warnings": {
-                                                "items": {
-                                                    "type": "string"
-                                                },
-                                                "type": "array"
-                                            }
-                                        },
-                                        "required": [
-                                            "ok",
-                                            "message",
-                                            "data",
-                                            "warnings"
-                                        ],
-                                        "type": "object"
-                                    },
-                                    "policyAbility": null,
-                                    "public": false,
-                                    "requiredPackage": "capell-app/core",
-                                    "requiresConfirmation": true,
-                                    "risk": "high",
-                                    "scope": "capell.pages.write",
-                                    "server": "site",
-                                    "supportsPreview": true
-                                }
-                            ],
                             "capell.pages.create_draft": [
                                 "Capell\\AgentBridge\\Data\\CapabilityData",
                                 {
@@ -1143,100 +1323,6 @@
                                     ],
                                     "key": "capell.pages.create_draft",
                                     "name": "Create draft page",
-                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
-                                    "outputSchema": {
-                                        "properties": {
-                                            "data": {
-                                                "type": "object"
-                                            },
-                                            "message": {
-                                                "type": "string"
-                                            },
-                                            "ok": {
-                                                "type": "boolean"
-                                            },
-                                            "warnings": {
-                                                "items": {
-                                                    "type": "string"
-                                                },
-                                                "type": "array"
-                                            }
-                                        },
-                                        "required": [
-                                            "ok",
-                                            "message",
-                                            "data",
-                                            "warnings"
-                                        ],
-                                        "type": "object"
-                                    },
-                                    "policyAbility": null,
-                                    "public": false,
-                                    "requiredPackage": "capell-app/core",
-                                    "requiresConfirmation": true,
-                                    "risk": "high",
-                                    "scope": "capell.pages.write",
-                                    "server": "site",
-                                    "supportsPreview": true
-                                }
-                            ],
-                            "capell.pages.disable": [
-                                "Capell\\AgentBridge\\Data\\CapabilityData",
-                                {
-                                    "actionClass": "Capell\\AgentBridge\\Actions\\Pages\\DisablePageCapabilityAction",
-                                    "auditEvent": "capell_agent-bridge.pages.disable",
-                                    "category": "pages",
-                                    "commandPatterns": [],
-                                    "description": "Disable a page by ending its visibility window.",
-                                    "discoveryPriority": 40,
-                                    "examples": [
-                                        "Take the old Summer campaign page offline after showing me the preview."
-                                    ],
-                                    "inputDataClass": "Capell\\AgentBridge\\Data\\Capabilities\\PageReferenceCapabilityInputData",
-                                    "inputSchema": {
-                                        "additionalProperties": false,
-                                        "anyOf": [
-                                            {
-                                                "required": ["page"]
-                                            },
-                                            {
-                                                "required": ["page_id"]
-                                            }
-                                        ],
-                                        "properties": {
-                                            "page": {
-                                                "description": "Page name, translated title, slug, URL, or ID.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "page_id": {
-                                                "type": ["integer", "null"]
-                                            },
-                                            "site": {
-                                                "description": "Optional site name, domain, or ID used to disambiguate the page.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "site_id": {
-                                                "type": ["integer", "null"]
-                                            }
-                                        },
-                                        "type": "object"
-                                    },
-                                    "intents": [
-                                        "disable a page",
-                                        "take a page offline",
-                                        "unpublish a page",
-                                        "hide page now"
-                                    ],
-                                    "key": "capell.pages.disable",
-                                    "name": "Disable page",
                                     "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
                                     "outputSchema": {
                                         "properties": {
@@ -1604,448 +1690,6 @@
                                     "supportsPreview": true
                                 }
                             ],
-                            "capell.pages.publish_now": [
-                                "Capell\\AgentBridge\\Data\\CapabilityData",
-                                {
-                                    "actionClass": "Capell\\AgentBridge\\Actions\\Pages\\TransitionPagePublicationCapabilityAction",
-                                    "auditEvent": "capell_agent-bridge.pages.publish_now",
-                                    "category": "publishing",
-                                    "commandPatterns": [
-                                        [
-                                            "Capell\\AgentBridge\\Data\\CapabilityCommandPatternData",
-                                            {
-                                                "expression": "/^(?:publish|launch|make\\s+live)\\s+(?:the\\s+)?(?<page>.+?)\\s+page(?:\\s+now)?$/i",
-                                                "fields": {
-                                                    "page": ["page"]
-                                                },
-                                                "phrase": "Publish the {page} page now",
-                                                "required": ["page"]
-                                            }
-                                        ]
-                                    ],
-                                    "description": "Publish an allowed page immediately through Capell\u2019s native publication transition and policy checks.",
-                                    "discoveryPriority": 80,
-                                    "examples": [
-                                        "Publish the reviewed Summer campaign page now after showing the readiness preview."
-                                    ],
-                                    "inputDataClass": "Capell\\AgentBridge\\Data\\Capabilities\\TransitionPagePublicationCapabilityInputData",
-                                    "inputSchema": {
-                                        "additionalProperties": false,
-                                        "anyOf": [
-                                            {
-                                                "required": ["page"]
-                                            },
-                                            {
-                                                "required": ["page_id"]
-                                            }
-                                        ],
-                                        "properties": {
-                                            "page": {
-                                                "description": "Page name, translated title, slug, URL, or ID.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "page_id": {
-                                                "type": ["integer", "null"]
-                                            },
-                                            "site": {
-                                                "description": "Optional site name, domain, or ID used to disambiguate the page.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "site_id": {
-                                                "type": ["integer", "null"]
-                                            }
-                                        },
-                                        "type": "object"
-                                    },
-                                    "intents": [
-                                        "publish page now",
-                                        "make page live",
-                                        "launch page"
-                                    ],
-                                    "key": "capell.pages.publish_now",
-                                    "name": "Publish page now",
-                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
-                                    "outputSchema": {
-                                        "properties": {
-                                            "data": {
-                                                "type": "object"
-                                            },
-                                            "message": {
-                                                "type": "string"
-                                            },
-                                            "ok": {
-                                                "type": "boolean"
-                                            },
-                                            "warnings": {
-                                                "items": {
-                                                    "type": "string"
-                                                },
-                                                "type": "array"
-                                            }
-                                        },
-                                        "required": [
-                                            "ok",
-                                            "message",
-                                            "data",
-                                            "warnings"
-                                        ],
-                                        "type": "object"
-                                    },
-                                    "policyAbility": null,
-                                    "public": false,
-                                    "requiredPackage": "capell-app/core",
-                                    "requiresConfirmation": true,
-                                    "risk": "high",
-                                    "scope": "capell.pages.publish",
-                                    "server": "site",
-                                    "supportsPreview": true
-                                }
-                            ],
-                            "capell.pages.revert_to_draft": [
-                                "Capell\\AgentBridge\\Data\\CapabilityData",
-                                {
-                                    "actionClass": "Capell\\AgentBridge\\Actions\\Pages\\TransitionPagePublicationCapabilityAction",
-                                    "auditEvent": "capell_agent-bridge.pages.revert_to_draft",
-                                    "category": "publishing",
-                                    "commandPatterns": [
-                                        [
-                                            "Capell\\AgentBridge\\Data\\CapabilityCommandPatternData",
-                                            {
-                                                "expression": "/^(?:revert|return|switch)\\s+(?:the\\s+)?(?<page>.+?)\\s+page\\s+(?:back\\s+)?to\\s+draft$/i",
-                                                "fields": {
-                                                    "page": ["page"]
-                                                },
-                                                "phrase": "Revert the {page} page to draft",
-                                                "required": ["page"]
-                                            }
-                                        ]
-                                    ],
-                                    "description": "Return an allowed page to draft through Capell\u2019s native publication transition.",
-                                    "discoveryPriority": 65,
-                                    "examples": [
-                                        "Take the Services page back to draft so the team can revise it."
-                                    ],
-                                    "inputDataClass": "Capell\\AgentBridge\\Data\\Capabilities\\TransitionPagePublicationCapabilityInputData",
-                                    "inputSchema": {
-                                        "additionalProperties": false,
-                                        "anyOf": [
-                                            {
-                                                "required": ["page"]
-                                            },
-                                            {
-                                                "required": ["page_id"]
-                                            }
-                                        ],
-                                        "properties": {
-                                            "page": {
-                                                "description": "Page name, translated title, slug, URL, or ID.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "page_id": {
-                                                "type": ["integer", "null"]
-                                            },
-                                            "site": {
-                                                "description": "Optional site name, domain, or ID used to disambiguate the page.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "site_id": {
-                                                "type": ["integer", "null"]
-                                            }
-                                        },
-                                        "type": "object"
-                                    },
-                                    "intents": [
-                                        "revert page to draft",
-                                        "switch page to draft",
-                                        "withdraw page for editing"
-                                    ],
-                                    "key": "capell.pages.revert_to_draft",
-                                    "name": "Revert page to draft",
-                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
-                                    "outputSchema": {
-                                        "properties": {
-                                            "data": {
-                                                "type": "object"
-                                            },
-                                            "message": {
-                                                "type": "string"
-                                            },
-                                            "ok": {
-                                                "type": "boolean"
-                                            },
-                                            "warnings": {
-                                                "items": {
-                                                    "type": "string"
-                                                },
-                                                "type": "array"
-                                            }
-                                        },
-                                        "required": [
-                                            "ok",
-                                            "message",
-                                            "data",
-                                            "warnings"
-                                        ],
-                                        "type": "object"
-                                    },
-                                    "policyAbility": null,
-                                    "public": false,
-                                    "requiredPackage": "capell-app/core",
-                                    "requiresConfirmation": true,
-                                    "risk": "high",
-                                    "scope": "capell.pages.publish",
-                                    "server": "site",
-                                    "supportsPreview": true
-                                }
-                            ],
-                            "capell.pages.schedule_publish": [
-                                "Capell\\AgentBridge\\Data\\CapabilityData",
-                                {
-                                    "actionClass": "Capell\\AgentBridge\\Actions\\Pages\\TransitionPagePublicationCapabilityAction",
-                                    "auditEvent": "capell_agent-bridge.pages.schedule_publish",
-                                    "category": "publishing",
-                                    "commandPatterns": [
-                                        [
-                                            "Capell\\AgentBridge\\Data\\CapabilityCommandPatternData",
-                                            {
-                                                "expression": "/^schedule\\s+(?:the\\s+)?(?<page>.+?)\\s+page\\s+(?:to\\s+publish\\s+)?(?:at|for|on)\\s+(?<publish_at>.+)$/i",
-                                                "fields": {
-                                                    "page": ["page"],
-                                                    "publish_at": ["publish_at"]
-                                                },
-                                                "phrase": "Schedule the {page} page to publish at {publish_at}",
-                                                "required": [
-                                                    "page",
-                                                    "publish_at"
-                                                ]
-                                            }
-                                        ]
-                                    ],
-                                    "description": "Schedule an allowed page to publish at a future ISO 8601 date and time.",
-                                    "discoveryPriority": 75,
-                                    "examples": [
-                                        "Schedule the Black Friday page to publish at 09:00 tomorrow."
-                                    ],
-                                    "inputDataClass": "Capell\\AgentBridge\\Data\\Capabilities\\TransitionPagePublicationCapabilityInputData",
-                                    "inputSchema": {
-                                        "additionalProperties": false,
-                                        "anyOf": [
-                                            {
-                                                "required": ["page"]
-                                            },
-                                            {
-                                                "required": ["page_id"]
-                                            }
-                                        ],
-                                        "properties": {
-                                            "page": {
-                                                "description": "Page name, translated title, slug, URL, or ID.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "page_id": {
-                                                "type": ["integer", "null"]
-                                            },
-                                            "publish_at": {
-                                                "description": "Future ISO 8601 date and time.",
-                                                "format": "date-time",
-                                                "type": "string"
-                                            },
-                                            "site": {
-                                                "description": "Optional site name, domain, or ID used to disambiguate the page.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "site_id": {
-                                                "type": ["integer", "null"]
-                                            }
-                                        },
-                                        "required": ["publish_at"],
-                                        "type": "object"
-                                    },
-                                    "intents": [
-                                        "schedule page",
-                                        "publish later",
-                                        "set page launch time"
-                                    ],
-                                    "key": "capell.pages.schedule_publish",
-                                    "name": "Schedule page publication",
-                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
-                                    "outputSchema": {
-                                        "properties": {
-                                            "data": {
-                                                "type": "object"
-                                            },
-                                            "message": {
-                                                "type": "string"
-                                            },
-                                            "ok": {
-                                                "type": "boolean"
-                                            },
-                                            "warnings": {
-                                                "items": {
-                                                    "type": "string"
-                                                },
-                                                "type": "array"
-                                            }
-                                        },
-                                        "required": [
-                                            "ok",
-                                            "message",
-                                            "data",
-                                            "warnings"
-                                        ],
-                                        "type": "object"
-                                    },
-                                    "policyAbility": null,
-                                    "public": false,
-                                    "requiredPackage": "capell-app/core",
-                                    "requiresConfirmation": true,
-                                    "risk": "high",
-                                    "scope": "capell.pages.publish",
-                                    "server": "site",
-                                    "supportsPreview": true
-                                }
-                            ],
-                            "capell.pages.schedule_unpublish": [
-                                "Capell\\AgentBridge\\Data\\CapabilityData",
-                                {
-                                    "actionClass": "Capell\\AgentBridge\\Actions\\Pages\\TransitionPagePublicationCapabilityAction",
-                                    "auditEvent": "capell_agent-bridge.pages.schedule_unpublish",
-                                    "category": "publishing",
-                                    "commandPatterns": [
-                                        [
-                                            "Capell\\AgentBridge\\Data\\CapabilityCommandPatternData",
-                                            {
-                                                "expression": "/^schedule\\s+(?:the\\s+)?(?<page>.+?)\\s+page\\s+(?:to\\s+)?(?:unpublish|expire|go\\s+offline)\\s+(?:at|for|on)\\s+(?<unpublish_at>.+)$/i",
-                                                "fields": {
-                                                    "page": ["page"],
-                                                    "unpublish_at": [
-                                                        "unpublish_at"
-                                                    ]
-                                                },
-                                                "phrase": "Schedule the {page} page to unpublish at {unpublish_at}",
-                                                "required": [
-                                                    "page",
-                                                    "unpublish_at"
-                                                ]
-                                            }
-                                        ]
-                                    ],
-                                    "description": "Schedule an allowed page to unpublish at a future ISO 8601 date and time.",
-                                    "discoveryPriority": 60,
-                                    "examples": [
-                                        "Schedule the Summer campaign page to come offline at midnight on 1 September."
-                                    ],
-                                    "inputDataClass": "Capell\\AgentBridge\\Data\\Capabilities\\TransitionPagePublicationCapabilityInputData",
-                                    "inputSchema": {
-                                        "additionalProperties": false,
-                                        "anyOf": [
-                                            {
-                                                "required": ["page"]
-                                            },
-                                            {
-                                                "required": ["page_id"]
-                                            }
-                                        ],
-                                        "properties": {
-                                            "page": {
-                                                "description": "Page name, translated title, slug, URL, or ID.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "page_id": {
-                                                "type": ["integer", "null"]
-                                            },
-                                            "site": {
-                                                "description": "Optional site name, domain, or ID used to disambiguate the page.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "site_id": {
-                                                "type": ["integer", "null"]
-                                            },
-                                            "unpublish_at": {
-                                                "description": "Future ISO 8601 date and time.",
-                                                "format": "date-time",
-                                                "type": "string"
-                                            }
-                                        },
-                                        "required": ["unpublish_at"],
-                                        "type": "object"
-                                    },
-                                    "intents": [
-                                        "schedule page expiry",
-                                        "take page offline later",
-                                        "set unpublish time"
-                                    ],
-                                    "key": "capell.pages.schedule_unpublish",
-                                    "name": "Schedule page unpublish",
-                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
-                                    "outputSchema": {
-                                        "properties": {
-                                            "data": {
-                                                "type": "object"
-                                            },
-                                            "message": {
-                                                "type": "string"
-                                            },
-                                            "ok": {
-                                                "type": "boolean"
-                                            },
-                                            "warnings": {
-                                                "items": {
-                                                    "type": "string"
-                                                },
-                                                "type": "array"
-                                            }
-                                        },
-                                        "required": [
-                                            "ok",
-                                            "message",
-                                            "data",
-                                            "warnings"
-                                        ],
-                                        "type": "object"
-                                    },
-                                    "policyAbility": null,
-                                    "public": false,
-                                    "requiredPackage": "capell-app/core",
-                                    "requiresConfirmation": true,
-                                    "risk": "high",
-                                    "scope": "capell.pages.publish",
-                                    "server": "site",
-                                    "supportsPreview": true
-                                }
-                            ],
                             "capell.pages.search": [
                                 "Capell\\AgentBridge\\Data\\CapabilityData",
                                 {
@@ -2147,111 +1791,6 @@
                                     "requiresConfirmation": false,
                                     "risk": "read",
                                     "scope": "capell.pages.read",
-                                    "server": "site",
-                                    "supportsPreview": true
-                                }
-                            ],
-                            "capell.pages.unpublish": [
-                                "Capell\\AgentBridge\\Data\\CapabilityData",
-                                {
-                                    "actionClass": "Capell\\AgentBridge\\Actions\\Pages\\TransitionPagePublicationCapabilityAction",
-                                    "auditEvent": "capell_agent-bridge.pages.unpublish",
-                                    "category": "publishing",
-                                    "commandPatterns": [
-                                        [
-                                            "Capell\\AgentBridge\\Data\\CapabilityCommandPatternData",
-                                            {
-                                                "expression": "/^(?:unpublish|disable|take\\s+offline)\\s+(?:the\\s+)?(?<page>.+?)\\s+page(?:\\s+now)?$/i",
-                                                "fields": {
-                                                    "page": ["page"]
-                                                },
-                                                "phrase": "Unpublish the {page} page",
-                                                "required": ["page"]
-                                            }
-                                        ]
-                                    ],
-                                    "description": "Unpublish an allowed live page immediately through Capell\u2019s native publication transition.",
-                                    "discoveryPriority": 70,
-                                    "examples": [
-                                        "Unpublish the retired campaign page now."
-                                    ],
-                                    "inputDataClass": "Capell\\AgentBridge\\Data\\Capabilities\\TransitionPagePublicationCapabilityInputData",
-                                    "inputSchema": {
-                                        "additionalProperties": false,
-                                        "anyOf": [
-                                            {
-                                                "required": ["page"]
-                                            },
-                                            {
-                                                "required": ["page_id"]
-                                            }
-                                        ],
-                                        "properties": {
-                                            "page": {
-                                                "description": "Page name, translated title, slug, URL, or ID.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "page_id": {
-                                                "type": ["integer", "null"]
-                                            },
-                                            "site": {
-                                                "description": "Optional site name, domain, or ID used to disambiguate the page.",
-                                                "type": [
-                                                    "string",
-                                                    "integer",
-                                                    "null"
-                                                ]
-                                            },
-                                            "site_id": {
-                                                "type": ["integer", "null"]
-                                            }
-                                        },
-                                        "type": "object"
-                                    },
-                                    "intents": [
-                                        "unpublish page",
-                                        "take page offline now",
-                                        "withdraw live page"
-                                    ],
-                                    "key": "capell.pages.unpublish",
-                                    "name": "Unpublish page now",
-                                    "outputDataClass": "Capell\\AgentBridge\\Data\\CapabilityResultData",
-                                    "outputSchema": {
-                                        "properties": {
-                                            "data": {
-                                                "type": "object"
-                                            },
-                                            "message": {
-                                                "type": "string"
-                                            },
-                                            "ok": {
-                                                "type": "boolean"
-                                            },
-                                            "warnings": {
-                                                "items": {
-                                                    "type": "string"
-                                                },
-                                                "type": "array"
-                                            }
-                                        },
-                                        "required": [
-                                            "ok",
-                                            "message",
-                                            "data",
-                                            "warnings"
-                                        ],
-                                        "type": "object"
-                                    },
-                                    "policyAbility": null,
-                                    "public": false,
-                                    "requiredPackage": "capell-app/core",
-                                    "requiresConfirmation": true,
-                                    "risk": "high",
-                                    "scope": "capell.pages.publish",
                                     "server": "site",
                                     "supportsPreview": true
                                 }
@@ -2736,7 +2275,7 @@
                                     "group": "agent_bridge",
                                     "icon": "o-sparkles",
                                     "label": "capell-agent-bridge::admin.settings_title",
-                                    "navigationGroup": "capell-admin::navigation.group_system",
+                                    "navigationGroup": "settings",
                                     "navigationSort": 94,
                                     "packageName": "capell-app/agent-bridge"
                                 }
@@ -2803,27 +2342,41 @@
                 "tagged-consumers": {
                     "capell.admin.user_resource_bridges": [
                         "Capell\\AgentBridge\\Extenders\\AgentBridgeUserSchemaExtender"
+                    ],
+                    "capell.privacy.subject-eraser": [
+                        "Capell\\AgentBridge\\Support\\Privacy\\AgentBridgePrivacyContributor"
+                    ],
+                    "capell.privacy.subject-exporter": [
+                        "Capell\\AgentBridge\\Support\\Privacy\\AgentBridgePrivacyContributor"
                     ]
                 },
                 "tags": {
                     "capell.admin.user_resource_bridges": [
                         "Capell\\AgentBridge\\Extenders\\AgentBridgeUserSchemaExtender"
+                    ],
+                    "capell.privacy.subject-eraser": [
+                        "Capell\\AgentBridge\\Support\\Privacy\\AgentBridgePrivacyContributor"
+                    ],
+                    "capell.privacy.subject-exporter": [
+                        "Capell\\AgentBridge\\Support\\Privacy\\AgentBridgePrivacyContributor"
                     ]
                 },
                 "views": {
-                    "capell-agent-bridge": [
-                        "<package>/src/Providers/../../resources/views"
-                    ]
+                    "capell-agent-bridge": ["<package>/resources/views"]
                 }
             },
             "uninstalledSurfaces": {
                 "config-defaults": {
                     "capell-agent-bridge.php": {
                         "accept_legacy_token_hashes": "<secret>",
+                        "agent_knowledge.opt_in_paths": "<path>",
+                        "agent_knowledge.published_paths": "<path>",
+                        "approval_ttl_minutes": 60,
                         "audit_hash_secret": "<secret>",
                         "audit_retention_days": 90,
                         "confirmation_ttl_minutes": 10,
                         "enable_user_resource_bridge": true,
+                        "human_approval_risks": ["high", "destructive"],
                         "inspect_app_runtime": false,
                         "interpretation.minimum_evidence_score": 12,
                         "interpretation.minimum_term_coverage": 0.5,
@@ -2832,7 +2385,6 @@
                         "last_used_throttle_minutes": 5,
                         "local.handle": "capell-site",
                         "local.token": "<secret>",
-                        "public_docs_paths": "<path>",
                         "rate_limit_enabled": true,
                         "rate_limit_per_ip_per_minute": 120,
                         "rate_limit_per_minute": 60,
@@ -2840,16 +2392,31 @@
                         "routes.knowledge": null,
                         "routes.site": "agent-bridge/capell",
                         "site_auth_guard": "web",
+                        "token_default_lifetime_days": "<secret>",
+                        "token_maximum_lifetime_days": "<secret>",
                         "token_prefix": "<secret>"
                     }
                 },
                 "config-keys": [
                     "capell-agent-bridge",
                     "capell-agent-bridge.accept_legacy_token_hashes",
+                    "capell-agent-bridge.agent_knowledge",
+                    "capell-agent-bridge.agent_knowledge.opt_in_paths",
+                    "capell-agent-bridge.agent_knowledge.opt_in_paths.0",
+                    "capell-agent-bridge.agent_knowledge.opt_in_paths.1",
+                    "capell-agent-bridge.agent_knowledge.published_paths",
+                    "capell-agent-bridge.agent_knowledge.published_paths.0",
+                    "capell-agent-bridge.agent_knowledge.published_paths.1",
+                    "capell-agent-bridge.agent_knowledge.published_paths.2",
+                    "capell-agent-bridge.agent_knowledge.published_paths.3",
+                    "capell-agent-bridge.approval_ttl_minutes",
                     "capell-agent-bridge.audit_hash_secret",
                     "capell-agent-bridge.audit_retention_days",
                     "capell-agent-bridge.confirmation_ttl_minutes",
                     "capell-agent-bridge.enable_user_resource_bridge",
+                    "capell-agent-bridge.human_approval_risks",
+                    "capell-agent-bridge.human_approval_risks.0",
+                    "capell-agent-bridge.human_approval_risks.1",
                     "capell-agent-bridge.inspect_app_runtime",
                     "capell-agent-bridge.interpretation",
                     "capell-agent-bridge.interpretation.minimum_evidence_score",
@@ -2860,11 +2427,6 @@
                     "capell-agent-bridge.local",
                     "capell-agent-bridge.local.handle",
                     "capell-agent-bridge.local.token",
-                    "capell-agent-bridge.public_docs_paths",
-                    "capell-agent-bridge.public_docs_paths.0",
-                    "capell-agent-bridge.public_docs_paths.1",
-                    "capell-agent-bridge.public_docs_paths.2",
-                    "capell-agent-bridge.public_docs_paths.3",
                     "capell-agent-bridge.rate_limit_enabled",
                     "capell-agent-bridge.rate_limit_per_ip_per_minute",
                     "capell-agent-bridge.rate_limit_per_minute",
@@ -2873,6 +2435,8 @@
                     "capell-agent-bridge.routes.knowledge",
                     "capell-agent-bridge.routes.site",
                     "capell-agent-bridge.site_auth_guard",
+                    "capell-agent-bridge.token_default_lifetime_days",
+                    "capell-agent-bridge.token_maximum_lifetime_days",
                     "capell-agent-bridge.token_prefix"
                 ],
                 "config-values": {
@@ -2905,9 +2469,7 @@
                     }
                 },
                 "views": {
-                    "capell-agent-bridge": [
-                        "<package>/src/Providers/../../resources/views"
-                    ]
+                    "capell-agent-bridge": ["<package>/resources/views"]
                 }
             },
             "removableUninstalledSurfaces": []

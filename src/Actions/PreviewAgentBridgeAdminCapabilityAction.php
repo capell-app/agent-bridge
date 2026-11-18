@@ -24,7 +24,7 @@ final class PreviewAgentBridgeAdminCapabilityAction
      */
     public function handle(string $capabilityKey, array $payload, Authenticatable $user): array
     {
-        $capability = resolve(AgentBridgeAdminCapabilityResolver::class)->resolve($capabilityKey, $user);
+        $capability = resolve(AgentBridgeAdminCapabilityResolver::class)->resolve($capabilityKey, $user, $payload);
 
         $action = resolve($capability->actionClass);
         $invocation = new CapabilityInvocationData($capability, $payload, user: $user);

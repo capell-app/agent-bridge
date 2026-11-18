@@ -6,12 +6,19 @@ namespace Capell\AgentBridge\Actions;
 
 use Capell\AgentBridge\Data\AuthenticatedAgentBridgeClientData;
 use Capell\AgentBridge\Data\CapabilityInvocationData;
+use Capell\AgentBridge\Data\CapabilityResultData;
+use Capell\AgentBridge\Exceptions\AgentBridgeConfirmationAwaitingApprovalException;
 use Capell\AgentBridge\Models\CapellAgentBridgeConfirmation;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
+use Capell\AgentBridge\Support\AgentBridgeCapabilityPolicy;
+use Capell\AgentBridge\Support\AgentBridgeContentTrust;
+use Capell\AgentBridge\Support\AgentBridgeHumanApproval;
+use Capell\AgentBridge\Support\AgentBridgeTokenFreshness;
+use Capell\AgentBridge\Support\AgentBridgeTokenSiteRestriction;
+use Capell\AgentBridge\Support\AgentBridgeValue;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Support\Facades\Gate;
 use Lorisleiva\Actions\Concerns\AsFake;
 use Lorisleiva\Actions\Concerns\AsObject;
 
@@ -72,21 +79,49 @@ final class ConfirmAgentBridgeCapabilityAction
             throw new AuthorizationException(sprintf('Agent Bridge scope [%s] is required.', $capability->scope));
         }
 
+        throw_unless(
+            $client->canUseCapability($capability->key),
+            AuthorizationException::class,
+            sprintf('This Agent Bridge token is not allowed to use capability [%s].', $capability->key),
+        );
+
+        $user = AgentBridgeTokenFreshness::assertStillAllowed($token, $client, $capability->scope, $user, $capability->key);
+
         if ($capability->policyAbility !== null) {
-            Gate::forUser($user)->authorize($capability->policyAbility);
+            AgentBridgeCapabilityPolicy::authorize($capability, $user, $payload);
         }
 
+        // The token alone cannot both preview and confirm a high-risk change: the person
+        // it acts as must have approved this exact confirmation in the admin. The stored
+        // flag is honoured even if the capability's risk was lowered after the preview.
+        $requiresApproval = $confirmation->requires_approval || AgentBridgeHumanApproval::requiredFor($capability);
+
+        throw_if(
+            $requiresApproval && ! $confirmation->isApprovedBy($user),
+            AgentBridgeConfirmationAwaitingApprovalException::class,
+            AgentBridgeValue::string(__('capell-agent-bridge::messages.confirmation.awaiting_approval'), 'Agent Bridge awaiting approval message'),
+        );
+
         $usedAt = now();
-        $claimed = CapellAgentBridgeConfirmation::query()
+        $claim = CapellAgentBridgeConfirmation::query()
             ->whereKey($confirmation->getKey())
             ->whereNull('used_at')
-            ->where('expires_at', '>', $usedAt)
-            ->update(['used_at' => $usedAt]);
+            ->whereNull('declined_at')
+            ->where('expires_at', '>', $usedAt);
+
+        if ($requiresApproval) {
+            $claim->whereNotNull('approved_at');
+        }
+
+        $claimed = $claim->update(['used_at' => $usedAt]);
 
         throw_if($claimed !== 1, AuthorizationException::class, 'The Agent Bridge confirmation token is invalid or expired.');
 
         $action = resolve($capability->actionClass);
-        $result = $action->execute(new CapabilityInvocationData($capability, $payload, $client, $user));
+        $result = AgentBridgeTokenSiteRestriction::within(
+            $token,
+            static fn (): CapabilityResultData => $action->execute(new CapabilityInvocationData($capability, $payload, $client, $user)),
+        );
 
         AuditAgentBridgeCapabilityAction::run(
             event: $capability->auditEvent ?? 'capell_agent-bridge.capability.confirmed',
@@ -102,6 +137,7 @@ final class ConfirmAgentBridgeCapabilityAction
             'mode' => 'confirmed',
             'capability' => $capability->key,
             'result' => $result->toPayload(),
+            'contentTrust' => AgentBridgeContentTrust::forCapabilityResult('result'),
         ];
     }
 }

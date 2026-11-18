@@ -11,7 +11,10 @@ use Illuminate\Contracts\Auth\Authenticatable;
 
 final class AgentBridgeAdminCapabilityResolver
 {
-    public function resolve(string $capabilityKey, Authenticatable $user): CapabilityData
+    /**
+     * @param  array<array-key, mixed>  $payload
+     */
+    public function resolve(string $capabilityKey, Authenticatable $user, array $payload = []): CapabilityData
     {
         $registry = resolve(CapellAgentBridgeCapabilityRegistry::class);
         $capability = $registry->get($capabilityKey);
@@ -24,7 +27,7 @@ final class AgentBridgeAdminCapabilityResolver
         );
 
         if ($capability->policyAbility !== null) {
-            resolve(AgentBridgePolicyAuthorizer::class)->authorize($user, $capability->policyAbility);
+            AgentBridgeCapabilityPolicy::authorize($capability, $user, $payload);
         }
 
         return $capability;

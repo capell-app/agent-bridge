@@ -10,6 +10,7 @@ use Capell\AgentBridge\Actions\ConfirmAgentBridgeAdminCapabilityAction;
 use Capell\AgentBridge\Actions\InterpretAgentBridgeCommandAction;
 use Capell\AgentBridge\Actions\PreviewAgentBridgeAdminCapabilityAction;
 use Capell\AgentBridge\Actions\SuggestAgentBridgeCapabilitiesAction;
+use Capell\AgentBridge\Contracts\ResolvesCapabilityPolicySite;
 use Capell\AgentBridge\Data\AgentBridgePromptData;
 use Capell\AgentBridge\Data\CapabilityCommandPatternData;
 use Capell\AgentBridge\Data\CapabilityData;
@@ -410,7 +411,11 @@ final class CapellAgentBridgePromptBuilderPage extends Page implements HasForms
 
         $capabilities = resolve(CapellAgentBridgeCapabilityRegistry::class)
             ->visibleFor(CapabilityServerEnum::Site)
+            // A capability whose ability is held per site is checked against the site its
+            // payload reaches when it runs, so a team-less check here would hide it from
+            // users whose role is on that site only.
             ->filter(static fn (CapabilityData $capability): bool => $capability->policyAbility === null
+                || is_a($capability->actionClass, ResolvesCapabilityPolicySite::class, true)
                 || $authorizer->allows($user, $capability->policyAbility))
             ->values()
             ->all();

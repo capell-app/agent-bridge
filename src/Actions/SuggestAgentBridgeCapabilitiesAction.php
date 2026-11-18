@@ -13,7 +13,7 @@ use Lorisleiva\Actions\Concerns\AsFake;
 use Lorisleiva\Actions\Concerns\AsObject;
 
 /**
- * @method static array{query: string, queryTokens: list<string>, suggestions: list<array<string, mixed>>} run(string $query, CapabilityServerEnum $server = CapabilityServerEnum::Site, ?array<int, string> $scopes = null, int $limit = 5)
+ * @method static array{query: string, queryTokens: list<string>, suggestions: list<array<string, mixed>>} run(string $query, CapabilityServerEnum $server = CapabilityServerEnum::Site, ?array<int, string> $scopes = null, int $limit = 5, ?array<int, string> $capabilityKeys = null)
  */
 final class SuggestAgentBridgeCapabilitiesAction
 {
@@ -59,6 +59,7 @@ final class SuggestAgentBridgeCapabilitiesAction
 
     /**
      * @param  list<string>|null  $scopes
+     * @param  list<string>|null  $capabilityKeys  the token's capability limit, when it has one
      * @return array{query: string, queryTokens: list<string>, suggestions: list<array<string, mixed>>}
      */
     public function handle(
@@ -66,6 +67,7 @@ final class SuggestAgentBridgeCapabilitiesAction
         CapabilityServerEnum $server = CapabilityServerEnum::Site,
         ?array $scopes = null,
         int $limit = 5,
+        ?array $capabilityKeys = null,
     ): array {
         $query = trim($query);
         $limit = max(1, min(20, $limit));
@@ -75,6 +77,7 @@ final class SuggestAgentBridgeCapabilitiesAction
         /** @var list<CapabilitySuggestionData> $suggestions */
         $suggestions = $this->registry
             ->visibleFor($server, $scopes)
+            ->filter(fn (CapabilityData $capability): bool => $capabilityKeys === null || in_array($capability->key, $capabilityKeys, true))
             ->map(fn (CapabilityData $capability): CapabilitySuggestionData => $this->score(
                 capability: $capability,
                 normalizedQuery: $normalizedQuery,

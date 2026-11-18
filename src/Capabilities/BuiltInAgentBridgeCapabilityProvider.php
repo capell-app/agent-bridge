@@ -5,29 +5,21 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Capabilities;
 
 use Capell\Admin\Filament\Pages\ExtensionsPage;
-use Capell\AgentBridge\Actions\Cache\ClearCapellCacheCapabilityAction;
 use Capell\AgentBridge\Actions\Media\UploadMediaCapabilityAction;
 use Capell\AgentBridge\Actions\Packages\InspectPackageCapabilityAction;
-use Capell\AgentBridge\Actions\Packages\InstallPackageCapabilityAction;
 use Capell\AgentBridge\Actions\Packages\SearchPackagesCapabilityAction;
-use Capell\AgentBridge\Actions\Pages\ClonePageCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\CreateDraftPageCapabilityAction;
-use Capell\AgentBridge\Actions\Pages\DisablePageCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\InspectPageCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\InspectPagePublishingReadinessCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\ListPageAuthoringOptionsCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\OpenPageEditorCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\SearchPagesCapabilityAction;
-use Capell\AgentBridge\Actions\Pages\TransitionPagePublicationCapabilityAction;
 use Capell\AgentBridge\Actions\Pages\UpdateDraftPageCapabilityAction;
 use Capell\AgentBridge\Actions\Sites\InspectSiteCapabilityAction;
 use Capell\AgentBridge\Actions\Sites\OpenSiteEditorCapabilityAction;
 use Capell\AgentBridge\Actions\Sites\SearchSitesCapabilityAction;
 use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityProvider;
-use Capell\AgentBridge\Data\Capabilities\ClearCacheCapabilityInputData;
-use Capell\AgentBridge\Data\Capabilities\ClonePageCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\CreateDraftPageCapabilityInputData;
-use Capell\AgentBridge\Data\Capabilities\InstallPackageCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\PackageReferenceCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\PageAuthoringOptionsCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\PageReferenceCapabilityInputData;
@@ -35,7 +27,6 @@ use Capell\AgentBridge\Data\Capabilities\SearchPackagesCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\SearchPagesCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\SearchSitesCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\SiteReferenceCapabilityInputData;
-use Capell\AgentBridge\Data\Capabilities\TransitionPagePublicationCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\UpdateDraftPageCapabilityInputData;
 use Capell\AgentBridge\Data\Capabilities\UploadMediaCapabilityInputData;
 use Capell\AgentBridge\Data\CapabilityCommandPatternData;
@@ -43,7 +34,7 @@ use Capell\AgentBridge\Data\CapabilityData;
 use Capell\AgentBridge\Data\CapabilityResultData;
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Enums\CapabilityServerEnum;
-use Capell\AgentBridge\Support\AgentBridgePolicyAuthorizer;
+use Capell\AgentBridge\Support\AdminTools\AdminAgentToolCapabilities;
 use Capell\AgentBridge\Support\CapabilitySchemas;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 
@@ -51,43 +42,12 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
 {
     public function registerCapabilities(CapellAgentBridgeCapabilityRegistry $registry): void
     {
-        $this->registerCacheCapability($registry);
         $this->registerReadPageCapabilities($registry);
         $this->registerWritePageCapabilities($registry);
-        $this->registerPagePublicationCapabilities($registry);
         $this->registerPackageCapabilities($registry);
         $this->registerSiteCapabilities($registry);
         $this->registerMediaCapabilities($registry);
-    }
-
-    private function registerCacheCapability(CapellAgentBridgeCapabilityRegistry $registry): void
-    {
-        $registry->register(new CapabilityData(
-            key: 'capell.cache.clear',
-            name: $this->translation('capability_cache_clear_name'),
-            description: $this->translation('capability_cache_clear_description'),
-            scope: 'capell.cache.run',
-            server: CapabilityServerEnum::Site,
-            risk: CapabilityRiskEnum::Medium,
-            actionClass: ClearCapellCacheCapabilityAction::class,
-            requiredPackage: 'capell-app/core',
-            policyAbility: AgentBridgePolicyAuthorizer::CLEAR_CACHE_ABILITY,
-            inputDataClass: ClearCacheCapabilityInputData::class,
-            outputDataClass: CapabilityResultData::class,
-            inputSchema: CapabilitySchemas::emptyObject(),
-            outputSchema: CapabilitySchemas::capabilityResultOutput(),
-            auditEvent: 'capell_agent-bridge.cache.clear',
-            category: 'system',
-            intents: $this->translationList('capability_intents.cache_clear'),
-            examples: $this->translationList('capability_examples.cache_clear'),
-            discoveryPriority: 20,
-            commandPatterns: [
-                new CapabilityCommandPatternData(
-                    expression: '/^(?:clear|flush|refresh)\s+(?:the\s+)?(?:capell\s+)?caches?$/i',
-                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_cache_clear'),
-                ),
-            ],
-        ));
+        AdminAgentToolCapabilities::registerFree($registry);
     }
 
     private function registerReadPageCapabilities(CapellAgentBridgeCapabilityRegistry $registry): void
@@ -267,34 +227,6 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
         ));
 
         $registry->register(new CapabilityData(
-            key: 'capell.pages.clone',
-            name: $this->translation('capability_pages_clone_name'),
-            description: $this->translation('capability_pages_clone_description'),
-            scope: 'capell.pages.write',
-            server: CapabilityServerEnum::Site,
-            risk: CapabilityRiskEnum::High,
-            actionClass: ClonePageCapabilityAction::class,
-            requiredPackage: 'capell-app/core',
-            inputDataClass: ClonePageCapabilityInputData::class,
-            outputDataClass: CapabilityResultData::class,
-            inputSchema: CapabilitySchemas::clonePageInput(),
-            outputSchema: CapabilitySchemas::capabilityResultOutput(),
-            auditEvent: 'capell_agent-bridge.pages.clone',
-            category: 'pages',
-            intents: $this->translationList('capability_intents.pages_clone'),
-            examples: $this->translationList('capability_examples.pages_clone'),
-            discoveryPriority: 90,
-            commandPatterns: [
-                new CapabilityCommandPatternData(
-                    expression: '/^(?:clone|duplicate|copy)\s+(?:the\s+)?(?<page>.+?)\s+page(?:\s+(?:as|to)\s+(?<name>.+))?$/i',
-                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_pages_clone'),
-                    fields: ['page' => ['page'], 'name' => ['name', 'title']],
-                    required: ['page'],
-                ),
-            ],
-        ));
-
-        $registry->register(new CapabilityData(
             key: 'capell.pages.update_draft',
             name: $this->translation('capability_pages_update_draft_name'),
             description: $this->translation('capability_pages_update_draft_description'),
@@ -314,107 +246,6 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
             discoveryPriority: 85,
             commandPatterns: $this->pageFieldUpdatePatterns(),
         ));
-
-        $registry->register(new CapabilityData(
-            key: 'capell.pages.disable',
-            name: $this->translation('capability_pages_disable_name'),
-            description: $this->translation('capability_pages_disable_description'),
-            scope: 'capell.pages.write',
-            server: CapabilityServerEnum::Site,
-            risk: CapabilityRiskEnum::High,
-            actionClass: DisablePageCapabilityAction::class,
-            requiredPackage: 'capell-app/core',
-            inputDataClass: PageReferenceCapabilityInputData::class,
-            outputDataClass: CapabilityResultData::class,
-            inputSchema: CapabilitySchemas::pageReferenceInput(),
-            outputSchema: CapabilitySchemas::capabilityResultOutput(),
-            auditEvent: 'capell_agent-bridge.pages.disable',
-            category: 'pages',
-            intents: $this->translationList('capability_intents.pages_disable'),
-            examples: $this->translationList('capability_examples.pages_disable'),
-            discoveryPriority: 40,
-        ));
-    }
-
-    private function registerPagePublicationCapabilities(CapellAgentBridgeCapabilityRegistry $registry): void
-    {
-        /** @var list<array{key:string, suffix:string, time_field:string|null, priority:int, expression:string, phrase:string}> $definitions */
-        $definitions = [
-            [
-                'key' => 'capell.pages.publish_now',
-                'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_publish_now'),
-                'suffix' => 'pages_publish_now',
-                'time_field' => null,
-                'priority' => 80,
-                'expression' => '/^(?:publish|launch|make\s+live)\s+(?:the\s+)?(?<page>.+?)\s+page(?:\s+now)?$/i',
-            ],
-            [
-                'key' => 'capell.pages.schedule_publish',
-                'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_schedule_publish'),
-                'suffix' => 'pages_schedule_publish',
-                'time_field' => 'publish_at',
-                'priority' => 75,
-                'expression' => '/^schedule\s+(?:the\s+)?(?<page>.+?)\s+page\s+(?:to\s+publish\s+)?(?:at|for|on)\s+(?<publish_at>.+)$/i',
-            ],
-            [
-                'key' => 'capell.pages.schedule_unpublish',
-                'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_schedule_unpublish'),
-                'suffix' => 'pages_schedule_unpublish',
-                'time_field' => 'unpublish_at',
-                'priority' => 60,
-                'expression' => '/^schedule\s+(?:the\s+)?(?<page>.+?)\s+page\s+(?:to\s+)?(?:unpublish|expire|go\s+offline)\s+(?:at|for|on)\s+(?<unpublish_at>.+)$/i',
-            ],
-            [
-                'key' => 'capell.pages.unpublish',
-                'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_unpublish'),
-                'suffix' => 'pages_unpublish',
-                'time_field' => null,
-                'priority' => 70,
-                'expression' => '/^(?:unpublish|disable|take\s+offline)\s+(?:the\s+)?(?<page>.+?)\s+page(?:\s+now)?$/i',
-            ],
-            [
-                'key' => 'capell.pages.revert_to_draft',
-                'phrase' => (string) __('capell-agent-bridge::admin.command_pattern_pages_revert_to_draft'),
-                'suffix' => 'pages_revert_to_draft',
-                'time_field' => null,
-                'priority' => 65,
-                'expression' => '/^(?:revert|return|switch)\s+(?:the\s+)?(?<page>.+?)\s+page\s+(?:back\s+)?to\s+draft$/i',
-            ],
-        ];
-
-        foreach ($definitions as $definition) {
-            $registry->register(new CapabilityData(
-                key: $definition['key'],
-                name: $this->translation('capability_' . $definition['suffix'] . '_name'),
-                description: $this->translation('capability_' . $definition['suffix'] . '_description'),
-                scope: 'capell.pages.publish',
-                server: CapabilityServerEnum::Site,
-                risk: CapabilityRiskEnum::High,
-                actionClass: TransitionPagePublicationCapabilityAction::class,
-                requiredPackage: 'capell-app/core',
-                inputDataClass: TransitionPagePublicationCapabilityInputData::class,
-                outputDataClass: CapabilityResultData::class,
-                inputSchema: CapabilitySchemas::pagePublicationInput($definition['time_field']),
-                outputSchema: CapabilitySchemas::capabilityResultOutput(),
-                auditEvent: 'capell_agent-bridge.' . str_replace('capell.', '', $definition['key']),
-                category: 'publishing',
-                intents: $this->translationList('capability_intents.' . $definition['suffix']),
-                examples: $this->translationList('capability_examples.' . $definition['suffix']),
-                discoveryPriority: $definition['priority'],
-                commandPatterns: [
-                    new CapabilityCommandPatternData(
-                        expression: $definition['expression'],
-                        phrase: $definition['phrase'],
-                        fields: $definition['time_field'] === null
-                            ? ['page' => ['page']]
-                            : ['page' => ['page'], $definition['time_field'] => [$definition['time_field']]],
-                        required: $definition['time_field'] === null
-                            ? ['page']
-                            : ['page', $definition['time_field']],
-                    ),
-                ],
-            ));
-        }
     }
 
     private function registerPackageCapabilities(CapellAgentBridgeCapabilityRegistry $registry): void
@@ -472,41 +303,6 @@ final class BuiltInAgentBridgeCapabilityProvider implements CapellAgentBridgeCap
                 new CapabilityCommandPatternData(
                     expression: '/^(?:inspect|show|review)\s+(?:the\s+)?(?:package|extension)\s+(?<package>.+)$/i',
                     phrase: (string) __('capell-agent-bridge::admin.command_pattern_packages_inspect'),
-                    fields: ['package' => ['package']],
-                    required: ['package'],
-                ),
-            ],
-        ));
-
-        $registry->register(new CapabilityData(
-            key: 'capell.packages.install',
-            name: $this->translation('capability_packages_install_name'),
-            description: $this->translation('capability_packages_install_description'),
-            scope: 'capell.packages.install',
-            server: CapabilityServerEnum::Site,
-            risk: CapabilityRiskEnum::High,
-            actionClass: InstallPackageCapabilityAction::class,
-            requiredPackage: 'capell-app/core',
-            policyAbility: ExtensionsPage::MANAGE_PERMISSION,
-            inputDataClass: InstallPackageCapabilityInputData::class,
-            outputDataClass: CapabilityResultData::class,
-            inputSchema: CapabilitySchemas::installPackageInput(),
-            outputSchema: CapabilitySchemas::capabilityResultOutput(),
-            auditEvent: 'capell_agent-bridge.packages.install',
-            category: 'packages',
-            intents: $this->translationList('capability_intents.packages_install'),
-            examples: $this->translationList('capability_examples.packages_install'),
-            discoveryPriority: 80,
-            commandPatterns: [
-                new CapabilityCommandPatternData(
-                    expression: '/^(?:install|activate|enable)\s+(?:the\s+)?(?:package|extension)\s+(?<package>.+)$/i',
-                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_packages_install'),
-                    fields: ['package' => ['package']],
-                    required: ['package'],
-                ),
-                new CapabilityCommandPatternData(
-                    expression: '/^install\s+(?<package>.+?)(?:\s+package)?$/i',
-                    phrase: (string) __('capell-agent-bridge::admin.command_pattern_packages_install_short'),
                     fields: ['package' => ['package']],
                     required: ['package'],
                 ),

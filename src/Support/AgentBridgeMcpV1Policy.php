@@ -152,7 +152,9 @@ final class AgentBridgeMcpV1Policy
                 && $currentToken->isUsable()
                 && $currentToken->getKey() === $client->tokenId
                 && $currentToken->canUseScope($requiredScope)
+                && $currentToken->canUseCapability($capability->key)
                 && $client->can($requiredScope)
+                && $client->canUseCapability($capability->key)
                 && $actor instanceof Model
                 && $this->tokenBelongsToActor($currentToken, $actor),
             AuthorizationException::class,
@@ -195,9 +197,13 @@ final class AgentBridgeMcpV1Policy
             $resultKey => $this->projectCapabilityResult($capability->key, $result),
         ];
 
+        $projected['contentTrust'] = AgentBridgeContentTrust::forCapabilityResult($resultKey);
+
         if ($mode === 'preview') {
             $projected['confirmationToken'] = $this->string($payload['confirmationToken'] ?? null);
             $projected['expiresAt'] = $this->string($payload['expiresAt'] ?? null);
+            $projected['approvalRequired'] = ($payload['approvalRequired'] ?? false) === true;
+            $projected['nextStep'] = $this->string($payload['nextStep'] ?? null);
         }
 
         $this->validateOutput($projected);
@@ -431,7 +437,7 @@ final class AgentBridgeMcpV1Policy
             'layout' => $this->namedKey($page['layout'] ?? null),
             'parent_id' => $this->nullableIntegerValue($page['parent_id'] ?? null),
             'publishing_state' => $this->string($page['publishing_state'] ?? null),
-            'urls' => array_values(array_filter(array_map(fn (mixed $url): ?string => $this->publicUrl($url), $this->list($page['urls'] ?? null)))),
+            'urls' => array_values(array_filter(array_map($this->publicUrl(...), $this->list($page['urls'] ?? null)))),
             'translations' => $this->arrayItems($page['translations'] ?? null, fn (array $translation): array => [
                 'language' => $this->namedKey($translation['language'] ?? null, includeCode: true),
                 'title' => $this->string($translation['title'] ?? null),
@@ -476,7 +482,7 @@ final class AgentBridgeMcpV1Policy
             'title' => $this->string($data['title'] ?? null),
             'slug' => $this->string($data['slug'] ?? null),
             'publishing_state' => $this->string($data['publishing_state'] ?? null),
-            'urls' => array_values(array_filter(array_map(fn (mixed $url): ?string => $this->publicUrl($url), $this->list($data['urls'] ?? null)))),
+            'urls' => array_values(array_filter(array_map($this->publicUrl(...), $this->list($data['urls'] ?? null)))),
             'resolved' => [
                 'site' => $this->namedKey(data_get($data, 'resolved.site')),
                 'page_type' => $this->namedKey(data_get($data, 'resolved.page_type')),
@@ -576,7 +582,7 @@ final class AgentBridgeMcpV1Policy
     /** @return list<string> */
     private function stringItems(mixed $value): array
     {
-        return array_values(array_slice(array_filter($this->list($value), 'is_string'), 0, 50));
+        return array_values(array_slice(array_filter($this->list($value), is_string(...)), 0, 50));
     }
 
     private function string(mixed $value): string

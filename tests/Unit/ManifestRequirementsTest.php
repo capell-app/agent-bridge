@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Capell\AgentBridge\Console\Commands\AgentConnectCommand;
 use Capell\AgentBridge\Console\Commands\PruneAgentBridgeAuditEntriesCommand;
 use Capell\AgentBridge\Extenders\AgentBridgeUserSchemaExtender;
 use Capell\AgentBridge\Filament\Pages\CapellAgentBridgePromptBuilderPage;
@@ -47,11 +48,11 @@ describe('agent-bridge capell.json manifest', function (): void {
         $marketplace = manifestMarketplace($manifestData);
         $marketplaceSummary = manifestString($marketplace, 'summary');
 
-        expect($manifestData['description'])->toContain('preview-then-confirm')
-            ->and($manifestData['description'])->toContain('audited operations')
-            ->and($marketplaceSummary)->toContain('scoped tokens')
-            ->and($marketplaceSummary)->toContain('full audit trail')
-            ->and($composerData['description'])->toContain('Scoped MCP access')
+        expect($manifestData['description'])->toContain('personal keys')
+            ->and($manifestData['description'])->toContain('preview')
+            ->and($marketplaceSummary)->toContain('personal keys')
+            ->and($marketplaceSummary)->toContain('record of every action')
+            ->and($composerData['description'])->toContain('audit log')
             ->and($composerData['keywords'])->toContain('model-context-protocol')
             ->and($composerData['keywords'])->toContain('scoped-access');
     });
@@ -171,7 +172,8 @@ describe('agent-bridge capell.json manifest', function (): void {
                 'capell_agent_bridge_media_uploads',
             ])
             ->and(data_get($manifestData, 'commands.pruneAudit'))->toBe('capell:agent-bridge-prune-audit')
-            ->and(data_get($manifestData, 'capabilities', []))->toContain('agent-bridge-mcp-v1-draft-only')
+            ->and(data_get($manifestData, 'commands.connect'))->toBe('capell:agent:connect')
+            ->and(data_get($manifestData, 'capabilities', []))->toBe(['agent-bridge', 'agent-bridge-admin'])
             ->and(data_get($manifestData, 'settings'))->toBe([AgentBridgeSettings::class])
             ->and(data_get($manifestData, 'security.publicSurface.tokenizedRoutes', []))->toContain('POST /agent-bridge/capell')
             ->and(data_get($manifestData, 'security.publicSurface.throttledRoutes', []))->toContain('POST /agent-bridge/capell')
@@ -240,13 +242,18 @@ describe('agent-bridge capell.json manifest', function (): void {
                     '2026_07_10_000001_drop_plaintext_ip_from_agent_bridge_audit_entries_table',
                     '2026_07_20_000001_create_capell_agent_bridge_media_uploads_table',
                     '2026_09_29_120000_remove_implicit_timestamp_updates_from_agent_bridge',
+                    '2026_11_12_000001_hash_created_from_ip_on_agent_bridge_tokens_table',
+                    '2026_11_12_000002_bound_agent_bridge_tokens_without_expiry',
+                    '2026_11_13_000001_add_human_approval_to_agent_bridge_confirmations_table',
+                    '2026_11_13_000002_add_limits_to_agent_bridge_tokens_table',
+                    '2026_11_13_000003_add_revert_points_to_agent_bridge_audit_entries_table',
                 ],
             ])
             ->toContain([
                 'type' => 'console-command',
                 'class' => AgentBridgeConsoleCommandsContribution::class,
-                'commands' => ['capell:agent-bridge-prune-audit'],
-                'commandClasses' => [PruneAgentBridgeAuditEntriesCommand::class],
+                'commands' => ['capell:agent-bridge-prune-audit', 'capell:agent:connect'],
+                'commandClasses' => [PruneAgentBridgeAuditEntriesCommand::class, AgentConnectCommand::class],
             ])
             ->toContain([
                 'type' => 'scheduled-job',
@@ -260,28 +267,25 @@ describe('agent-bridge capell.json manifest', function (): void {
                 'type' => 'agent-capability',
                 'class' => AgentBridgeBuiltInCapabilitiesContribution::class,
                 'capabilities' => [
-                    'capell.cache.clear',
                     'capell.pages.search',
                     'capell.pages.inspect',
                     'capell.pages.open_editor',
                     'capell.pages.authoring_options',
                     'capell.pages.inspect_readiness',
                     'capell.pages.create_draft',
-                    'capell.pages.clone',
                     'capell.pages.update_draft',
-                    'capell.pages.disable',
-                    'capell.pages.publish_now',
-                    'capell.pages.schedule_publish',
-                    'capell.pages.schedule_unpublish',
-                    'capell.pages.unpublish',
-                    'capell.pages.revert_to_draft',
                     'capell.packages.search',
                     'capell.packages.inspect',
-                    'capell.packages.install',
                     'capell.sites.search',
                     'capell.sites.inspect',
                     'capell.sites.open_editor',
                     'capell.media.upload',
+                    'capell.admin.page_properties.read',
+                    'capell.admin.term_properties.read',
+                    'capell.admin.page_agent_readiness.read',
+                    'capell.admin.site_agent_readiness.read',
+                    'capell.admin.blueprints.read',
+                    'capell.admin.page_draft.save',
                 ],
                 'requiresPreviewConfirmation' => true,
             ])

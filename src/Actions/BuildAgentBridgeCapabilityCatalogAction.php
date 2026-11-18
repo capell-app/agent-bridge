@@ -18,6 +18,10 @@ final class BuildAgentBridgeCapabilityCatalogAction
     use AsObject;
 
     /**
+     * Projects what an agent needs to choose and call a capability. Class names, policy
+     * abilities, required packages and audit events describe the host application, so
+     * the projection never carries them.
+     *
      * @return list<array<string, mixed>>
      */
     public function handle(?CapellAgentBridgeCapabilityRegistry $registry = null): array
@@ -35,11 +39,6 @@ final class BuildAgentBridgeCapabilityCatalogAction
                 'risk' => $capability->risk->value,
                 'requires_confirmation' => $capability->needsConfirmation(),
                 'supports_preview' => $capability->supportsPreview,
-                'required_package' => $capability->requiredPackage,
-                'policy_ability' => $capability->policyAbility,
-                'audit_event' => $capability->auditEvent,
-                'input_data_class' => $capability->inputDataClass,
-                'output_data_class' => $capability->outputDataClass,
                 'input_schema' => $capability->inputSchema,
                 'output_schema' => $capability->outputSchema,
             ])

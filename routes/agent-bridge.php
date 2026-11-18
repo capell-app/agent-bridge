@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Capell\AgentBridge\Http\Middleware\AuthenticateCapellAgentBridgeToken;
+use Capell\AgentBridge\Http\Middleware\RequireAgentBridgeScope;
 use Capell\AgentBridge\Http\Middleware\ThrottleAgentBridgeRequests;
 use Capell\AgentBridge\Http\Middleware\ThrottleAgentBridgeRequestsByIp;
 use Capell\AgentBridge\Servers\CapellKnowledgeServer;
@@ -45,6 +46,7 @@ if (class_exists(Mcp::class)) {
             ->middleware([
                 ThrottleAgentBridgeRequestsByIp::class,
                 AuthenticateCapellAgentBridgeToken::class,
+                RequireAgentBridgeScope::using(RequireAgentBridgeScope::KNOWLEDGE_READ),
                 ThrottleAgentBridgeRequests::class,
             ]);
     }

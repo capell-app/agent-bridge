@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace Capell\AgentBridge\Filament\Resources\Users\RelationManagers;
 
 use BackedEnum;
+use Capell\AgentBridge\Actions\RevertAgentBridgeAuditEntryAction;
+use Capell\AgentBridge\Exceptions\AgentBridgeRevertRefusedException;
 use Capell\AgentBridge\Models\CapellAgentBridgeAuditEntry;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Override;
@@ -22,6 +27,9 @@ final class AgentBridgeAuditEntriesRelationManager extends RelationManager
     protected static string $relationship = 'agentBridgeAuditEntries';
 
     protected static bool $shouldSkipAuthorization = true;
+
+    /** @var array<int, bool> answered per request; not kept between requests */
+    private array $revertableEntries = [];
 
     #[Override]
     public static function getTitle(Model $ownerRecord, string $pageClass): string
@@ -76,6 +84,10 @@ final class AgentBridgeAuditEntriesRelationManager extends RelationManager
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),
+                TextColumn::make('reverted_at')
+                    ->label(__('capell-agent-bridge::admin.reverted_at'))
+                    ->dateTime()
+                    ->placeholder('-'),
             ])
             ->filters([
                 SelectFilter::make('event')
@@ -95,6 +107,41 @@ final class AgentBridgeAuditEntriesRelationManager extends RelationManager
                         ->pluck('capability_key', 'capability_key')
                         ->all()),
             ])
+            ->recordActions([
+                Action::make('revert')
+                    ->label(__('capell-agent-bridge::admin.revert_change'))
+                    ->icon(Heroicon::OutlinedArrowUturnLeft)
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading(__('capell-agent-bridge::admin.revert_change_heading'))
+                    ->modalDescription(__('capell-agent-bridge::admin.revert_change_description'))
+                    ->modalSubmitActionLabel(__('capell-agent-bridge::admin.revert_change'))
+                    ->visible(fn (CapellAgentBridgeAuditEntry $record): bool => $this->canRevert($record))
+                    ->action(function (CapellAgentBridgeAuditEntry $record): void {
+                        $actor = auth()->user();
+
+                        try {
+                            throw_unless($actor instanceof Authenticatable, AgentBridgeRevertRefusedException::class, __('capell-agent-bridge::admin.revert_forbidden'));
+
+                            RevertAgentBridgeAuditEntryAction::run($record, $actor);
+                        } catch (AgentBridgeRevertRefusedException $exception) {
+                            Notification::make('capell_agent_bridge_revert_refused')
+                                ->danger()
+                                ->title($exception->getMessage())
+                                ->send();
+
+                            return;
+                        }
+
+                        // The answer for this entry changed; ask again when the table renders.
+                        unset($this->revertableEntries[$record->id]);
+
+                        Notification::make('capell_agent_bridge_reverted')
+                            ->success()
+                            ->title(__('capell-agent-bridge::admin.revert_done'))
+                            ->send();
+                    }),
+            ])
             ->defaultSort('created_at', 'desc');
     }
 
@@ -102,5 +149,16 @@ final class AgentBridgeAuditEntriesRelationManager extends RelationManager
     protected function canCreate(): bool
     {
         return false;
+    }
+
+    /**
+     * Whether Undo change is offered for an entry, worked out once per entry and request:
+     * the table asks several times per row, and each answer loads the page and checks the
+     * person's access. Entries without a revert point are answered without a query.
+     */
+    private function canRevert(CapellAgentBridgeAuditEntry $record): bool
+    {
+        return $this->revertableEntries[$record->id] ??= $record->pendingRevertPoint() !== null
+            && RevertAgentBridgeAuditEntryAction::allows($record, auth()->user());
     }
 }

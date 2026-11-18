@@ -28,8 +28,12 @@ use Override;
  * @property CarbonImmutable|null $revoked_at
  * @property CarbonImmutable|null $rotated_at
  * @property string|null $created_from_ip
+ * @property list<int>|null $site_ids
+ * @property list<string>|null $capability_keys
+ * @property int|null $requests_per_minute
  * @property CarbonImmutable|null $last_used_at
  * @property CarbonImmutable|null $expires_at
+ * @property CarbonImmutable|null $created_at
  * @property-read AgentBridgeTokenLifecycleStatus $lifecycle_status
  * @property Authenticatable|null $user
  */
@@ -44,6 +48,9 @@ final class CapellAgentBridgeToken extends Model
         'name',
         'token_hash',
         'scopes',
+        'site_ids',
+        'capability_keys',
+        'requests_per_minute',
         'is_enabled',
         'created_from_ip',
         'expires_at',
@@ -107,6 +114,36 @@ final class CapellAgentBridgeToken extends Model
     public function canUseScope(string $scope): bool
     {
         return in_array($scope, $this->scopes, true) || in_array('*', $this->scopes, true);
+    }
+
+    /**
+     * Null means every capability its scopes allow; a list narrows it to those keys.
+     */
+    public function canUseCapability(string $capabilityKey): bool
+    {
+        return $this->capability_keys === null || in_array($capabilityKey, $this->capability_keys, true);
+    }
+
+    /**
+     * Null means every site its owner can reach; a list narrows it to those sites.
+     *
+     * @return list<int>|null
+     */
+    public function restrictedSiteIds(): ?array
+    {
+        if ($this->site_ids === null) {
+            return null;
+        }
+
+        $siteIds = [];
+
+        foreach ($this->site_ids as $siteId) {
+            if (is_int($siteId) || (is_string($siteId) && ctype_digit($siteId))) {
+                $siteIds[] = (int) $siteId;
+            }
+        }
+
+        return array_values(array_unique($siteIds));
     }
 
     public function isExpired(): bool
@@ -183,6 +220,9 @@ final class CapellAgentBridgeToken extends Model
     {
         return [
             'scopes' => 'array',
+            'site_ids' => 'array',
+            'capability_keys' => 'array',
+            'requests_per_minute' => 'integer',
             'is_enabled' => 'boolean',
             'revoked_at' => 'immutable_datetime',
             'rotated_at' => 'immutable_datetime',

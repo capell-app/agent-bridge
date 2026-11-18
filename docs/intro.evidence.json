@@ -1,0 +1,105 @@
+[
+    {
+        "claim": "Anyone on your team who uses Claude, Cursor or another AI assistant can let it search your pages and draft changes to them, though it cannot publish.",
+        "evidence": [
+            "src/Support/AgentBridgeMcpV1Policy.php",
+            "src/Actions/Pages/UpdateDraftPageCapabilityAction.php"
+        ]
+    },
+    {
+        "claim": "Each person can be given a personal key that says what their assistant may do, and the assistant acts as that person.",
+        "evidence": [
+            "src/Filament/Resources/Users/RelationManagers/AgentBridgeTokensRelationManager.php",
+            "src/Actions/CreateAgentBridgeTokenAction.php",
+            "src/Actions/ConfirmAgentBridgeCapabilityAction.php"
+        ]
+    },
+    {
+        "claim": "A connected assistant can create or update drafts and upload images of up to about 2 MB.",
+        "evidence": [
+            "src/Actions/Media/UploadMediaCapabilityAction.php",
+            "src/Capabilities/BuiltInAgentBridgeCapabilityProvider.php",
+            "src/Actions/Pages/UpdateDraftPageCapabilityAction.php"
+        ]
+    },
+    {
+        "claim": "Every change comes with a preview first.",
+        "evidence": [
+            "src/Tools/Site/RunSiteCapabilityTool.php",
+            "src/Actions/ConfirmAgentBridgeMcpV1CapabilityAction.php",
+            "src/Support/AdminTools/AdminAgentToolCapabilities.php"
+        ]
+    },
+    {
+        "claim": "For drafts and uploads, you approve that exact preview from your user page in Capell admin, then the assistant confirms it within an hour by default.",
+        "evidence": [
+            "src/Support/AgentBridgeHumanApproval.php",
+            "src/Actions/ApproveAgentBridgeConfirmationAction.php",
+            "src/Filament/Resources/Users/RelationManagers/AgentBridgeConfirmationsRelationManager.php",
+            "tests/Feature/HumanApprovalTest.php",
+            "config/capell-agent-bridge.php",
+            "src/Actions/ConfirmAgentBridgeCapabilityAction.php",
+            "src/Capabilities/BuiltInAgentBridgeCapabilityProvider.php"
+        ]
+    },
+    {
+        "claim": "Saving a scratch draft in the page editor, which visitors never see, needs only the assistant's own confirmation.",
+        "evidence": [
+            "src/Support/AdminTools/AdminAgentToolCapabilities.php",
+            "config/capell-agent-bridge.php",
+            "src/Support/AgentBridgeHumanApproval.php",
+            "resources/lang/en/admin.php"
+        ]
+    },
+    {
+        "claim": "Agent Bridge has no AI of its own and works with an assistant you already use.",
+        "evidence": ["composer.json"]
+    },
+    {
+        "claim": "Administrators get a screen of their own where they type a request, check what it will do and confirm it.",
+        "evidence": [
+            "src/Filament/Pages/CapellAgentBridgePromptBuilderPage.php",
+            "src/Support/AgentBridgeCommandPatternMatcher.php",
+            "config/capell-agent-bridge.php"
+        ]
+    },
+    {
+        "claim": "It recognises a fixed set of commands and uses no AI.",
+        "evidence": [
+            "src/Support/AgentBridgeCommandPatternMatcher.php",
+            "config/capell-agent-bridge.php"
+        ]
+    },
+    {
+        "claim": "Every key expires.",
+        "evidence": [
+            "src/Actions/CreateAgentBridgeTokenAction.php",
+            "config/capell-agent-bridge.php"
+        ]
+    },
+    {
+        "claim": "By default a new key lasts 90 days and can't be set to last more than a year, though your developer can change both limits.",
+        "evidence": [
+            "src/Actions/CreateAgentBridgeTokenAction.php",
+            "config/capell-agent-bridge.php",
+            "database/migrations/2026_11_12_000002_bound_agent_bridge_tokens_without_expiry.php"
+        ]
+    },
+    {
+        "claim": "Keys can be replaced or withdrawn sooner, and each one is kept in scrambled form.",
+        "evidence": [
+            "src/Filament/Resources/Users/RelationManagers/AgentBridgeTokensRelationManager.php",
+            "src/Models/CapellAgentBridgeToken.php",
+            "src/Actions/CreateAgentBridgeTokenAction.php"
+        ]
+    },
+    {
+        "claim": "Administrators can read a record of every action afterwards, with secrets hidden.",
+        "evidence": [
+            "src/Actions/InvokeAgentBridgeCapabilityPreviewAction.php",
+            "src/Actions/ConfirmAgentBridgeCapabilityAction.php",
+            "src/Support/AgentBridgeAuditSanitizer.php",
+            "src/Filament/Resources/Users/RelationManagers/AgentBridgeAuditEntriesRelationManager.php"
+        ]
+    }
+]
