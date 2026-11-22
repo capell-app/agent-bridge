@@ -27,8 +27,8 @@ use Capell\AgentBridge\Support\AgentBridgePolicyAuthorizer;
 use Capell\AgentBridge\Support\AgentBridgeValue;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
 use Capell\AgentBridge\Support\Privacy\AgentBridgePrivacyContributor;
-use Capell\AgentBridge\Tools\Boost\ListBoostCapabilitiesTool;
-use Capell\AgentBridge\Tools\Boost\PreviewBoostCapabilityTool;
+use Capell\AgentBridge\Tools\Boost\ListBoostCapabilitiesToolAdapter;
+use Capell\AgentBridge\Tools\Boost\PreviewBoostCapabilityToolAdapter;
 use Capell\Core\Actions\Install\RegisterProviderCommandsInCurrentProcessAction;
 use Capell\Core\Facades\CapellCore;
 use Capell\Core\Support\Packages\PackageSurfaceRegistrar;
@@ -45,7 +45,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Boost\AgentBridge\Boost;
+use Laravel\Boost\Mcp\Boost;
 use Livewire\Livewire;
 use Override;
 use Throwable;
@@ -112,15 +112,15 @@ final class AgentBridgeServiceProvider extends ServiceProvider
         }
 
         $includedTools = AgentBridgeValue::stringList(
-            config('boost.agent-bridge.tools.include', []),
+            config('boost.mcp.tools.include', []),
             'Boost Agent Bridge tools',
         );
 
         config([
-            'boost.agent-bridge.tools.include' => array_values(array_unique([
+            'boost.mcp.tools.include' => array_values(array_unique([
                 ...$includedTools,
-                ListBoostCapabilitiesTool::class,
-                PreviewBoostCapabilityTool::class,
+                ListBoostCapabilitiesToolAdapter::class,
+                PreviewBoostCapabilityToolAdapter::class,
             ])),
         ]);
     }

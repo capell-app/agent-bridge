@@ -43,10 +43,13 @@ use Capell\AgentBridge\Tests\Fixtures\FakeCapabilityAction;
 use Capell\AgentBridge\Tests\Fixtures\SiteAssignedUser;
 use Capell\AgentBridge\Tests\Fixtures\User;
 use Capell\AgentBridge\Tools\Site\InspectSiteStateTool;
+use Capell\Core\Actions\Ai\HasUnreviewedAiContentAction;
+use Capell\Core\Enums\AiDisclosure;
 use Capell\Core\EventSourcing\Aggregates\PageAggregate;
 use Capell\Core\EventSourcing\Enums\PageWorkflowStatus;
 use Capell\Core\EventSourcing\Serializers\PageStateSerializer;
 use Capell\Core\EventSourcing\Support\EventSourcedRegistry;
+use Capell\Core\Models\AiProvenance;
 use Capell\Core\Models\Page;
 use Capell\Core\Models\PageWorkflowState;
 use Capell\Core\Models\Translation;
@@ -1467,4 +1470,110 @@ it('refuses a Core Admin tool without a user, outside the user sites, or install
 
     expect(fn (): CapabilityResultData => AgentBridgeTokenSiteRestriction::within($token, fn (): CapabilityResultData => $action->preview($settings)))
         ->toThrow(AuthorizationException::class, (string) __('capell-agent-bridge::admin.admin_tool_site_limited_token'));
+});
+
+it('records every field an agent writes as unreviewed AI content, so the page cannot publish until a person reviews it', function (): void {
+    config()->set('activitylog', require dirname(__DIR__, 4) . '/vendor/spatie/laravel-activitylog/config/activitylog.php');
+    resolve(EventSourcedRegistry::class)->register(Page::class, PageAggregate::class, PageStateSerializer::class);
+    $page = createAgentBridgeCapabilityPage();
+    $languageId = createAgentBridgeCapabilityLanguage();
+    Page::withoutEvents(fn (): mixed => $page->translations()->create([
+        'language_id' => $languageId,
+        'title' => 'Person-written title',
+        'content' => 'Person-written copy',
+        'meta' => ['slug' => 'reviewed-page'],
+    ]));
+    Page::withoutEvents(fn (): mixed => $page->pageUrls()->create([
+        'site_id' => 1,
+        'language_id' => $languageId,
+        'url' => '/reviewed-page',
+        'status' => true,
+    ]));
+    ensureAgentBridgeDraftRevision($page, revision: 0);
+    $user = pageCapabilityUser(collect([1]));
+
+    expect(HasUnreviewedAiContentAction::run($page))->toBeFalse();
+
+    (new UpdateDraftPageCapabilityAction)->execute(pageInvocation([
+        'page_id' => $page->getKey(),
+        'expected_revision' => 0,
+        'name' => 'Agent-named page',
+        'content' => 'Agent-written copy',
+        // An agent must not be able to forge the page's public disclosure summary.
+        'meta' => [AiDisclosure::PAGE_META_KEY => AiDisclosure::None->value],
+    ], $user, 'capell.pages.update_draft'));
+
+    $rows = AiProvenance::query()
+        ->where('pageable_type', $page->getMorphClass())
+        ->where('pageable_id', $page->getKey())
+        ->orderBy('field')
+        ->get();
+
+    expect($rows->map(fn (AiProvenance $row): array => [$row->field, $row->language_id, $row->disclosure, $row->capability, $row->confirmed_at])->all())
+        ->toBe([
+            ['content', $languageId, AiDisclosure::Generated, 'capell.pages.update_draft', null],
+            ['meta', null, AiDisclosure::Generated, 'capell.pages.update_draft', null],
+            ['name', null, AiDisclosure::Generated, 'capell.pages.update_draft', null],
+        ])
+        ->and($rows->first()?->actor_id)->toBe(agentBridgeInteger($user->getAuthIdentifier()))
+        ->and(HasUnreviewedAiContentAction::run($page))->toBeTrue()
+        ->and($page->refresh()->meta[AiDisclosure::PAGE_META_KEY] ?? null)->toBe(AiDisclosure::Generated->value);
+
+    // The revision the agent's change created holds its provenance, so rolling back to it
+    // restores the AI content together with its unreviewed rows.
+    /** @var class-string<EloquentStoredEvent> $storedEventModel */
+    $storedEventModel = config('event-sourcing.stored_event_model', EloquentStoredEvent::class);
+    $revision = $storedEventModel::query()->where('aggregate_uuid', $page->aggregateUuid())->orderByDesc('aggregate_version')->firstOrFail();
+    $revisionFields = collect(agentBridgeCapabilityList(data_get($revision->event_properties, 'state.aiProvenance')))
+        ->map(fn (mixed $row): mixed => data_get($row, 'field'))
+        ->sort()
+        ->values()
+        ->all();
+
+    expect($revisionFields)->toBe(['content', 'meta', 'name']);
+});
+
+it('records the fields of an agent-created draft and the fields an agent chose for a clone as unreviewed AI content', function (): void {
+    createAgentBridgePageCapabilityTables();
+    $siteId = createAgentBridgeCapabilitySite('Main website');
+    createAgentBridgeCapabilityBlueprint('Landing page', 'landing-page', 'page');
+    DB::table('layouts')->insert([
+        'name' => 'Marketing layout',
+        'key' => 'marketing-layout',
+        'site_id' => $siteId,
+        'default' => true,
+        'status' => true,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $user = pageCapabilityUser(collect([$siteId]));
+
+    $created = Page::withoutEvents(fn (): CapabilityResultData => (new CreateDraftPageCapabilityAction)->execute(pageInvocation([
+        'name' => 'Summer campaign',
+        'site' => 'Main website',
+        'page_type' => 'landing-page',
+        'layout' => 'Marketing layout',
+        'content' => 'Campaign draft copy',
+    ], $user, 'capell.pages.create_draft')));
+    $page = findAgentBridgeCapabilityPage($created->data['page_id']);
+
+    expect(AiProvenance::query()->where('pageable_id', $page->getKey())->orderBy('field')->pluck('field')->all())
+        ->toBe(['content', 'name', 'slug', 'title'])
+        ->and(HasUnreviewedAiContentAction::run($page))->toBeTrue();
+
+    $cloned = Page::withoutEvents(fn (): CapabilityResultData => (new ClonePageCapabilityAction)->execute(pageInvocation([
+        'page_id' => $page->getKey(),
+        'site_id' => $siteId,
+        'title' => 'Winter campaign',
+    ], $user, 'capell.pages.clone')));
+
+    $cloneRows = AiProvenance::query()->where('pageable_id', $cloned->data['page_id'])->orderBy('field')->get();
+
+    // The copied content stays unreviewed and the agent's new title is recorded as its own write.
+    expect($cloneRows->pluck('field')->all())->toBe(['content', 'name', 'slug', 'title'])
+        ->and($cloneRows->pluck('capability', 'field')->all())->toMatchArray([
+            'content' => 'capell.pages.create_draft',
+            'title' => 'capell.pages.clone',
+        ])
+        ->and(HasUnreviewedAiContentAction::run(findAgentBridgeCapabilityPage($cloned->data['page_id'])))->toBeTrue();
 });

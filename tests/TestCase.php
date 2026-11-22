@@ -19,6 +19,7 @@ use Capell\Core\Providers\CapellServiceProvider;
 use Capell\Core\Support\CapellCoreManager;
 use Capell\Tests\Support\Concerns\DeclaresMonorepoMigrationSources;
 use Capell\Tests\Support\Concerns\IsolatesTestbenchPaths;
+use Capell\Tests\Support\Concerns\RecordsInstalledPackageLifecycles;
 use Filament\Actions\ActionsServiceProvider;
 use Filament\FilamentServiceProvider;
 use Filament\Forms\FormsServiceProvider;
@@ -41,6 +42,7 @@ abstract class TestCase extends OrchestraTestCase
 {
     use DeclaresMonorepoMigrationSources;
     use IsolatesTestbenchPaths;
+    use RecordsInstalledPackageLifecycles;
     use RefreshDatabase;
 
     protected function setUp(): void

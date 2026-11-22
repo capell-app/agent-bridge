@@ -23,6 +23,11 @@ final class ListBoostCapabilitiesTool extends Tool
 {
     public function handle(CapellAgentBridgeCapabilityRegistry $registry): ResponseFactory
     {
+        return $this->listCapabilities($registry);
+    }
+
+    public function listCapabilities(CapellAgentBridgeCapabilityRegistry $registry): ResponseFactory
+    {
         return Response::structured([
             'capabilities' => $registry
                 ->visibleFor(CapabilityServerEnum::Site)

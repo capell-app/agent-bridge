@@ -41,7 +41,11 @@
         "pestphp/pest": "^3.8|^4.3 || ^5.0",
         "pestphp/pest-plugin-laravel": "^3.0|^4.0 || ^5.0",
         "phpstan/phpstan": "^2.1",
+        "laravel/boost": "^2.10.3",
         "laravel/pint": "^1.25"
+    },
+    "suggest": {
+        "capell-app/navigation": "Counts navigation menus in the site state inspection tool."
     },
     "config": {
         "sort-packages": true,

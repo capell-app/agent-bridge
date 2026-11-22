@@ -16,7 +16,7 @@
     "surfaces": ["admin", "frontend"],
     "dependencies": {
         "requires": ["capell-app/admin", "capell-app/core"],
-        "supports": [],
+        "supports": ["capell-app/navigation"],
         "conflicts": []
     },
     "providers": {

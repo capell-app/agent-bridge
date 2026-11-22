@@ -9,6 +9,7 @@ use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityAction;
 use Capell\AgentBridge\Data\Capabilities\CreateDraftPageCapabilityInputData;
 use Capell\AgentBridge\Data\CapabilityInvocationData;
 use Capell\AgentBridge\Data\CapabilityResultData;
+use Capell\AgentBridge\Support\AgentBridgeAiProvenance;
 use Capell\AgentBridge\Support\AgentBridgePageRevertPoints;
 use Capell\AgentBridge\Support\AgentBridgePolicyAuthorizer;
 use Capell\AgentBridge\Support\AgentBridgeRecordResolver;
@@ -55,7 +56,7 @@ final class CreateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
         $title = trim($payload->title ?? $payload->name);
         $slug = Str::slug($payload->slug ?? $title);
 
-        $page = DB::transaction(function () use ($context, $payload, $title, $slug): Page {
+        $page = DB::transaction(function () use ($context, $payload, $title, $slug, $invocation): Page {
             $translationMeta = $payload->translation_meta ?? [];
             $translationMeta['slug'] = $slug;
 
@@ -78,6 +79,15 @@ final class CreateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
             ]);
 
             SetupPageUrlsAction::run($page);
+
+            // The agent supplied every field it sent, and the title and slug either way,
+            // so each is recorded as AI-written before anyone can publish the draft.
+            AgentBridgeAiProvenance::record(
+                $page,
+                ['name', 'title', 'slug', ...array_keys(array_intersect_key($invocation->payload, array_flip(['meta', 'content', 'translation_meta'])))],
+                AgentBridgeValue::integer($context['language']->getKey(), 'Language key'),
+                $invocation,
+            );
 
             return $page->fresh(['translations.language', 'pageUrls']) ?? $page;
         });

@@ -33,6 +33,7 @@ use Capell\AgentBridge\Tools\Site\QuerySiteAuditEntriesTool;
 use Capell\AgentBridge\Tools\Site\RunSiteCapabilityTool;
 use Capell\AgentBridge\Tools\Site\SuggestSiteCapabilitiesTool;
 use Capell\Core\Facades\CapellCore;
+use Composer\InstalledVersions;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\ResponseFactory;
 
@@ -130,6 +131,24 @@ it('returns site state without leaking content bodies', function (): void {
         ->not->toHaveKeys(['environment', 'debug'])
         ->and($structuredContent['counts'])
         ->toHaveKeys(['sites', 'languages', 'pages', 'pageUrls', 'blueprints', 'redirects', 'navigations']);
+});
+
+it('leaves a disabled extension out of the installed packages it reports', function (): void {
+    $path = InstalledVersions::getInstallPath('capell-app/pest-plugin-blade-coverage');
+    throw_unless(is_string($path), RuntimeException::class, 'Expected the blade coverage plugin to be installed through Composer.');
+
+    CapellCore::registerPackage('capell-app/pest-plugin-blade-coverage', path: $path);
+    CapellCore::forcePackageInstalled('capell-app/pest-plugin-blade-coverage');
+
+    $enabled = agentBridgeStructuredContent((new InspectSiteStateTool)->handle())['packages'];
+
+    CapellCore::forcePackageInstalled('capell-app/pest-plugin-blade-coverage', false);
+
+    $disabled = agentBridgeStructuredContent((new InspectSiteStateTool)->handle())['packages'];
+
+    expect($enabled)->toHaveKey('capell-app/pest-plugin-blade-coverage')
+        ->and($disabled)->not->toHaveKey('capell-app/pest-plugin-blade-coverage')
+        ->and($disabled)->toHaveKey('capell-app/core');
 });
 
 it('can opt into runtime state for trusted inspect calls', function (): void {

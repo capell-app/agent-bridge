@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Capell\AgentBridge\Enums\CapabilityRiskEnum;
 use Capell\AgentBridge\Support\CapellAgentBridgeCapabilityRegistry;
-use Capell\LiveChat\Integrations\AgentBridge\LiveChatAgentBridgeCapabilityProvider;
+use Capell\LiveChat\Bridges\AgentBridge\LiveChatAgentBridgeCapabilityProvider;
 use Capell\LiveChat\Providers\LiveChatServiceProvider;
 
 it('registers LiveChat capabilities from the Live Chat package provider', function (): void {

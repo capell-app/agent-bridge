@@ -8,11 +8,13 @@ use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Support\AgentBridgePageAccess;
 use Capell\AgentBridge\Support\AgentBridgeTokenSiteRestriction;
 use Capell\Core\Enums\UrlTypeEnum;
+use Capell\Core\Facades\CapellCore;
 use Capell\Core\Models\Blueprint;
 use Capell\Core\Models\Language;
 use Capell\Core\Models\Page;
 use Capell\Core\Models\PageUrl;
 use Capell\Core\Models\Site;
+use Capell\Core\Support\Extensions\ExtensionPresence;
 use Capell\Navigation\Models\Navigation;
 use Composer\InstalledVersions;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -80,13 +82,23 @@ final class InspectSiteStateTool extends Tool
         }
     }
 
-    /** @return array<string, string|null> */
+    /**
+     * Capell packages on disk, without extensions the site has disabled or uninstalled:
+     * Composer still lists their files, but their features are off. Libraries the
+     * extension registry does not track (such as Core itself) are reported as installed.
+     *
+     * @return array<string, string|null>
+     */
     private function installedCapellPackages(): array
     {
         $packages = [];
 
         foreach (InstalledVersions::getInstalledPackages() as $packageName) {
             if (! str_starts_with($packageName, 'capell-app/')) {
+                continue;
+            }
+
+            if (CapellCore::hasPackage($packageName) && ! ExtensionPresence::isActive($packageName)) {
                 continue;
             }
 
@@ -115,7 +127,7 @@ final class InspectSiteStateTool extends Tool
                 'pageUrls' => $this->countSiteRecords(PageUrl::class, $siteIds),
                 'blueprints' => null,
                 'redirects' => $this->count(static fn (): int => PageUrl::query()->whereIn('site_id', $siteIds)->where('type', UrlTypeEnum::Redirect)->count()),
-                'navigations' => $this->countSiteRecords(Navigation::class, $siteIds),
+                'navigations' => $this->navigationCount($siteIds),
             ];
         }
 
@@ -126,8 +138,20 @@ final class InspectSiteStateTool extends Tool
             'pageUrls' => $this->countOptionalModel(PageUrl::class),
             'blueprints' => $this->countOptionalModel(Blueprint::class),
             'redirects' => $this->count(static fn (): int => PageUrl::query()->where('type', UrlTypeEnum::Redirect)->count()),
-            'navigations' => $this->countOptionalModel(Navigation::class),
+            'navigations' => $this->navigationCount(null),
         ];
+    }
+
+    /** @param  list<int>|null  $siteIds */
+    private function navigationCount(?array $siteIds): ?int
+    {
+        if (! CapellCore::isPackageAvailable('capell-app/navigation')) {
+            return null;
+        }
+
+        return $siteIds === null
+            ? $this->countOptionalModel(Navigation::class)
+            : $this->countSiteRecords(Navigation::class, $siteIds);
     }
 
     /** @param  list<int>  $siteIds */

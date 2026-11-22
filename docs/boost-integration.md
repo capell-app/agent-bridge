@@ -2,7 +2,7 @@
 
 Capell Agent Bridge has two Agent Bridge surfaces:
 
-- Laravel Boost local Agent Bridge: `php artisan boost:agent-bridge`
+- Laravel Boost local MCP server: `php artisan boost:mcp`
 - Capell Site Agent Bridge: the authenticated `agent-bridge/capell` route registered by `capell-app/agent-bridge`
 
 Boost is for local development assistance. It can discover Capell package guidance from installed Composer packages and can list or preview registered Capell Agent Bridge capabilities.
@@ -28,6 +28,7 @@ Install Laravel Boost and Capell Agent Bridge in the Laravel app:
 composer require --dev laravel/boost
 composer require capell-app/agent-bridge:*
 php artisan package:discover
+php artisan capell:extension-install capell-app/agent-bridge
 ```
 
 When using zsh, quote the wildcard package constraint:
@@ -42,14 +43,14 @@ Run Boost installation for the agent you use:
 php artisan boost:install
 ```
 
-This writes the agent Agent Bridge config for `php artisan boost:agent-bridge`. The exact destination depends on the selected agent.
+This configures your MCP client to start Boost with `php artisan boost:mcp`. The configuration location depends on the selected client.
 
 ## How Capell Agent Bridge Appears In Boost
 
-`Capell\AgentBridge\Providers\AgentBridgeServiceProvider` checks whether Boost is installed. When `Laravel\Boost\AgentBridge\Boost` exists, the provider appends Capell bridge tools to:
+`Capell\AgentBridge\Providers\AgentBridgeServiceProvider` appends Capell bridge tools to Boost's tool list when Capell Agent Bridge is enabled and `Laravel\Boost\Mcp\Boost` is installed.
 
 ```php
-config('boost.agent-bridge.tools.include')
+config('boost.mcp.tools.include')
 ```
 
 The bridge tools are:
@@ -63,7 +64,7 @@ These tools read from `Capell\AgentBridge\Support\CapellAgentBridgeCapabilityReg
 
 For local development:
 
-1. Agent connects to `php artisan boost:agent-bridge`.
+1. Agent connects to `php artisan boost:mcp`.
 2. Agent calls `capell-list-capabilities`.
 3. Agent calls `capell-preview-capability` for a safe preview.
 4. Mutating confirmation is handled outside Boost through the authenticated Capell Site Agent Bridge server.
@@ -80,26 +81,26 @@ For authenticated site operations:
 
 ## Verifying In A Host App
 
-From the host app:
+From a Capell host app with Laravel Boost installed, install the Composer package and activate the Agent Bridge extension before checking the tool list. Skip `capell:extension-install` if Agent Bridge is already active.
 
 ```bash
 composer require 'capell-app/agent-bridge:*' --with-all-dependencies
 php artisan package:discover --ansi
+php artisan capell:extension-install capell-app/agent-bridge
 find vendor/capell-app/agent-bridge/resources/boost -maxdepth 4 -type f -print | sort
-php artisan tinker --execute='var_export(config("boost.agent-bridge.tools.include"));'
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | php artisan boost:mcp
 ```
 
 Expected:
 
 - `vendor/capell-app/agent-bridge/resources/boost/guidelines/core.blade.php`
 - `vendor/capell-app/agent-bridge/resources/boost/skills/capell-agent-bridge-development/SKILL.md`
-- `Capell\AgentBridge\Tools\Boost\ListBoostCapabilitiesTool`
-- `Capell\AgentBridge\Tools\Boost\PreviewBoostCapabilityTool`
+- The `tools/list` response includes `capell-list-capabilities` and `capell-preview-capability`.
 
 ## Common Problems
 
 - `capell-app/agent-bridge` is not in the host app `composer.json`, so no Capell Agent Bridge provider or Boost resources are installed.
-- `php artisan boost:install` has not been run, so the agent is not configured to start `boost:agent-bridge`.
+- Run `php artisan boost:install` if your MCP client is missing the entry that starts `boost:mcp`.
 - Config is cached after changing installed packages. Run `php artisan optimize:clear`.
 - A package adds an Agent Bridge capability but does not tag a `CapellAgentBridgeCapabilityProvider`, so the registry never sees it.
 - A mutating operation is attempted through Boost instead of the authenticated Capell Site Agent Bridge server.

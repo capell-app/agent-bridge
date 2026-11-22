@@ -42,6 +42,11 @@ final class PreviewBoostCapabilityTool extends Tool
 
     public function handle(Request $request, CapellAgentBridgeCapabilityRegistry $registry): ResponseFactory
     {
+        return $this->previewCapability($request, $registry);
+    }
+
+    public function previewCapability(Request $request, CapellAgentBridgeCapabilityRegistry $registry): ResponseFactory
+    {
         $data = $request->validate([
             'capability' => ['required', 'string'],
             'payload' => ['required', 'array'],

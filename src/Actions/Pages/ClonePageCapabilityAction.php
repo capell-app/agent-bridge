@@ -9,6 +9,7 @@ use Capell\AgentBridge\Contracts\CapellAgentBridgeCapabilityAction;
 use Capell\AgentBridge\Data\Capabilities\ClonePageCapabilityInputData;
 use Capell\AgentBridge\Data\CapabilityInvocationData;
 use Capell\AgentBridge\Data\CapabilityResultData;
+use Capell\AgentBridge\Support\AgentBridgeAiProvenance;
 use Capell\AgentBridge\Support\AgentBridgePagePresenter;
 use Capell\AgentBridge\Support\AgentBridgePolicyAuthorizer;
 use Capell\AgentBridge\Support\AgentBridgeRecordResolver;
@@ -77,7 +78,7 @@ final class ClonePageCapabilityAction implements CapellAgentBridgeCapabilityActi
             preferredSlug: $payload->slug,
         );
 
-        $clone = DB::transaction(function () use ($source, $language, $targetName, $targetTitle, $targetSlug): Page {
+        $clone = DB::transaction(function () use ($source, $language, $targetName, $targetTitle, $targetSlug, $invocation): Page {
             $source->loadMissing('translations');
             $translations = $source->translations
                 ->map(function (Model $translation) use ($source, $language, $targetTitle, $targetSlug): array {
@@ -127,6 +128,19 @@ final class ClonePageCapabilityAction implements CapellAgentBridgeCapabilityActi
             }
 
             SetupPageUrlsAction::run($clone);
+
+            // The copy keeps the source's unreviewed AI content unreviewed, and the fields
+            // the agent chose for the copy are new AI writes.
+            AgentBridgeAiProvenance::carryUnreviewed($source, $clone);
+            AgentBridgeAiProvenance::record(
+                $clone,
+                array_keys(array_filter(
+                    array_intersect_key($invocation->payload, array_flip(['name', 'title', 'slug'])),
+                    static fn (mixed $value): bool => $value !== null,
+                )),
+                AgentBridgeValue::integer($language->getKey(), 'Language key'),
+                $invocation,
+            );
 
             return $clone->fresh(['translations.language', 'pageUrls']) ?? $clone;
         });

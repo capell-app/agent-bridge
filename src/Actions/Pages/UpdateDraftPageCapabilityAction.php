@@ -10,11 +10,13 @@ use Capell\AgentBridge\Data\Capabilities\UpdateDraftPageCapabilityInputData;
 use Capell\AgentBridge\Data\CapabilityInvocationData;
 use Capell\AgentBridge\Data\CapabilityResultData;
 use Capell\AgentBridge\Exceptions\AgentBridgeMcpV1ConflictException;
+use Capell\AgentBridge\Support\AgentBridgeAiProvenance;
 use Capell\AgentBridge\Support\AgentBridgePageRevertPoints;
 use Capell\AgentBridge\Support\AgentBridgePolicyAuthorizer;
 use Capell\AgentBridge\Support\AgentBridgeRecordResolver;
 use Capell\AgentBridge\Support\AgentBridgeValue;
 use Capell\Core\Actions\SetupPageUrlsAction;
+use Capell\Core\Enums\AiDisclosure;
 use Capell\Core\EventSourcing\Enums\PageWorkflowStatus;
 use Capell\Core\Models\Page;
 use Capell\Core\Models\PageWorkflowState;
@@ -81,6 +83,7 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
             $versionBefore = AgentBridgePageRevertPoints::currentVersion($page);
             resolve(AgentBridgePolicyAuthorizer::class)->authorize($invocation->user, 'update', $page);
             $updated = array_keys($updates);
+            $languageId = null;
 
             if ($translationFields !== []) {
                 $site = $page->site;
@@ -113,11 +116,24 @@ final class UpdateDraftPageCapabilityAction implements CapellAgentBridgeCapabili
 
                 $translation->meta = $meta;
                 $translation->save();
+                $languageId = AgentBridgeValue::integer($language->getKey(), 'Language key');
                 $updated = [...$updated, ...array_keys($translationFields)];
             }
 
             if ($translationFields !== []) {
                 SetupPageUrlsAction::run($page);
+            }
+
+            // Recorded before the page save: that save cuts the revision, which must hold
+            // these rows so a rollback to it cannot bring back AI content as reviewed.
+            AgentBridgeAiProvenance::record($page, array_values(array_unique($updated)), $languageId, $invocation);
+
+            if (array_key_exists('meta', $updates)) {
+                // Keep Core's disclosure summary: agent-sent meta must not replace or forge it.
+                $updates['meta'] = [
+                    ...(array) $updates['meta'],
+                    AiDisclosure::PAGE_META_KEY => ((array) $page->meta)[AiDisclosure::PAGE_META_KEY] ?? AiDisclosure::None->value,
+                ];
             }
 
             $page->forceFill($updates)->save();

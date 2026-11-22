@@ -8,7 +8,7 @@ A connected assistant can create or update drafts and upload images of up to abo
 
 Administrators get a screen of their own where they type a request, check what it will do and confirm it. It recognises a fixed set of commands and uses no AI. Every key expires. By default a new key lasts 90 days and can't be set to last more than a year, though your developer can change both limits. Keys can be replaced or withdrawn sooner, and each one is kept in scrambled form. Administrators can read a record of every action afterwards, with secrets hidden.
 
-- **Price and availability:** Check current availability and price on the [Capell Marketplace listing](https://capell.app/extensions/agent-bridge).
+- **Price and availability:** Check current availability and price on the [Capell Marketplace listing](https://capell.app/marketplace/extensions/agent-bridge).
 - **Licence:** Published under MIT in `composer.json`.
 - **Requires:** `PHP ^8.4`, `capell-app/admin ^1.0.72`, `capell-app/core ^1.0.78`, `laravel/framework ^12.61.1|^13.12.0`, `laravel/mcp ^0.6|^0.7|^0.9|^1.0`, `lorisleiva/laravel-actions ^2.8`, `spatie/laravel-data ^4.5`, `spatie/laravel-package-tools ^1.14.1`.
 - **Install:** `composer require capell-app/agent-bridge`.
@@ -90,5 +90,6 @@ Read [CHANGELOG.md](CHANGELOG.md) before upgrading.
 - [Capell content language plan](../../docs/CONTENT_LANGUAGE_PLAN.md)
 - [Capell documentation design system](../../docs/DESIGN_SYSTEM.md)
 - [Capell and package ERD notes](../../docs/erd/capell-and-package-erds.md)
+- Related packages: [Navigation](../navigation/README.md).
 
 <!-- prettier-ignore-end -->
