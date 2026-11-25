@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Capell\AgentBridge\Tools\Site;
 
+use Capell\AgentBridge\Bridges\Navigation\NavigationSiteStateBridge;
 use Capell\AgentBridge\Models\CapellAgentBridgeToken;
 use Capell\AgentBridge\Support\AgentBridgePageAccess;
 use Capell\AgentBridge\Support\AgentBridgeTokenSiteRestriction;
@@ -15,7 +16,6 @@ use Capell\Core\Models\Page;
 use Capell\Core\Models\PageUrl;
 use Capell\Core\Models\Site;
 use Capell\Core\Support\Extensions\ExtensionPresence;
-use Capell\Navigation\Models\Navigation;
 use Composer\InstalledVersions;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
@@ -145,13 +145,15 @@ final class InspectSiteStateTool extends Tool
     /** @param  list<int>|null  $siteIds */
     private function navigationCount(?array $siteIds): ?int
     {
-        if (! CapellCore::isPackageAvailable('capell-app/navigation')) {
+        $modelClass = NavigationSiteStateBridge::modelClass();
+
+        if ($modelClass === null) {
             return null;
         }
 
         return $siteIds === null
-            ? $this->countOptionalModel(Navigation::class)
-            : $this->countSiteRecords(Navigation::class, $siteIds);
+            ? $this->countOptionalModel($modelClass)
+            : $this->countSiteRecords($modelClass, $siteIds);
     }
 
     /** @param  list<int>  $siteIds */
