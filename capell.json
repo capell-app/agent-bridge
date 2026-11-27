@@ -6,6 +6,7 @@
     "kind": "package",
     "capellApiVersion": "^1.0",
     "version": "1.0.0",
+    "launchStatus": "preview",
     "description": "Lets AI tools like Claude Code or Cursor search, inspect and draft pages through personal keys, and preview each change before you confirm it.",
     "product": {
         "group": "Capell Essentials",
